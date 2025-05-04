@@ -79,6 +79,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turbofan-typer.h"
+#include "src/compiler/type-injector.h"
 #include "src/compiler/turboshaft/build-graph-phase.h"
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
@@ -1033,6 +1034,15 @@ struct EarlyGraphTrimmingPhase {
     data->jsgraph()->GetCachedNodes(&roots);
     UnparkedScopeIfNeeded scope(data->broker(), v8_flags.trace_turbo_trimming);
     trimmer.TrimGraph(roots.begin(), roots.end());
+  }
+};
+
+struct TypeInjectorPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(TypeInjector)
+
+  void Run(TFPipelineData* data, Zone* temp_zone) {
+    // TODO
+    std::cout << "TypeInjectorPhase not implemented" << std::endl;
   }
 };
 
@@ -2004,6 +2014,9 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   // Trim the graph before typing to ensure all nodes are typed.
   RUN_MAYBE_ABORT(EarlyGraphTrimmingPhase);
   RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
+
+  RUN_MAYBE_ABORT(TypeInjectorPhase);
+  RunPrintAndVerify(TypeInjectorPhase::phase_name(), true);
 
   // Type the graph and keep the Typer running such that new nodes get
   // automatically typed when they are created.

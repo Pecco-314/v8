@@ -415,6 +415,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmSimd)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypeAssertions)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypedLowering)                     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypeInjector)                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Untyper)                           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                       \
