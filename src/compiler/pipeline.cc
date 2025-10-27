@@ -743,6 +743,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   data_.set_start_source_position(
       compilation_info()->shared_info()->StartPosition());
 
+  // Cache script hash for safe background thread access
+  {
+    DirectHandle<SharedFunctionInfo> shared = compilation_info()->shared_info();
+    DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
+    DirectHandle<String> script_hash = Script::GetScriptHash(isolate, script, false);
+    compilation_info()->set_cached_script_hash(script_hash->ToCString().get());
+  }
+
   linkage_ = compilation_info()->zone()->New<Linkage>(
       Linkage::ComputeIncoming(compilation_info()->zone(), compilation_info()));
 
@@ -1041,8 +1049,9 @@ struct TypeInjectorPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(TypeInjector)
 
   void Run(TFPipelineData* data, Zone* temp_zone) {
-    // TODO
-    std::cout << "TypeInjectorPhase not implemented" << std::endl;
+    USE(temp_zone);
+    TypeInjector injector(data->info(), data->graph());
+    injector.Run();
   }
 };
 
@@ -2015,13 +2024,24 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   RUN_MAYBE_ABORT(EarlyGraphTrimmingPhase);
   RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
 
-  RUN_MAYBE_ABORT(TypeInjectorPhase);
-  RunPrintAndVerify(TypeInjectorPhase::phase_name(), true);
+
+// #ifdef DEBUG
+//   std::cout << "\n-------- (Before)\n";
+//   data->graph()->Print();
+// #endif
 
   // Type the graph and keep the Typer running such that new nodes get
   // automatically typed when they are created.
   RUN_MAYBE_ABORT(TyperPhase, data->CreateTyper());
   RunPrintAndVerify(TyperPhase::phase_name());
+
+  RUN_MAYBE_ABORT(TypeInjectorPhase);
+  RunPrintAndVerify(TypeInjectorPhase::phase_name(), true);
+
+// #ifdef DEBUG
+//   std::cout << "\n-------- (Type Injector)\n";
+//   data->graph()->Print();
+// #endif
 
   RUN_MAYBE_ABORT(TypedLoweringPhase);
   RunPrintAndVerify(TypedLoweringPhase::phase_name());
@@ -2055,6 +2075,11 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   // types might even conflict with the representation/truncation logic.
   RUN_MAYBE_ABORT(SimplifiedLoweringPhase, linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
+
+// #ifdef DEBUG
+//   std::cout << "\n-------- (Simplified Lowering)\n";
+//   data->graph()->Print();
+// #endif
 
 #if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
@@ -2113,6 +2138,11 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   }
 
   if (!ComputeScheduledGraph()) return false;
+
+// #ifdef DEBUG
+//   std::cout << "\n--------\n";
+//   data->graph()->Print();
+// #endif
 
   return !info()->was_cancelled();
 }
