@@ -15,6 +15,12 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(TypeStorage, TypeStorage::Get)
 static Type GetTypeFromString(std::string type_str) {
   if (type_str == "s") {
     return Type::String();
+  } else if (type_str == "n") {
+    return Type::Number();
+  } else if (type_str == "i") {
+    return Type::Signed31();
+  } else if (type_str == "i32") {
+    return Type::Signed32();
   } else {
     return Type::Any();
   }
