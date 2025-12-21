@@ -266,6 +266,12 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     profiler_data_ = profiler_data;
   }
 
+  // Cache script hash for safe access from background threads
+  const std::string& cached_script_hash() const { return cached_script_hash_; }
+  void set_cached_script_hash(std::string hash) {
+    cached_script_hash_ = std::move(hash);
+  }
+
   std::unique_ptr<PersistentHandles> DetachPersistentHandles() {
     DCHECK_NOT_NULL(ph_);
     return std::move(ph_);
@@ -353,6 +359,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // handles above. The only difference is that is created in the
   // CanonicalHandleScope(i.e step 1) is different).
   std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
+
+  // Cached script hash for background thread access
+  std::string cached_script_hash_;
 };
 
 }  // namespace internal

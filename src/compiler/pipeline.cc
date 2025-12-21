@@ -79,6 +79,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turbofan-typer.h"
+#include "src/compiler/type-injector.h"
 #include "src/compiler/turboshaft/build-graph-phase.h"
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
@@ -742,6 +743,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   data_.set_start_source_position(
       compilation_info()->shared_info()->StartPosition());
 
+  // Cache script hash for safe background thread access
+  {
+    DirectHandle<SharedFunctionInfo> shared = compilation_info()->shared_info();
+    DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
+    DirectHandle<String> script_hash = Script::GetScriptHash(isolate, script, false);
+    compilation_info()->set_cached_script_hash(script_hash->ToCString().get());
+  }
+
   linkage_ = compilation_info()->zone()->New<Linkage>(
       Linkage::ComputeIncoming(compilation_info()->zone(), compilation_info()));
 
@@ -1033,6 +1042,16 @@ struct EarlyGraphTrimmingPhase {
     data->jsgraph()->GetCachedNodes(&roots);
     UnparkedScopeIfNeeded scope(data->broker(), v8_flags.trace_turbo_trimming);
     trimmer.TrimGraph(roots.begin(), roots.end());
+  }
+};
+
+struct TypeInjectorPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(TypeInjector)
+
+  void Run(TFPipelineData* data, Zone* temp_zone) {
+    USE(temp_zone);
+    TypeInjector injector(data->info(), data->graph());
+    injector.Run();
   }
 };
 
@@ -2010,6 +2029,9 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   RUN_MAYBE_ABORT(TyperPhase, data->CreateTyper());
   RunPrintAndVerify(TyperPhase::phase_name());
 
+  RUN_MAYBE_ABORT(TypeInjectorPhase);
+  RunPrintAndVerify(TypeInjectorPhase::phase_name(), true);
+
   RUN_MAYBE_ABORT(TypedLoweringPhase);
   RunPrintAndVerify(TypedLoweringPhase::phase_name());
 
@@ -2042,6 +2064,11 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   // types might even conflict with the representation/truncation logic.
   RUN_MAYBE_ABORT(SimplifiedLoweringPhase, linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
+
+// #ifdef DEBUG
+//   std::cout << "\n-------- (Simplified Lowering)\n";
+//   data->graph()->Print();
+// #endif
 
 #if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
@@ -2100,6 +2127,12 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   }
 
   if (!ComputeScheduledGraph()) return false;
+
+#ifdef DEBUG
+  std::cout << "-------- ";
+  std::cout << "Start position: " << data->start_source_position() << std::endl;
+  data->graph()->Print();
+#endif
 
   return !info()->was_cancelled();
 }

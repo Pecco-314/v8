@@ -5067,6 +5067,8 @@ v8_compiler_sources = [
   "src/compiler/turbofan-graph.cc",
   "src/compiler/turbofan-typer.cc",
   "src/compiler/turbofan-types.cc",
+  "src/compiler/type-injector.cc",
+  "src/compiler/type-storage.cc",
   "src/compiler/turboshaft/analyzer-iterator.cc",
   "src/compiler/turboshaft/assembler.cc",
   "src/compiler/turboshaft/block-instrumentation-phase.cc",
