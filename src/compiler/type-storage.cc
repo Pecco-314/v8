@@ -7,9 +7,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/compiler/type-cache.h"
-
-// TODO: 路径目前是硬编码的，后续应改为通过 flag 或环境变量传入
-static const char* DIR = "metadata/";
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +31,6 @@ class TypeParser {
     if (s == "void") return TypeAST::Void;
     if (s == "bool") return TypeAST::Bool;
     if (s == "num") return TypeAST::Num;
-    if (s == "smi") return TypeAST::Smi;
     if (s == "str") return TypeAST::Str;
 
     if (s == "i32") return TypeAST::I32;
@@ -156,7 +153,16 @@ void TypeStorage::ReadFile(std::string hash) {
   if (storage_.find(hash) != storage_.end()) {
     return;
   }
-  auto path = DIR + hash + ".metadata";
+  // 使用 --turbo_metadata_path 传入的路径，如果没有设置则不加载 metadata
+  const char* metadata_path = v8_flags.turbo_metadata_path;
+  if (metadata_path == nullptr) {
+    return;
+  }
+  std::string dir(metadata_path);
+  if (!dir.empty() && dir.back() != '/') {
+    dir += '/';
+  }
+  auto path = dir + hash + ".metadata";
   std::ifstream ifs(path);
   if (!ifs.is_open()) {
     return;

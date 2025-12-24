@@ -21,8 +21,6 @@ namespace compiler {
 // 将 TypeAST 转换为 Turbofan Type
 Type TypeInjector::TypeASTToType(const TypeAST& ast) {
   switch (ast.kind) {
-    case TypeAST::Smi:
-      return Type::SignedSmall();
     case TypeAST::Num:
       return Type::Number();
     case TypeAST::Str:

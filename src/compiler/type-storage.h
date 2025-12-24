@@ -13,7 +13,6 @@ struct TypeAST {
     Void,
     Bool,
     Num,
-    Smi,
     Str,
     I32,
     U32,
@@ -38,8 +37,6 @@ struct TypeAST {
         return "Bool";
       case Num:
         return "Num";
-      case Smi:
-        return "Smi";
       case Str:
         return "Str";
       case I32:

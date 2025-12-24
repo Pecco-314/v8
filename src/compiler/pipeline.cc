@@ -2129,8 +2129,7 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   if (!ComputeScheduledGraph()) return false;
 
 #ifdef DEBUG
-  std::cout << "-------- ";
-  std::cout << "Start position: " << data->start_source_position() << std::endl;
+  std::cout << "[TypeInjector] Start position: " << data->start_source_position() << std::endl;
   data->graph()->Print();
 #endif
 

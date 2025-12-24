@@ -1245,6 +1245,8 @@ DEFINE_NEG_IMPLICATION(trace_turbo, concurrent_builtin_generation)
 DEFINE_WEAK_IMPLICATION(trace_turbo, concurrent_turbo_tracing)
 DEFINE_STRING(trace_turbo_path, nullptr,
               "directory to dump generated TurboFan IR to")
+DEFINE_STRING(turbo_metadata_path, nullptr,
+              "directory to read type metadata files for TypeInjector")
 DEFINE_STRING(trace_turbo_filter, "*",
               "filter for tracing turbofan compilation")
 DEFINE_BOOL(trace_turbo_graph, false, "trace generated TurboFan graphs")
