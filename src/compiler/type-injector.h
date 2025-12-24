@@ -9,6 +9,7 @@
 #endif
 
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/turbofan-graph.h"
 #include "src/compiler/type-storage.h"
 
@@ -18,8 +19,9 @@ namespace compiler {
 
 class TypeInjector {
  public:
-  TypeInjector(OptimizedCompilationInfo* compilation_info, TFGraph* graph)
-    : compilation_info_(compilation_info), graph_(graph) {}
+  TypeInjector(OptimizedCompilationInfo* compilation_info, TFGraph* graph,
+               CommonOperatorBuilder* common)
+    : compilation_info_(compilation_info), graph_(graph), common_(common) {}
   void Run();
 
  private:
@@ -34,6 +36,9 @@ class TypeInjector {
   std::optional<TypeAST> GetNodeTypeASTWithIndex(Node* node, int index);
   void ProcessLoadFieldNode(Node* node);
   void ProcessLoadElementNode(Node* node);
+  void RemoveTupleBoundsCheck(Node* load_element_node, Node* check_bounds_node,
+                               Node* index_constant);
+  void ReplaceTupleLengthWithConstant(Node* load_field_node, int tuple_length);
 #if V8_COMPILER_TYPE_INJECTOR_DEBUG
   void InspectLoadFieldNode(Node* node);
   void InspectLoadElementNode(Node* node);
@@ -41,6 +46,7 @@ class TypeInjector {
   
   OptimizedCompilationInfo* compilation_info_;
   TFGraph* graph_;
+  CommonOperatorBuilder* common_;
 
   std::vector<TypeAST> param_types_;
 };

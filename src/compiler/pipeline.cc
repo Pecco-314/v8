@@ -1050,7 +1050,7 @@ struct TypeInjectorPhase {
 
   void Run(TFPipelineData* data, Zone* temp_zone) {
     USE(temp_zone);
-    TypeInjector injector(data->info(), data->graph());
+    TypeInjector injector(data->info(), data->graph(), data->common());
     injector.Run();
   }
 };

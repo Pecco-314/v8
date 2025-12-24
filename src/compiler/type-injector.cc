@@ -12,7 +12,9 @@
 #include "src/compiler/turbofan-types.h"
 #include "src/objects/casting-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/js-array.h"
 #include "src/objects/map-inl.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -195,8 +197,8 @@ std::optional<TypeAST> TypeInjector::GetNodeTypeASTWithIndex(Node* node,
                                                               int index) {
   auto type_opt = GetNodeTypeAST(node);
   if (!type_opt.has_value()) {
-    return std::nullopt;
-  }
+      return std::nullopt;
+    }
 
   const TypeAST& type = type_opt.value();
   if (type.kind == TypeAST::Tuple) {
@@ -214,7 +216,28 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
   // 获取操作符的参数
   FieldAccess const& access = FieldAccessOf(node->op());
 
-  // 获取字段名
+  // 检查是否是 JSArrayLength（offset == 12，JSArray::kLengthOffset）
+  // JSArrayLength 的字段名可能是 null 或 "length"，需要通过 offset 识别
+  if (access.offset == JSArray::kLengthOffset) {
+    // 获取 LoadField 的输入节点（object）
+    Node* object_node = NodeProperties::GetValueInput(node, 0);
+
+    // 递归获取对象的类型
+    auto object_type_opt = GetNodeTypeAST(object_node);
+    if (object_type_opt.has_value()) {
+      const TypeAST& object_type = object_type_opt.value();
+      if (object_type.kind == TypeAST::Tuple) {
+        // Tuple 的长度是固定的，直接用常量替换
+        int tuple_length = static_cast<int>(object_type.children.size());
+        TYPE_INJECTOR_DEBUG("Replacing Tuple length LoadField #" << node->id()
+                                                                  << " with constant: " << tuple_length);
+        ReplaceTupleLengthWithConstant(node, tuple_length);
+        return;
+      }
+    }
+  }
+
+  // 处理有字段名的 LoadField（Interface 字段访问）
   std::string field_name;
   if (!access.name.is_null()) {
     Handle<Name> name_handle = access.name.ToHandleChecked();
@@ -226,12 +249,12 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
       return;  // 非 String 类型的字段名，跳过
     }
   } else {
-    return;  // 没有字段名，跳过
+    return;  // 没有字段名且不是 JSArrayLength，跳过
   }
   TYPE_INJECTOR_DEBUG("Processing LoadField for field: " << field_name);
 
   // 获取 LoadField 的输入节点（object）
-  Node* object_node = node->InputAt(0);
+  Node* object_node = NodeProperties::GetValueInput(node, 0);
 
   // 递归获取对象的类型
   auto object_type_opt = GetNodeTypeAST(object_node);
@@ -298,15 +321,42 @@ void TypeInjector::ProcessLoadElementNode(Node* node) {
                         << (element_type.has_value() ? "succeeded." : "failed."));
   } else if (container_type.kind == TypeAST::Tuple) {
     // Tuple: 每个位置类型不同，需要获取索引
-    Node* index_node = node->InputAt(1);
+    Node* index_node = NodeProperties::GetValueInput(node, 1);
     auto index_opt = TryGetConstantIndex(index_node);
 
     if (index_opt.has_value()) {
       int index = index_opt.value();
-      TYPE_INJECTOR_DEBUG("  Tuple index: " << index);
-      element_type = GetElementTypeInTuple(container_type, index);
-      TYPE_INJECTOR_DEBUG("  Tuple element type lookup "
-                          << (element_type.has_value() ? "succeeded." : "failed."));
+      int tuple_length = static_cast<int>(container_type.children.size());
+      TYPE_INJECTOR_DEBUG("  Tuple index: " << index << ", length: " << tuple_length);
+      
+      // 检查索引是否在 Tuple 长度范围内
+      if (index >= 0 && index < tuple_length) {
+        element_type = GetElementTypeInTuple(container_type, index);
+        TYPE_INJECTOR_DEBUG("  Tuple element type lookup "
+                            << (element_type.has_value() ? "succeeded." : "failed."));
+        
+        // 移除 bounds check：索引是常量且在范围内，bounds check 是冗余的
+        if (index_node->opcode() == IrOpcode::kCheckBounds ||
+            index_node->opcode() == IrOpcode::kCheckedUint32Bounds ||
+            index_node->opcode() == IrOpcode::kCheckedUint64Bounds) {
+          // 找到原始的索引常量节点
+          Node* index_constant = index_node->InputAt(0);
+          while (index_constant != nullptr &&
+                 (index_constant->opcode() == IrOpcode::kChangeUint32ToUint64 ||
+                  index_constant->opcode() == IrOpcode::kChangeInt32ToInt64)) {
+            index_constant = index_constant->InputAt(0);
+          }
+          
+          if (index_constant != nullptr &&
+              (index_constant->opcode() == IrOpcode::kInt32Constant ||
+               index_constant->opcode() == IrOpcode::kInt64Constant ||
+               index_constant->opcode() == IrOpcode::kNumberConstant)) {
+            RemoveTupleBoundsCheck(node, index_node, index_constant);
+          }
+        }
+      } else {
+        TYPE_INJECTOR_DEBUG("  Tuple index " << index << " out of bounds [0, " << tuple_length << ")");
+      }
     } else {
       TYPE_INJECTOR_DEBUG("  Failed to get constant index for Tuple");
       return;
@@ -322,6 +372,102 @@ void TypeInjector::ProcessLoadElementNode(Node* node) {
                                                    << " to: " << element_turbofan_type);
     NodeProperties::SetType(node, element_turbofan_type);
   }
+}
+
+// 移除 Tuple 的冗余 bounds check
+// 当索引是常量且在 Tuple 长度范围内时，bounds check 是冗余的
+void TypeInjector::RemoveTupleBoundsCheck(Node* load_element_node,
+                                           Node* check_bounds_node,
+                                           Node* index_constant) {
+  // LoadElement 的输入结构：
+  // [0]=elements (value), [1]=index (value, CheckBounds), [2]=effect (CheckBounds), [3]=control
+  // CheckBounds 节点有 value 输出（检查后的索引）和 effect 输出
+  
+  // 检查 check_bounds_node 是否确实是 LoadElement 的输入
+  Node* index_input = NodeProperties::GetValueInput(load_element_node, 1);
+  Node* effect_input = NodeProperties::GetEffectInput(load_element_node);
+  
+  if (index_input != check_bounds_node && effect_input != check_bounds_node) {
+    return;
+  }
+  
+  TYPE_INJECTOR_DEBUG("Removing redundant bounds check for Tuple LoadElement #"
+                      << load_element_node->id() << ", CheckBounds #"
+                      << check_bounds_node->id() << ", using constant #"
+                      << index_constant->id());
+  
+  // 替换 LoadElement 的索引输入（value input），用 index_constant
+  if (index_input == check_bounds_node) {
+    int value_index = NodeProperties::FirstValueIndex(load_element_node) + 1;
+    load_element_node->ReplaceInput(value_index, index_constant);
+  }
+  
+  // 替换 LoadElement 的 effect 输入，用 CheckBounds 的 effect 输入
+  // 这样我们移除了 CheckBounds，但保留了 effect chain
+  if (effect_input == check_bounds_node) {
+    Node* check_bounds_effect_input = NodeProperties::GetEffectInput(check_bounds_node);
+    int effect_index = NodeProperties::FirstEffectIndex(load_element_node);
+    load_element_node->ReplaceInput(effect_index, check_bounds_effect_input);
+  }
+  
+  // 注意：我们不移除 check_bounds_node 本身，因为它可能被其他节点使用
+  // 后续的 DeadCodeElimination phase 会自动清理未使用的节点
+}
+
+void TypeInjector::ReplaceTupleLengthWithConstant(Node* load_field_node,
+                                                    int tuple_length) {
+  // JSArrayLength 返回 TaggedSigned (Smi)
+  // 使用 NumberConstant，SimplifiedLowering 会将其转换为 TaggedSigned
+  Node* constant_node = graph_->NewNode(common_->NumberConstant(tuple_length));
+  
+  // NumberConstant 的类型会自动设置
+  // SimplifiedLowering 会将其转换为 TaggedSigned (Smi)
+  
+  TYPE_INJECTOR_DEBUG("Created Int32Constant #" << constant_node->id()
+                                                 << " with value: " << tuple_length);
+  
+  // 替换 LoadField 节点的所有 value 使用
+  // LoadField 的输出是 value，我们需要替换所有使用 LoadField 的节点
+  // 但是，LoadField 也可能有 effect 和 control 输出，我们需要保留这些
+  
+  // 获取 LoadField 的 effect 输入（用于替换 effect 使用）
+  Node* load_field_effect = NodeProperties::GetEffectInput(load_field_node);
+  
+  // 先收集所有的 value edge 和 effect edge，避免迭代器失效
+  ZoneVector<std::pair<Node*, int>> value_edges(graph_->zone());
+  ZoneVector<std::pair<Node*, int>> effect_edges(graph_->zone());
+  for (Edge edge : load_field_node->use_edges()) {
+    Node* use = edge.from();
+    int index = edge.index();
+    // 检查这是否是 value input
+    if (index < NodeProperties::FirstEffectIndex(use)) {
+      value_edges.push_back(std::make_pair(use, index));
+    } else if (NodeProperties::IsEffectEdge(edge)) {
+      // 这是 effect input，需要替换为 LoadField 的 effect 输入
+      effect_edges.push_back(std::make_pair(use, index));
+    }
+  }
+  
+  // 替换所有 value 使用
+  for (auto& pair : value_edges) {
+    Node* use = pair.first;
+    int index = pair.second;
+    use->ReplaceInput(index, constant_node);
+    TYPE_INJECTOR_DEBUG("Replaced value input #" << index << " of node #"
+                                                 << use->id());
+  }
+  
+  // 替换所有 effect 使用（用 LoadField 的 effect 输入替换）
+  for (auto& pair : effect_edges) {
+    Node* use = pair.first;
+    int index = pair.second;
+    use->ReplaceInput(index, load_field_effect);
+    TYPE_INJECTOR_DEBUG("Replaced effect input #" << index << " of node #"
+                                                  << use->id());
+  }
+  
+  // 注意：LoadField 节点本身不会被删除，因为它可能还有 control 使用
+  // 后续的 DeadCodeElimination phase 会自动清理未使用的节点
 }
 
 #if V8_COMPILER_TYPE_INJECTOR_DEBUG
@@ -399,8 +545,8 @@ void TypeInjector::Run() {
         Type type = TypeASTToType(ast);
         TYPE_INJECTOR_DEBUG("Parameter #" << index << ": ");
         if (V8_COMPILER_TYPE_INJECTOR_DEBUG) {
-          ast.Print();
-          std::cout << std::endl;
+        ast.Print();
+        std::cout << std::endl;
         }
         NodeProperties::SetType(node, type);
       }
