@@ -1,2 +1,1 @@
-285 2 any tuple[str,str]
-
+285 @params any tuple[str,str] @ret str

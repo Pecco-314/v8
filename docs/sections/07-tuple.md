@@ -3,9 +3,14 @@
 #### 测试代码
 
 ```javascript
-function concat(data) { // data: tuple[str, str]
+function concat(data) {
     return data[0] + data[1];
 }
+```
+
+**Metadata**:
+```
+285 @params any tuple[str,str] @ret str
 ```
 
 #### 优化前（无 metadata）- 最终 Graph

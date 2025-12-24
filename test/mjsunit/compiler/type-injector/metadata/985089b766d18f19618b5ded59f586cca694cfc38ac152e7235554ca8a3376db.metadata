@@ -1,2 +1,1 @@
-257 2 any interface{x:str,y:str}
-
+257 @params any interface{x:str,y:str} @ret str

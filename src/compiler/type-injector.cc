@@ -4,6 +4,7 @@
 
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -14,6 +15,7 @@
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -395,7 +397,7 @@ void TypeInjector::RemoveTupleBoundsCheck(Node* load_element_node,
                       << load_element_node->id() << ", CheckBounds #"
                       << check_bounds_node->id() << ", using constant #"
                       << index_constant->id());
-  
+
   // 替换 LoadElement 的索引输入（value input），用 index_constant
   if (index_input == check_bounds_node) {
     int value_index = NodeProperties::FirstValueIndex(load_element_node) + 1;
@@ -456,7 +458,7 @@ void TypeInjector::ReplaceTupleLengthWithConstant(Node* load_field_node,
     TYPE_INJECTOR_DEBUG("Replaced value input #" << index << " of node #"
                                                  << use->id());
   }
-  
+
   // 替换所有 effect 使用（用 LoadField 的 effect 输入替换）
   for (auto& pair : effect_edges) {
     Node* use = pair.first;
@@ -464,70 +466,88 @@ void TypeInjector::ReplaceTupleLengthWithConstant(Node* load_field_node,
     use->ReplaceInput(index, load_field_effect);
     TYPE_INJECTOR_DEBUG("Replaced effect input #" << index << " of node #"
                                                   << use->id());
-  }
-  
+}
+
   // 注意：LoadField 节点本身不会被删除，因为它可能还有 control 使用
   // 后续的 DeadCodeElimination phase 会自动清理未使用的节点
 }
 
-#if V8_COMPILER_TYPE_INJECTOR_DEBUG
-void TypeInjector::InspectLoadFieldNode(Node* node) {
-  if (node->opcode() != IrOpcode::kLoadField) return;
+// 处理 JSCall 节点，注入返回值类型
+void TypeInjector::ProcessJSCallNode(Node* node) {
+  if (node->opcode() != IrOpcode::kJSCall) return;
 
-  FieldAccess const& access = FieldAccessOf(node->op());
-
-  std::cout << "[TypeInjector] Inspecting Node #" << node->id()
-            << " (LoadField):" << std::endl;
-  std::cout << "  -> Offset: " << access.offset << std::endl;
-
-  if (!access.name.is_null()) {
-    Handle<Name> name_handle = access.name.ToHandleChecked();
-    InstanceType type = name_handle->map()->instance_type();
-    if (FIRST_STRING_TYPE <= type && type <= LAST_STRING_TYPE) {
-      DirectHandle<String> str = Cast<String>(name_handle);
-      std::cout << "  -> Name: " << str->ToCString().get() << std::endl;
-    } else {
-      std::cout << "  -> Name: <non-string>" << std::endl;
-    }
-  } else {
-    std::cout << "  -> Name: <null>" << std::endl;
+  // 获取 target（被调用的函数）
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  
+  // 检查 target 是否是 HeapConstant (JSFunction)
+  if (target->opcode() != IrOpcode::kHeapConstant) {
+    return;
   }
 
-  if (access.map.has_value()) {
-    std::cout << "  -> Map: <present>" << std::endl;
-  } else {
-    std::cout << "  -> Map: <null>" << std::endl;
+  // 获取 target 的类型
+  Type target_type = NodeProperties::GetType(target);
+  if (!target_type.IsHeapConstant()) {
+    return;
   }
 
-  std::cout << "  -> Field Type: " << access.type << std::endl;
+  HeapObjectRef target_ref = target_type.AsHeapConstant()->Ref();
+  if (!target_ref.IsJSFunction()) {
+    return;
+  }
+
+  // 获取 SharedFunctionInfo
+  JSFunctionRef function = target_ref.AsJSFunction();
+  OptionalSharedFunctionInfoRef shared_opt = function.shared(broker_);
+  if (!shared_opt.has_value()) {
+    return;
+  }
+
+  SharedFunctionInfoRef shared = shared_opt.value();
+  int start_pos = shared.StartPosition();
+
+  TYPE_INJECTOR_DEBUG("Processing JSCall #" << node->id() 
+                      << " to function at position " << start_pos);
+
+  // 获取函数的返回值类型
+  auto return_type_opt = GetFunctionReturnType(start_pos);
+  if (!return_type_opt.has_value()) {
+    TYPE_INJECTOR_DEBUG("  No return type metadata found");
+    return;
+  }
+
+  const TypeAST& return_type_ast = return_type_opt.value();
+  Type return_type = TypeASTToType(return_type_ast);
+
+  TYPE_INJECTOR_DEBUG("  Setting return type: ");
+  if (V8_COMPILER_TYPE_INJECTOR_DEBUG) {
+    return_type_ast.PrintLn();
+  }
+
+  // 设置 JSCall 节点的返回值类型
+  NodeProperties::SetType(node, return_type);
 }
 
-void TypeInjector::InspectLoadElementNode(Node* node) {
-  if (node->opcode() != IrOpcode::kLoadElement) return;
 
-  std::cout << "[TypeInjector] Inspecting Node #" << node->id()
-            << " (LoadElement):" << std::endl;
-
-  ElementAccess const& access = ElementAccessOf(node->op());
-
-  std::cout << "  -> Element Type: " << access.type << std::endl;
-  std::cout << "  -> Base Is Tagged: "
-            << (access.base_is_tagged == kTaggedBase ? "true" : "false")
-            << std::endl;
-  std::cout << "  -> Header Size: " << access.header_size << std::endl;
-  std::cout << "  -> Machine Type: " << access.machine_type << std::endl;
+// 获取函数的返回值类型
+std::optional<TypeAST> TypeInjector::GetFunctionReturnType(int start_pos) {
+  auto typemap = storage_->GetTypeMap(script_hash_);
+  auto it = typemap.find(start_pos);
+  if (it != typemap.end() && !it->second.empty()) {
+    // 返回值类型存储在参数列表的最后一个位置
+    return it->second.back();
+  }
+  return std::nullopt;
 }
-#endif
 
 void TypeInjector::Run() {
-  const std::string& script_hash = compilation_info_->cached_script_hash();
-  TYPE_INJECTOR_DEBUG("script_hash=" << script_hash);
+  script_hash_ = compilation_info_->cached_script_hash();
+  TYPE_INJECTOR_DEBUG("script_hash=" << script_hash_);
 
   IndirectHandle<SharedFunctionInfo> shared = compilation_info_->shared_info();
   int start_pos = shared->StartPosition();
 
-  auto* storage = TypeStorage::Get();
-  auto typemap = storage->GetTypeMap(script_hash);
+  storage_ = TypeStorage::Get();
+  auto typemap = storage_->GetTypeMap(script_hash_);
 
   auto it = typemap.find(start_pos);
   if (it != typemap.end()) {
@@ -556,17 +576,16 @@ void TypeInjector::Run() {
   // 第二次遍历：处理 LoadField 节点，注入字段类型
   for (Node* node : all.reachable) {
     ProcessLoadFieldNode(node);
-#if V8_COMPILER_TYPE_INJECTOR_DEBUG
-    InspectLoadFieldNode(node);
-#endif
   }
 
   // 第三次遍历：处理 LoadElement 节点，注入元素类型
   for (Node* node : all.reachable) {
     ProcessLoadElementNode(node);
-#if V8_COMPILER_TYPE_INJECTOR_DEBUG
-    InspectLoadElementNode(node);
-#endif
+  }
+
+  // 第四次遍历：处理 JSCall 节点，注入返回值类型
+  for (Node* node : all.reachable) {
+    ProcessJSCallNode(node);
   }
 }
 

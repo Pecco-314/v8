@@ -3,9 +3,14 @@
 #### 测试代码
 
 ```javascript
-function twice_f(arg) { // arg: num
+function twice_f(arg) {
     return arg + arg;
 }
+```
+
+**Metadata**:
+```
+280 @params any num @ret num
 ```
 
 #### 优化前（无 metadata）- 最终 Graph

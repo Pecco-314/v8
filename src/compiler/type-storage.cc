@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -169,21 +170,51 @@ void TypeStorage::ReadFile(std::string hash) {
   }
 
   auto& st = storage_[hash];
-  int pos, num;
-  std::string type_token;
-
-  // 文件格式解析: [BytecodeOffset] [NumCount] [TypeString...]
-  // NumCount 包含所有参数：this (索引 0) + 其他参数 (索引 1, 2, ...)
-  // 注意：文本格式中的复合类型内部不允许包含空格，例如必须写为 "parr<i32>" 而非
-  // "parr< i32 >"
-  while (ifs >> pos >> num) {
+  std::string line;
+  
+  // 新文件格式解析: [BytecodeOffset] @params [param1 param2 ...] @ret [return_type]
+  // 例如: 280 @params any str @ret str
+  //      308 @params any @ret str
+  while (std::getline(ifs, line)) {
+    if (line.empty() || line[0] == '#') continue;  // 跳过空行和注释
+    
+    std::istringstream iss(line);
+    int pos;
+    std::string token;
+    
+    if (!(iss >> pos)) continue;  // 读取 bytecode offset
+    
     std::vector<TypeAST> type_list;
-    for (int i = 0; i < num; ++i) {
-      ifs >> type_token;
-      TypeParser parser(type_token);
-      TypeAST ast = parser.Parse();
-      type_list.push_back(ast);
+    TypeAST return_type;
+    return_type.kind = TypeAST::Any;  // 默认返回值为 Any
+    
+    bool in_params = false;
+    bool in_ret = false;
+    
+    while (iss >> token) {
+      if (token == "@params") {
+        in_params = true;
+        in_ret = false;
+      } else if (token == "@ret") {
+        in_params = false;
+        in_ret = true;
+      } else if (in_params) {
+        // 解析参数类型
+        TypeParser parser(token);
+        TypeAST ast = parser.Parse();
+        type_list.push_back(ast);
+      } else if (in_ret) {
+        // 解析返回值类型
+        TypeParser parser(token);
+        return_type = parser.Parse();
+        break;  // 返回值只有一个
+      }
     }
+    
+    // 将返回值类型追加到参数列表末尾
+    // 这样可以通过索引 param_types_.size() - 1 访问返回值类型
+    type_list.push_back(return_type);
+    
     st[pos] = type_list;
   }
 }

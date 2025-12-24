@@ -3,9 +3,14 @@
 #### 测试代码
 
 ```javascript
-function concat_nested(data) { // data: {first: {x: str, y: str}}
+function concat_nested(data) {
     return data.first.x + data.first.y;
 }
+```
+
+**Metadata**:
+```
+303 @params any interface{first:interface{x:str,y:str},second:str} @ret str
 ```
 
 #### 优化前（无 metadata）- 最终 Graph

@@ -1,2 +1,1 @@
-260 2 any arr<str>
-
+260 @params any arr<str> @ret str

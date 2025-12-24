@@ -3,9 +3,14 @@
 #### 测试代码
 
 ```javascript
-function getLength(tuple) { // tuple: tuple[str, str]
+function getLength(tuple) {
     return tuple.length;
 }
+```
+
+**Metadata**:
+```
+288 @params any tuple[str,str] @ret any
 ```
 
 #### 优化前（无 metadata）- 最终 Graph

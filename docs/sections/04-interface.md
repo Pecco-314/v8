@@ -3,9 +3,14 @@
 #### 测试代码
 
 ```javascript
-function concat(data) { // data: {x: str, y: str}
+function concat(data) {
     return data.x + data.y;
 }
+```
+
+**Metadata**:
+```
+257 @params any interface{x:str,y:str} @ret str
 ```
 
 #### 优化前（无 metadata）- 最终 Graph

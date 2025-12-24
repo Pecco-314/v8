@@ -27,16 +27,32 @@ FAILED_TESTS=0
 
 # 提取 EarlyOptimization phase 之后的最终 Graph
 # EarlyOptimization 阶段经过了 DCE 和节点折叠，更能反映优化效果
+# 参数：$1 - 完整输出，$2 - 函数名（可选，用于提取特定函数的Graph）
 extract_final_graph() {
     local output="$1"
-    echo "$output" | awk '/----- Graph after.*EarlyOptimization/ {found=1; print; next} found && /^----- schedule/ {exit} found'
+    local func_name="$2"
+    
+    if [ -z "$func_name" ]; then
+        # 提取第一个 EarlyOptimization Graph
+        echo "$output" | awk '/----- Graph after.*EarlyOptimization/ {found=1; print; next} found && /^----- schedule/ {exit} found'
+    else
+        # 提取特定函数的 EarlyOptimization Graph
+        echo "$output" | awk -v fname="$func_name" '
+            /SharedFunctionInfo/ && $0 ~ fname {in_func=1}
+            in_func && /----- Graph after.*EarlyOptimization/ {found=1; print; next}
+            found && /^----- schedule/ {exit}
+            found
+        '
+    fi
 }
 
 # 统计节点数量
+# 参数：$1 - 完整输出，$2 - 节点模式，$3 - 函数名（可选）
 count_nodes() {
     local output="$1"
     local pattern="$2"
-    local graph=$(extract_final_graph "$output")
+    local func_name="$3"
+    local graph=$(extract_final_graph "$output" "$func_name")
     
     # 对于 LoadField.*length 这种特殊模式
     if [[ "$pattern" == *"LoadField"* && "$pattern" == *"length"* ]]; then
@@ -70,14 +86,22 @@ run_test() {
     
     local test_passed=true
     
+    # 检查是否需要禁止内联
+    local noinline_flag=""
+    if [[ "$file" == *"function-call"* ]]; then
+        noinline_flag="--max_inlined_bytecode_size=0"
+    fi
+    
     # 无 metadata 运行
     local output_without=$("$D8" --allow-natives-syntax --turbofan --no-always-turbofan \
+        $noinline_flag \
         --trace-turbo-graph \
         "$MJSUNIT" "$file" 2>&1 || true)
     
     # 有 metadata 运行
     local output_with=$("$D8" --allow-natives-syntax --turbofan --no-always-turbofan \
         --turbo_metadata_path="$METADATA_PATH" \
+        $noinline_flag \
         --trace-turbo-graph \
         "$MJSUNIT" "$file" 2>&1 || true)
     
@@ -86,7 +110,7 @@ run_test() {
     if [ -n "$before_has" ]; then
         IFS=',' read -r -a PATTERNS <<< "$before_has"
         for p in "${PATTERNS[@]}"; do
-            local cnt=$(count_nodes "$output_without" "$p")
+            local cnt=$(count_nodes "$output_without" "$p" "$func")
             if [ "$cnt" -gt 0 ]; then
                 echo "  $p: $cnt 个"
             fi
@@ -99,7 +123,7 @@ run_test() {
     if [ -n "$after_has" ]; then
         IFS=',' read -r -a PATTERNS <<< "$after_has"
         for p in "${PATTERNS[@]}"; do
-            local cnt=$(count_nodes "$output_with" "$p")
+            local cnt=$(count_nodes "$output_with" "$p" "$func")
             if [ "$cnt" -gt 0 ]; then
                 echo -e "  ${GREEN}✓${NC} $p: $cnt 个"
             else
@@ -113,8 +137,8 @@ run_test() {
     if [ -n "$after_removed" ]; then
         IFS=',' read -r -a PATTERNS <<< "$after_removed"
         for p in "${PATTERNS[@]}"; do
-            local cnt_before=$(count_nodes "$output_without" "$p")
-            local cnt_after=$(count_nodes "$output_with" "$p")
+            local cnt_before=$(count_nodes "$output_without" "$p" "$func")
+            local cnt_after=$(count_nodes "$output_with" "$p" "$func")
             if [ "$cnt_after" -eq 0 ] && [ "$cnt_before" -gt 0 ]; then
                 echo -e "  ${GREEN}✓${NC} $p: $cnt_before → $cnt_after (已完全移除)"
             elif [ "$cnt_after" -lt "$cnt_before" ]; then
@@ -221,6 +245,15 @@ main() {
         "LoadField\[.*length" \
         "" \
         "LoadField\[.*length"
+    
+    # 函数调用返回值类型（禁止内联）
+    echo ""
+    run_test "函数调用返回值类型" \
+        "$SCRIPT_DIR/test-function-call.js" \
+        "process" \
+        "CheckString,CheckedTaggedToTaggedPointer" \
+        "StringConcat" \
+        "CheckString,CheckedTaggedToTaggedPointer"
     
     # 输出汇总
     echo "=========================================="

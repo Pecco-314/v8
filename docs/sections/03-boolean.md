@@ -3,13 +3,18 @@
 #### 测试代码
 
 ```javascript
-function cal(a, b) { // a: bool
+function cal(a, b) {
     if (a) {
         return a;
     } else {
         return b;
     }
 }
+```
+
+**Metadata**:
+```
+267 @params any bool bool @ret any
 ```
 
 #### 优化前（无 metadata）- 最终 Graph

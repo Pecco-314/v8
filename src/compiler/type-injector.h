@@ -20,8 +20,8 @@ namespace compiler {
 class TypeInjector {
  public:
   TypeInjector(OptimizedCompilationInfo* compilation_info, TFGraph* graph,
-               CommonOperatorBuilder* common)
-    : compilation_info_(compilation_info), graph_(graph), common_(common) {}
+               CommonOperatorBuilder* common, JSHeapBroker* broker)
+    : compilation_info_(compilation_info), graph_(graph), common_(common), broker_(broker) {}
   void Run();
 
  private:
@@ -34,21 +34,22 @@ class TypeInjector {
   std::optional<int> TryGetConstantIndex(Node* node);
   std::optional<TypeAST> GetNodeTypeAST(Node* node);
   std::optional<TypeAST> GetNodeTypeASTWithIndex(Node* node, int index);
+  std::optional<TypeAST> GetFunctionReturnType(int start_pos);
   void ProcessLoadFieldNode(Node* node);
   void ProcessLoadElementNode(Node* node);
+  void ProcessJSCallNode(Node* node);
   void RemoveTupleBoundsCheck(Node* load_element_node, Node* check_bounds_node,
                                Node* index_constant);
   void ReplaceTupleLengthWithConstant(Node* load_field_node, int tuple_length);
-#if V8_COMPILER_TYPE_INJECTOR_DEBUG
-  void InspectLoadFieldNode(Node* node);
-  void InspectLoadElementNode(Node* node);
-#endif
   
   OptimizedCompilationInfo* compilation_info_;
   TFGraph* graph_;
   CommonOperatorBuilder* common_;
+  JSHeapBroker* broker_;
 
   std::vector<TypeAST> param_types_;
+  std::string script_hash_;
+  TypeStorage* storage_;
 };
 
 }  // namespace compiler

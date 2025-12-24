@@ -3,9 +3,14 @@
 #### 测试代码
 
 ```javascript
-function process(data) { // data: tuple[str, num]
+function process(data) {
     return data[0] + data[1].toString();
 }
+```
+
+**Metadata**:
+```
+329 @params any tuple[str,num] @ret str
 ```
 
 #### 优化前（无 metadata）- 最终 Graph

@@ -3,9 +3,14 @@
 #### 测试代码
 
 ```javascript
-function concat_arr(data) { // data: arr[str]
+function concat_arr(data) {
     return data[0] + data[1];
 }
+```
+
+**Metadata**:
+```
+260 @params any arr<str> @ret str
 ```
 
 #### 优化前（无 metadata）- 最终 Graph
