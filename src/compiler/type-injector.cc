@@ -18,6 +18,17 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#ifndef V8_COMPILER_TYPE_INJECTOR_DEBUG
+#define V8_COMPILER_TYPE_INJECTOR_DEBUG 0
+#endif
+
+#if V8_COMPILER_TYPE_INJECTOR_DEBUG
+#define TYPE_INJECTOR_DEBUG(...) \
+  do { std::cout << "[TypeInjector] "; std::cout << __VA_ARGS__ << std::endl; } while (false)
+#else
+#define TYPE_INJECTOR_DEBUG(...) ((void)0)
+#endif
+
 // 将 TypeAST 转换为 Turbofan Type
 Type TypeInjector::TypeASTToType(const TypeAST& ast) {
   switch (ast.kind) {
@@ -28,6 +39,9 @@ Type TypeInjector::TypeASTToType(const TypeAST& ast) {
     case TypeAST::Bool:
       return Type::Boolean();
     case TypeAST::Arr:
+      return Type::Array();
+    case TypeAST::Tuple:
+      // Tuple 底层也是数组，但长度固定，每个位置类型不同
       return Type::Array();
     case TypeAST::Interface:
       return Type::Object();
@@ -62,6 +76,50 @@ std::optional<TypeAST> TypeInjector::GetElementTypeInArray(
   // Array 的元素类型存储在 children[0]
   if (array_ast.children.size() > 0) {
     return array_ast.children[0];
+  }
+  return std::nullopt;
+}
+
+// 从 Tuple 类型 AST 中获取指定索引的元素类型
+std::optional<TypeAST> TypeInjector::GetElementTypeInTuple(
+    const TypeAST& tuple_ast, int index) {
+  if (tuple_ast.kind != TypeAST::Tuple) {
+    return std::nullopt;
+  }
+
+  // Tuple 的每个元素类型存储在 children 中，按索引访问
+  if (index >= 0 && index < static_cast<int>(tuple_ast.children.size())) {
+    return tuple_ast.children[index];
+  }
+  return std::nullopt;
+}
+
+// 尝试从节点中提取常量索引值
+// 追踪 ChangeUint32ToUint64、CheckedUint32Bounds、CheckBounds 等转换，找到原始常量
+std::optional<int> TypeInjector::TryGetConstantIndex(Node* node) {
+  while (node != nullptr) {
+    switch (node->opcode()) {
+      case IrOpcode::kInt32Constant:
+        return OpParameter<int32_t>(node->op());
+      case IrOpcode::kInt64Constant:
+        return static_cast<int>(OpParameter<int64_t>(node->op()));
+      case IrOpcode::kNumberConstant: {
+        // NumberConstant 存储 double 值，转换为 int
+        double value = OpParameter<double>(node->op());
+        return static_cast<int>(value);
+      }
+      case IrOpcode::kChangeUint32ToUint64:
+      case IrOpcode::kChangeInt32ToInt64:
+      case IrOpcode::kCheckedUint32Bounds:
+      case IrOpcode::kCheckedUint64Bounds:
+      case IrOpcode::kCheckBounds:
+        // 继续追踪第一个输入
+        node = node->InputAt(0);
+        break;
+      default:
+        // 无法追踪，返回空
+        return std::nullopt;
+    }
   }
   return std::nullopt;
 }
@@ -106,7 +164,7 @@ std::optional<TypeAST> TypeInjector::GetNodeTypeAST(Node* node) {
       return FindFieldInInterface(object_type, field_name);
     }
   } else if (node->opcode() == IrOpcode::kLoadElement) {
-    // 递归获取 LoadElement 的输入数组的类型
+    // 递归获取 LoadElement 的输入数组/元组的类型
     Node* array_node = node->InputAt(0);
     auto array_type_opt = GetNodeTypeAST(array_node);
     if (!array_type_opt.has_value()) {
@@ -114,12 +172,37 @@ std::optional<TypeAST> TypeInjector::GetNodeTypeAST(Node* node) {
     }
 
     const TypeAST& array_type = array_type_opt.value();
-    if (array_type.kind != TypeAST::Arr) {
-      return std::nullopt;
+    
+    if (array_type.kind == TypeAST::Arr) {
+      // Array: 所有元素类型相同
+      return GetElementTypeInArray(array_type);
+    } else if (array_type.kind == TypeAST::Tuple) {
+      // Tuple: 需要根据索引获取类型
+      // 尝试从 LoadElement 的索引输入中提取常量索引
+      Node* index_node = node->InputAt(1);
+      auto index_opt = TryGetConstantIndex(index_node);
+      if (index_opt.has_value()) {
+        return GetElementTypeInTuple(array_type, index_opt.value());
+      }
     }
+  }
 
-    // 从 Array 中获取元素类型
-    return GetElementTypeInArray(array_type);
+  return std::nullopt;
+}
+
+// 带索引版本的 GetNodeTypeAST，用于 Tuple 类型
+std::optional<TypeAST> TypeInjector::GetNodeTypeASTWithIndex(Node* node,
+                                                              int index) {
+  auto type_opt = GetNodeTypeAST(node);
+  if (!type_opt.has_value()) {
+    return std::nullopt;
+  }
+
+  const TypeAST& type = type_opt.value();
+  if (type.kind == TypeAST::Tuple) {
+    return GetElementTypeInTuple(type, index);
+  } else if (type.kind == TypeAST::Arr) {
+    return GetElementTypeInArray(type);
   }
 
   return std::nullopt;
@@ -145,8 +228,7 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
   } else {
     return;  // 没有字段名，跳过
   }
-  std::cout << "[TypeInjector] Processing LoadField for field: " << field_name
-            << std::endl;
+  TYPE_INJECTOR_DEBUG("Processing LoadField for field: " << field_name);
 
   // 获取 LoadField 的输入节点（object）
   Node* object_node = node->InputAt(0);
@@ -164,137 +246,136 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
 
   // 从 Interface 中查找字段
   auto field_type = FindFieldInInterface(object_type, field_name);
-  std::cout << "[TypeInjector] Field '" << field_name << "' lookup "
-            << (field_type.has_value() ? "succeeded." : "failed.") << std::endl;
+  TYPE_INJECTOR_DEBUG("Field '" << field_name << "' lookup "
+                                 << (field_type.has_value() ? "succeeded." : "failed."));
   if (field_type.has_value()) {
     Type field_turbofan_type = TypeASTToType(field_type.value());
-    std::cout << "[TypeInjector] Setting type for Node #" << node->id()
-              << " to: " << field_turbofan_type << std::endl;
+    TYPE_INJECTOR_DEBUG("Setting type for Node #" << node->id()
+                                                   << " to: " << field_turbofan_type);
     NodeProperties::SetType(node, field_turbofan_type);
   }
 }
 
 // 处理 LoadElement 节点的类型注入
+// 支持 Array 和 Tuple 两种类型
 void TypeInjector::ProcessLoadElementNode(Node* node) {
   if (node->opcode() != IrOpcode::kLoadElement) return;
 
-  std::cout << "[TypeInjector] Processing LoadElement for Node #" << node->id()
-            << std::endl;
+  TYPE_INJECTOR_DEBUG("Processing LoadElement for Node #" << node->id());
 
-  // 获取 LoadElement 的输入节点（array elements）
-  // LoadElement 的输入通常是：[0] = elements buffer, [1] = index, [2] = length
-  // 但在 IR 中，elements buffer 通常来自 LoadField 操作
+  // 获取 LoadElement 的输入节点（array/tuple elements）
+  // LoadElement 的输入通常是：[0] = elements buffer, [1] = index
+  // 在 IR 中，elements buffer 通常来自 LoadField 操作
   Node* elements_node = node->InputAt(0);
-  std::cout << "[TypeInjector]   Input[0]: Node #" << elements_node->id()
-            << " (" << elements_node->op()->mnemonic() << ")" << std::endl;
+  TYPE_INJECTOR_DEBUG("  Input[0]: Node #" << elements_node->id()
+                                           << " (" << elements_node->op()->mnemonic() << ")");
 
-  // 如果 elements_node 是 LoadField，需要找到真正的数组对象
+  // 如果 elements_node 是 LoadField，需要找到真正的数组/元组对象
   Node* array_node = elements_node;
   if (elements_node->opcode() == IrOpcode::kLoadField) {
-    // 这是 LoadField，其输入应该是数组对象
+    // 这是 LoadField，其输入应该是数组/元组对象
     array_node = elements_node->InputAt(0);
-    std::cout << "[TypeInjector]   Following LoadField to Node #" << array_node->id()
-              << " (" << array_node->op()->mnemonic() << ")" << std::endl;
+    TYPE_INJECTOR_DEBUG("  Following LoadField to Node #"
+                        << array_node->id() << " (" << array_node->op()->mnemonic() << ")");
   }
 
-  // 递归获取数组的类型
-  auto array_type_opt = GetNodeTypeAST(array_node);
-  if (!array_type_opt.has_value()) {
-    std::cout << "[TypeInjector]   Failed to get type for array node" << std::endl;
+  // 递归获取数组/元组的类型
+  auto container_type_opt = GetNodeTypeAST(array_node);
+  if (!container_type_opt.has_value()) {
+    TYPE_INJECTOR_DEBUG("  Failed to get type for container node");
     return;
   }
 
-  const TypeAST& array_type = array_type_opt.value();
-  std::cout << "[TypeInjector]   Array type kind: " << array_type.kind << std::endl;
-  if (array_type.kind != TypeAST::Arr) {
-    std::cout << "[TypeInjector]   Array type is not Arr" << std::endl;
+  const TypeAST& container_type = container_type_opt.value();
+  TYPE_INJECTOR_DEBUG("  Container type: " << container_type.KindToString());
+
+  std::optional<TypeAST> element_type;
+
+  if (container_type.kind == TypeAST::Arr) {
+    // Array: 所有元素类型相同
+    element_type = GetElementTypeInArray(container_type);
+    TYPE_INJECTOR_DEBUG("  Array element type lookup "
+                        << (element_type.has_value() ? "succeeded." : "failed."));
+  } else if (container_type.kind == TypeAST::Tuple) {
+    // Tuple: 每个位置类型不同，需要获取索引
+    Node* index_node = node->InputAt(1);
+    auto index_opt = TryGetConstantIndex(index_node);
+
+    if (index_opt.has_value()) {
+      int index = index_opt.value();
+      TYPE_INJECTOR_DEBUG("  Tuple index: " << index);
+      element_type = GetElementTypeInTuple(container_type, index);
+      TYPE_INJECTOR_DEBUG("  Tuple element type lookup "
+                          << (element_type.has_value() ? "succeeded." : "failed."));
+    } else {
+      TYPE_INJECTOR_DEBUG("  Failed to get constant index for Tuple");
+      return;
+    }
+  } else {
+    TYPE_INJECTOR_DEBUG("  Container type is neither Arr nor Tuple");
     return;
   }
 
-  // 从 Array 中获取元素类型
-  auto element_type = GetElementTypeInArray(array_type);
-  std::cout << "[TypeInjector] Element type lookup "
-            << (element_type.has_value() ? "succeeded." : "failed.")
-            << std::endl;
   if (element_type.has_value()) {
     Type element_turbofan_type = TypeASTToType(element_type.value());
-    std::cout << "[TypeInjector] Setting type for Node #" << node->id()
-              << " to: " << element_turbofan_type << std::endl;
+    TYPE_INJECTOR_DEBUG("Setting type for Node #" << node->id()
+                                                   << " to: " << element_turbofan_type);
     NodeProperties::SetType(node, element_turbofan_type);
   }
 }
 
-// 调试输出 LoadField 节点信息
+#if V8_COMPILER_TYPE_INJECTOR_DEBUG
 void TypeInjector::InspectLoadFieldNode(Node* node) {
   if (node->opcode() != IrOpcode::kLoadField) return;
 
-  // 获取操作符的参数
   FieldAccess const& access = FieldAccessOf(node->op());
 
   std::cout << "[TypeInjector] Inspecting Node #" << node->id()
             << " (LoadField):" << std::endl;
-
-  // 1. 获取偏移量
   std::cout << "  -> Offset: " << access.offset << std::endl;
 
-  // 2. 获取字段名
   if (!access.name.is_null()) {
     Handle<Name> name_handle = access.name.ToHandleChecked();
-    // Name 可能是 String 或 Symbol，这里尝试将其转为字符串形式
-    // 使用 InstanceType 来区分
     InstanceType type = name_handle->map()->instance_type();
     if (FIRST_STRING_TYPE <= type && type <= LAST_STRING_TYPE) {
-      // 是 String 类型
       DirectHandle<String> str = Cast<String>(name_handle);
       std::cout << "  -> Name: " << str->ToCString().get() << std::endl;
     } else {
-      // 可能是 Symbol 或其他，先输出 <non-string>
       std::cout << "  -> Name: <non-string>" << std::endl;
     }
   } else {
     std::cout << "  -> Name: <null>" << std::endl;
   }
 
-  // 3. 获取 Map (Field Owner)
-  // access.map 是 OptionalMapRef
   if (access.map.has_value()) {
     std::cout << "  -> Map: <present>" << std::endl;
   } else {
     std::cout << "  -> Map: <null>" << std::endl;
   }
 
-  // 4. 字段类型
   std::cout << "  -> Field Type: " << access.type << std::endl;
 }
 
-// 调试输出 LoadElement 节点信息
 void TypeInjector::InspectLoadElementNode(Node* node) {
   if (node->opcode() != IrOpcode::kLoadElement) return;
 
   std::cout << "[TypeInjector] Inspecting Node #" << node->id()
             << " (LoadElement):" << std::endl;
 
-  // 获取操作符的参数
   ElementAccess const& access = ElementAccessOf(node->op());
 
-  // 1. 获取元素类型
   std::cout << "  -> Element Type: " << access.type << std::endl;
-
-  // 2. 获取基数是否有标记
   std::cout << "  -> Base Is Tagged: "
             << (access.base_is_tagged == kTaggedBase ? "true" : "false")
             << std::endl;
-
-  // 3. 获取 header size
   std::cout << "  -> Header Size: " << access.header_size << std::endl;
-
-  // 4. 获取 machine type
   std::cout << "  -> Machine Type: " << access.machine_type << std::endl;
 }
+#endif
 
 void TypeInjector::Run() {
   const std::string& script_hash = compilation_info_->cached_script_hash();
-  std::cout << "[TypeInjector] script_hash=" << script_hash << std::endl;
+  TYPE_INJECTOR_DEBUG("script_hash=" << script_hash);
 
   IndirectHandle<SharedFunctionInfo> shared = compilation_info_->shared_info();
   int start_pos = shared->StartPosition();
@@ -316,9 +397,11 @@ void TypeInjector::Run() {
       if (index >= 0 && index < static_cast<int>(param_types_.size())) {
         const TypeAST& ast = param_types_[index];
         Type type = TypeASTToType(ast);
-        std::cout << "[TypeInjector] Parameter #" << index << ": ";
-        ast.Print();
-        std::cout << std::endl;
+        TYPE_INJECTOR_DEBUG("Parameter #" << index << ": ");
+        if (V8_COMPILER_TYPE_INJECTOR_DEBUG) {
+          ast.Print();
+          std::cout << std::endl;
+        }
         NodeProperties::SetType(node, type);
       }
     }
@@ -327,13 +410,17 @@ void TypeInjector::Run() {
   // 第二次遍历：处理 LoadField 节点，注入字段类型
   for (Node* node : all.reachable) {
     ProcessLoadFieldNode(node);
-    this->InspectLoadFieldNode(node);
+#if V8_COMPILER_TYPE_INJECTOR_DEBUG
+    InspectLoadFieldNode(node);
+#endif
   }
 
   // 第三次遍历：处理 LoadElement 节点，注入元素类型
   for (Node* node : all.reachable) {
     ProcessLoadElementNode(node);
-    this->InspectLoadElementNode(node);
+#if V8_COMPILER_TYPE_INJECTOR_DEBUG
+    InspectLoadElementNode(node);
+#endif
   }
 }
 

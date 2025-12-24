@@ -16,6 +16,8 @@ TypeInjector 利用静态类型元数据（来自 TypeScript 等）向 TurboFan 
 | `test-interface.js` | Interface/对象类型注入 | 移除字段访问时的 `CheckString` |
 | `test-interface-nested.js` | 嵌套 Interface 类型注入 | 移除嵌套字段访问时的 `CheckString` |
 | `test-array.js` | 数组元素类型注入 (`arr<str>`) | 移除数组元素访问时的 `CheckString` |
+| `test-tuple.js` | Tuple 类型注入 (同类型元素) | 移除数组元素访问时的 `CheckString` |
+| `test-tuple-mixed.js` | Tuple 类型注入 (混合类型元素) | 根据索引注入不同类型 |
 
 ## 辅助脚本
 
@@ -71,9 +73,16 @@ echo "280 2 any str" > metadata/a4c3557f...metadata
 ### 类型语法
 
 - 基本类型：`any`, `void`, `bool`, `num`, `str`, `i32`, `u32`, `i64`, `u64`, `f32`, `f64`
-- 数组：`arr<元素类型>`，如 `arr<str>`
+- 数组：`arr<元素类型>`，如 `arr<str>`（所有元素类型相同）
+- 元组：`tuple[类型1,类型2,...]`，如 `tuple[str,num]`（固定长度，每个位置类型可不同）
 - 接口：`interface{字段1:类型1,字段2:类型2}`，如 `interface{x:str,y:str}`
 - 嵌套接口：`interface{first:interface{x:str,y:str},second:str}`
+
+**Tuple vs Array 的区别**：
+- Array (`arr<T>`)：长度不固定，所有元素类型相同
+- Tuple (`tuple[T1,T2,...]`)：长度固定，每个位置类型可以不同
+
+Tuple 优化时需要知道访问的是第几个元素（索引必须是常量）。由于底层 Map 可能不同（取决于元素类型是否包含 SMI），CheckMaps 不会被移除。
 
 ## 运行测试
 

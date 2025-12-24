@@ -2128,7 +2128,7 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
 
   if (!ComputeScheduledGraph()) return false;
 
-#ifdef DEBUG
+#if V8_COMPILER_TYPE_INJECTOR_DEBUG
   std::cout << "[TypeInjector] Start position: " << data->start_source_position() << std::endl;
   data->graph()->Print();
 #endif

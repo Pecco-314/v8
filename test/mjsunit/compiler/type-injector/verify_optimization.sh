@@ -22,6 +22,15 @@ echo "TypeInjector 优化效果验证"
 echo "=========================================="
 echo ""
 
+# 统计唯一的节点 ID 数量
+# 节点格式: #数字:节点名
+count_unique_nodes() {
+    local output="$1"
+    local pattern="$2"
+    # 提取所有匹配的节点 ID（格式: #数字:节点名），去重后统计
+    echo "$output" | grep -oE "#[0-9]+:$pattern" | sort -u | wc -l
+}
+
 # 对比测试函数
 # 参数: 测试名, 测试文件, 目标函数名, 优化前应有的节点, 优化后应有的节点, 优化后应移除的节点
 compare_test() {
@@ -47,8 +56,8 @@ compare_test() {
     if [ -n "$before_has" ]; then
         IFS=',' read -ra PATTERNS <<< "$before_has"
         for p in "${PATTERNS[@]}"; do
-            local cnt=$(echo "$output_without" | grep -c "$p" || true)
-            echo "  $p: $cnt 处"
+            local cnt=$(count_unique_nodes "$output_without" "$p")
+            echo "  $p: $cnt 个唯一节点"
         done
     fi
     
@@ -64,9 +73,9 @@ compare_test() {
     if [ -n "$after_has" ]; then
         IFS=',' read -ra PATTERNS <<< "$after_has"
         for p in "${PATTERNS[@]}"; do
-            local cnt=$(echo "$output_with" | grep -c "$p" || true)
+            local cnt=$(count_unique_nodes "$output_with" "$p")
             if [ "$cnt" -gt 0 ]; then
-                echo -e "  ${GREEN}✓${NC} $p: $cnt 处"
+                echo -e "  ${GREEN}✓${NC} $p: $cnt 个唯一节点"
             else
                 echo -e "  ${RED}✗${NC} $p: 未找到"
             fi
@@ -77,14 +86,14 @@ compare_test() {
     if [ -n "$after_removed" ]; then
         IFS=',' read -ra PATTERNS <<< "$after_removed"
         for p in "${PATTERNS[@]}"; do
-            local cnt_before=$(echo "$output_without" | grep -c "$p" || true)
-            local cnt_after=$(echo "$output_with" | grep -c "$p" || true)
+            local cnt_before=$(count_unique_nodes "$output_without" "$p")
+            local cnt_after=$(count_unique_nodes "$output_with" "$p")
             if [ "$cnt_after" -lt "$cnt_before" ]; then
-                echo -e "  ${GREEN}✓${NC} $p: $cnt_before → $cnt_after (已减少)"
+                echo -e "  ${GREEN}✓${NC} $p: $cnt_before → $cnt_after 个节点 (已减少)"
             elif [ "$cnt_after" -eq 0 ]; then
-                echo -e "  ${GREEN}✓${NC} $p: 已完全移除"
+                echo -e "  ${GREEN}✓${NC} $p: $cnt_before → 0 个节点 (已完全移除)"
             else
-                echo -e "  ${YELLOW}!${NC} $p: $cnt_before → $cnt_after"
+                echo -e "  ${YELLOW}!${NC} $p: $cnt_before → $cnt_after 个节点"
             fi
         done
     fi
@@ -141,6 +150,22 @@ compare_test "Array 类型" \
     "CheckString" \
     "StringConcat" \
     "CheckString"
+
+# Tuple: CheckString 应被移除 (每个位置类型相同的情况)
+compare_test "Tuple 类型 (同类型元素)" \
+    "$SCRIPT_DIR/test-tuple.js" \
+    "concat" \
+    "CheckString" \
+    "StringConcat" \
+    "CheckString"
+
+# Tuple: 混合类型，第一个元素 CheckString 移除，第二个元素是 Number
+compare_test "Tuple 类型 (混合类型元素)" \
+    "$SCRIPT_DIR/test-tuple-mixed.js" \
+    "process" \
+    "CheckString" \
+    "StringConcat" \
+    ""
 
 echo "=========================================="
 echo "验证完成"
