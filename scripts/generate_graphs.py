@@ -12,6 +12,41 @@ from pathlib import Path
 from test_config import TEST_CASES, V8_CONFIG, OUTPUT_CONFIG
 
 
+def normalize_addresses(graph_text):
+    """
+    将图中的堆地址（0x开头的十六进制）替换为统一编号
+    按照地址在图中的出现顺序分配编号：第一个出现的是ADDR1，第二个是ADDR2...
+    
+    注意：V8 有时输出 0x00c8000672b1，有时输出 0xc8000672b1（省略前导零）
+    我们需要将它们识别为同一个地址
+    """
+    if not graph_text:
+        return graph_text
+    
+    address_map = {}
+    next_id = 1
+    
+    def normalize_hex(addr):
+        """去掉0x后的前导零，统一地址格式"""
+        # 0x00c8000672b1 -> 0xc8000672b1
+        hex_part = addr[2:].lstrip('0') or '0'
+        return '0x' + hex_part
+    
+    def replace_address(match):
+        nonlocal next_id
+        addr = match.group(0)
+        # 先规范化地址（去掉前导零）
+        normalized_addr = normalize_hex(addr)
+        if normalized_addr not in address_map:
+            address_map[normalized_addr] = f"ADDR{next_id}"
+            next_id += 1
+        return address_map[normalized_addr]
+    
+    # 匹配 0x 开头的十六进制地址（8-16位）
+    pattern = r'0x[0-9a-fA-F]{8,16}'
+    return re.sub(pattern, replace_address, graph_text)
+
+
 def run_d8(test_file, flags):
     """运行 d8 并返回输出"""
     cmd = [V8_CONFIG["d8_path"]] + V8_CONFIG["base_flags"] + flags + [
@@ -71,13 +106,11 @@ def generate_graphs():
     
     for case in TEST_CASES:
         print(f"📋 {case['name']}")
-        
         for func in case['functions']:
             file_path = func['file']
             function_name = func['name']
             flags = func['flags']
-            
-            prefix = get_output_prefix(file_path)
+            prefix = get_output_prefix(func['file'])
             
             # 无优化 Graph
             output_without = run_d8(file_path, [])
@@ -87,22 +120,22 @@ def generate_graphs():
             output_with = run_d8(file_path, flags)
             graph_with = extract_function_graph(output_with, function_name)
             
-            # 保存文件
             without_file = graph_dir / f"{prefix}-{function_name}-without.txt"
             with_file = graph_dir / f"{prefix}-{function_name}-with.txt"
             
             status = "✅" if graph_without and graph_with else "❌"
             
             if graph_without:
+                normalized_graph = normalize_addresses(graph_without)
                 with open(without_file, 'w', encoding='utf-8') as f:
-                    f.write(graph_without)
+                    f.write(normalized_graph)
             
             if graph_with:
+                normalized_graph = normalize_addresses(graph_with)
                 with open(with_file, 'w', encoding='utf-8') as f:
-                    f.write(graph_with)
+                    f.write(normalized_graph)
             
             print(f"  {status} {function_name} ({prefix})")
-        
         print()
     
     print("✅ Graph 生成完成！")

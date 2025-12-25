@@ -78,3 +78,29 @@ assertEquals(false, cal(false, false));
 // 验证函数已被优化
 assertOptimized(cal);
 
+
+// ===================================
+// 测试 4: Symbol 类型
+// ===================================
+// 预期优化：注入 metadata 后，Parameter 类型变为 Symbol，
+// 编译器可以移除 CheckMaps[SYMBOL_TYPE] 检查
+
+function toStr(arg) {
+    return arg.toString();
+}
+
+%PrepareFunctionForOptimization(toStr);
+
+// 预热：传入 Symbol
+var sym1 = Symbol("test");
+var sym2 = Symbol("hello");
+for (var i = 0; i < 100; i++) {
+    toStr(i % 2 == 0 ? sym1 : sym2);
+}
+
+%OptimizeFunctionOnNextCall(toStr);
+var result4 = toStr(Symbol("world"));
+assertEquals("Symbol(world)", result4);
+
+// 验证函数已被优化
+assertOptimized(toStr);

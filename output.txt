@@ -1,0 +1,965 @@
+Concurrent recompilation has been disabled for tracing.
+[TypeInjector] script_hash=101c0d42f663d9f207e5918a5f99cd16ec43cf9565d56e77d9aac2f9e23525f6
+[TypeInjector] script_hash=101c0d42f663d9f207e5918a5f99cd16ec43cf9565d56e77d9aac2f9e23525f6
+[TypeInjector] script_hash=101c0d42f663d9f207e5918a5f99cd16ec43cf9565d56e77d9aac2f9e23525f6
+---------------------------------------------------
+Begin compiling method toStr using TurboFan
+----- Graph after V8.TFBytecodeGraphBuilder ----- 
+#23:NumberConstant[0]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#5:HeapConstant[0x09ef00068415 <FeedbackVector[4]>]()
+#4:Parameter[5, debug name: %context](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:StateValues[dense](#1:Parameter, #2:Parameter)
+#10:StateValues[sparse:.]()
+#11:HeapConstant[0x09ef000059d9 <optimized_out>]()
+#12:Parameter[-1, debug name: %closure](#0:Start)
+#17:FrameState[UNOPTIMIZED_FRAME, 0, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #12:Parameter, #0:Start)
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #12:Parameter, #0:Start)
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #12:Parameter, #0:Start)
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#16:JSLoadNamed[0x09ef00005719 <String[8]: #toString>, sloppy](#2:Parameter, #5:HeapConstant, #4:Parameter, #17:FrameState, #14:Checkpoint, #8:JSStackCheck)
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #12:Parameter, #0:Start)
+#19:StateValues[sparse:^](#16:JSLoadNamed)
+#20:FrameState[UNOPTIMIZED_FRAME, 5, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #19:StateValues, #11:HeapConstant, #4:Parameter, #12:Parameter, #0:Start)
+#18:Checkpoint(#20:FrameState, #16:JSLoadNamed, #16:JSLoadNamed)
+#21:JSCall[3, 1, NOT_NULL_OR_UNDEFINED, SpeculationMode::kAllowSpeculation, CallFeedbackRelation::kTarget](#16:JSLoadNamed, #2:Parameter, #5:HeapConstant, #6:HeapConstant, #22:FrameState, #18:Checkpoint, #16:JSLoadNamed)
+#24:Return(#23:NumberConstant, #21:JSCall, #21:JSCall, #21:JSCall)
+#25:End(#24:Return)
+----- Graph after V8.TFInlining ----- 
+#23:NumberConstant[0]()
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#5:HeapConstant[0x09ef00068415 <FeedbackVector[4]>]()
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:StateValues[dense](#1:Parameter, #2:Parameter)
+#10:StateValues[sparse:.]()
+#11:HeapConstant[0x09ef000059d9 <optimized_out>]()
+#4:Parameter[5, debug name: %context](#0:Start)
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#21:JSCall[3, 1, NOT_NULL_OR_UNDEFINED, SpeculationMode::kAllowSpeculation, CallFeedbackRelation::kTarget](#30:HeapConstant, #2:Parameter, #5:HeapConstant, #6:HeapConstant, #22:FrameState, #29:CheckMaps, #8:JSStackCheck)
+#24:Return(#23:NumberConstant, #21:JSCall, #21:JSCall, #21:JSCall)
+#25:End(#24:Return)
+----- Graph after V8.TFEarlyGraphTrimming ----- 
+#23:NumberConstant[0]()
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#5:HeapConstant[0x09ef00068415 <FeedbackVector[4]>]()
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:StateValues[dense](#1:Parameter, #2:Parameter)
+#10:StateValues[sparse:.]()
+#11:HeapConstant[0x09ef000059d9 <optimized_out>]()
+#4:Parameter[5, debug name: %context](#0:Start)
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#21:JSCall[3, 1, NOT_NULL_OR_UNDEFINED, SpeculationMode::kAllowSpeculation, CallFeedbackRelation::kTarget](#30:HeapConstant, #2:Parameter, #5:HeapConstant, #6:HeapConstant, #22:FrameState, #29:CheckMaps, #8:JSStackCheck)
+#24:Return(#23:NumberConstant, #21:JSCall, #21:JSCall, #21:JSCall)
+#25:End(#24:Return)
+----- Graph after V8.TFTyper ----- 
+#23:NumberConstant[0]()  [Type: Range(0, 0)]
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()  [Type: HeapConstant(0x630b79dd1428)]
+#0:Start()  [Type: Internal]
+#2:Parameter[1](#0:Start)  [Type: NonInternal]
+#5:HeapConstant[0x09ef00068415 <FeedbackVector[4]>]()  [Type: HeapConstant(0x630b79dd13f8 {0x09ef00068415 <FeedbackVector[4]>})]
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()  [Type: HeapConstant(0x630b79dd10d8 {0x09ef0004b2f1 <NativeContext[304]>})]
+#1:Parameter[0, debug name: %this](#0:Start)  [Type: Receiver]
+#9:StateValues[dense](#1:Parameter, #2:Parameter)  [Type: Internal]
+#10:StateValues[sparse:.]()  [Type: Internal]
+#11:HeapConstant[0x09ef000059d9 <optimized_out>]()  [Type: Hole]
+#4:Parameter[5, debug name: %context](#0:Start)  [Type: OtherInternal]
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()  [Type: HeapConstant(0x630b79dd10f0)]
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#21:JSCall[3, 1, NOT_NULL_OR_UNDEFINED, SpeculationMode::kAllowSpeculation, CallFeedbackRelation::kTarget](#30:HeapConstant, #2:Parameter, #5:HeapConstant, #6:HeapConstant, #22:FrameState, #29:CheckMaps, #8:JSStackCheck)  [Type: String]
+#24:Return(#23:NumberConstant, #21:JSCall, #21:JSCall, #21:JSCall)
+#25:End(#24:Return)
+[TypeInjector] script_hash=101c0d42f663d9f207e5918a5f99cd16ec43cf9565d56e77d9aac2f9e23525f6
+[TypeInjector] Processing JSCall #21 to function at position 0
+[TypeInjector]   No return type metadata found
+[TypeInjector] CheckMaps #29 input #2 type: 
+NonInternal
+
+----- Graph after V8.TFTypeInjector ----- 
+#23:NumberConstant[0]()  [Type: Range(0, 0)]
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()  [Type: HeapConstant(0x630b79dd1428)]
+#0:Start()  [Type: Internal]
+#2:Parameter[1](#0:Start)  [Type: NonInternal]
+#5:HeapConstant[0x09ef00068415 <FeedbackVector[4]>]()  [Type: HeapConstant(0x630b79dd13f8 {0x09ef00068415 <FeedbackVector[4]>})]
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()  [Type: HeapConstant(0x630b79dd10d8 {0x09ef0004b2f1 <NativeContext[304]>})]
+#1:Parameter[0, debug name: %this](#0:Start)  [Type: Receiver]
+#9:StateValues[dense](#1:Parameter, #2:Parameter)  [Type: Internal]
+#10:StateValues[sparse:.]()  [Type: Internal]
+#11:HeapConstant[0x09ef000059d9 <optimized_out>]()  [Type: Hole]
+#4:Parameter[5, debug name: %context](#0:Start)  [Type: OtherInternal]
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()  [Type: HeapConstant(0x630b79dd10f0)]
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#21:JSCall[3, 1, NOT_NULL_OR_UNDEFINED, SpeculationMode::kAllowSpeculation, CallFeedbackRelation::kTarget](#30:HeapConstant, #2:Parameter, #5:HeapConstant, #6:HeapConstant, #22:FrameState, #29:CheckMaps, #8:JSStackCheck)  [Type: String]
+#24:Return(#23:NumberConstant, #21:JSCall, #21:JSCall, #21:JSCall)
+#25:End(#24:Return)
+----- Graph after V8.TFTypedLowering ----- 
+#23:NumberConstant[0]()  [Type: Range(0, 0)]
+#36:HeapConstant[0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]()  [Type: HeapConstant(0x630b79dd1f20 {0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>})]
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()  [Type: HeapConstant(0x630b79dd1428)]
+#3:HeapConstant[0x09ef00000011 <undefined>]()  [Type: Undefined]
+#37:NumberConstant[1]()  [Type: Range(1, 1)]
+#0:Start()  [Type: Internal]
+#2:Parameter[1](#0:Start)  [Type: NonInternal]
+#1:Parameter[0, debug name: %this](#0:Start)  [Type: Receiver]
+#9:StateValues[dense](#1:Parameter, #2:Parameter)  [Type: Internal]
+#10:StateValues[sparse:.]()  [Type: Internal]
+#11:HeapConstant[0x09ef000059d9 <optimized_out>]()  [Type: Hole]
+#4:Parameter[5, debug name: %context](#0:Start)  [Type: OtherInternal]
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()  [Type: HeapConstant(0x630b79dd10f0)]
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()  [Type: HeapConstant(0x630b79dd10d8 {0x09ef0004b2f1 <NativeContext[304]>})]
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#35:LoadField[JSFunctionContext, tagged base, 20, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](#30:HeapConstant, #29:CheckMaps, #8:JSStackCheck)  [Type: Internal]
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#21:Call[Code:JSTrampoline Descriptor:r1s1i7f1](#36:HeapConstant, #30:HeapConstant, #3:HeapConstant, #37:NumberConstant, #23:NumberConstant, #2:Parameter, #35:LoadField, #22:FrameState, #35:LoadField, #8:JSStackCheck)  [Type: String]
+#24:Return(#23:NumberConstant, #21:Call, #21:Call, #21:Call)
+#25:End(#24:Return)
+----- Graph after V8.TFLoopPeeling ----- 
+#23:NumberConstant[0]()  [Type: Range(0, 0)]
+#36:HeapConstant[0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]()  [Type: HeapConstant(0x630b79dd1f20 {0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>})]
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()  [Type: HeapConstant(0x630b79dd1428)]
+#3:HeapConstant[0x09ef00000011 <undefined>]()  [Type: Undefined]
+#37:NumberConstant[1]()  [Type: Range(1, 1)]
+#0:Start()  [Type: Internal]
+#2:Parameter[1](#0:Start)  [Type: NonInternal]
+#1:Parameter[0, debug name: %this](#0:Start)  [Type: Receiver]
+#9:StateValues[dense](#1:Parameter, #2:Parameter)  [Type: Internal]
+#10:StateValues[sparse:.]()  [Type: Internal]
+#11:HeapConstant[0x09ef000059d9 <optimized_out>]()  [Type: Hole]
+#4:Parameter[5, debug name: %context](#0:Start)  [Type: OtherInternal]
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()  [Type: HeapConstant(0x630b79dd10f0)]
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()  [Type: HeapConstant(0x630b79dd10d8 {0x09ef0004b2f1 <NativeContext[304]>})]
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#35:LoadField[JSFunctionContext, tagged base, 20, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](#30:HeapConstant, #29:CheckMaps, #8:JSStackCheck)  [Type: Internal]
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#21:Call[Code:JSTrampoline Descriptor:r1s1i7f1](#36:HeapConstant, #30:HeapConstant, #3:HeapConstant, #37:NumberConstant, #23:NumberConstant, #2:Parameter, #35:LoadField, #22:FrameState, #35:LoadField, #8:JSStackCheck)  [Type: String]
+#24:Return(#23:NumberConstant, #21:Call, #21:Call, #21:Call)
+#25:End(#24:Return)
+----- Graph after V8.TFLoadElimination ----- 
+#23:NumberConstant[0]()  [Type: Range(0, 0)]
+#36:HeapConstant[0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]()  [Type: HeapConstant(0x630b79dd1f20 {0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>})]
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()  [Type: HeapConstant(0x630b79dd1428)]
+#3:HeapConstant[0x09ef00000011 <undefined>]()  [Type: Undefined]
+#37:NumberConstant[1]()  [Type: Range(1, 1)]
+#0:Start()  [Type: Internal]
+#2:Parameter[1](#0:Start)  [Type: NonInternal]
+#1:Parameter[0, debug name: %this](#0:Start)  [Type: Receiver]
+#9:StateValues[dense](#1:Parameter, #2:Parameter)  [Type: Internal]
+#10:StateValues[sparse:.]()  [Type: Internal]
+#11:HeapConstant[0x09ef000059d9 <optimized_out>]()  [Type: Hole]
+#4:Parameter[5, debug name: %context](#0:Start)  [Type: OtherInternal]
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()  [Type: HeapConstant(0x630b79dd10f0)]
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()  [Type: HeapConstant(0x630b79dd10d8 {0x09ef0004b2f1 <NativeContext[304]>})]
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#35:LoadField[JSFunctionContext, tagged base, 20, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](#30:HeapConstant, #29:CheckMaps, #8:JSStackCheck)  [Type: Internal]
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#21:Call[Code:JSTrampoline Descriptor:r1s1i7f1](#36:HeapConstant, #30:HeapConstant, #3:HeapConstant, #37:NumberConstant, #23:NumberConstant, #2:Parameter, #35:LoadField, #22:FrameState, #35:LoadField, #8:JSStackCheck)  [Type: String]
+#24:Return(#23:NumberConstant, #21:Call, #21:Call, #21:Call)
+#25:End(#24:Return)
+----- Graph after V8.TFEscapeAnalysis ----- 
+#23:NumberConstant[0]()  [Type: Range(0, 0)]
+#36:HeapConstant[0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]()  [Type: HeapConstant(0x630b79dd1f20 {0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>})]
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()  [Type: HeapConstant(0x630b79dd1428)]
+#3:HeapConstant[0x09ef00000011 <undefined>]()  [Type: Undefined]
+#37:NumberConstant[1]()  [Type: Range(1, 1)]
+#0:Start()  [Type: Internal]
+#2:Parameter[1](#0:Start)  [Type: NonInternal]
+#1:Parameter[0, debug name: %this](#0:Start)  [Type: Receiver]
+#9:StateValues[dense](#1:Parameter, #2:Parameter)  [Type: Internal]
+#10:StateValues[sparse:.]()  [Type: Internal]
+#11:HeapConstant[0x09ef000059d9 <optimized_out>]()  [Type: Hole]
+#4:Parameter[5, debug name: %context](#0:Start)  [Type: OtherInternal]
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()  [Type: HeapConstant(0x630b79dd10f0)]
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()  [Type: HeapConstant(0x630b79dd10d8 {0x09ef0004b2f1 <NativeContext[304]>})]
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#35:LoadField[JSFunctionContext, tagged base, 20, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](#30:HeapConstant, #29:CheckMaps, #8:JSStackCheck)  [Type: Internal]
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:StateValues, #10:StateValues, #11:HeapConstant, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#21:Call[Code:JSTrampoline Descriptor:r1s1i7f1](#36:HeapConstant, #30:HeapConstant, #3:HeapConstant, #37:NumberConstant, #23:NumberConstant, #2:Parameter, #35:LoadField, #22:FrameState, #35:LoadField, #8:JSStackCheck)  [Type: String]
+#24:Return(#23:NumberConstant, #21:Call, #21:Call, #21:Call)
+#25:End(#24:Return)
+----- Graph after V8.TFSimplifiedLowering ----- 
+#45:Int32Constant[0]()
+#36:HeapConstant[0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]()  [Type: HeapConstant(0x630b79dd1f20 {0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>})]
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()  [Type: HeapConstant(0x630b79dd1428)]
+#3:HeapConstant[0x09ef00000011 <undefined>]()  [Type: Undefined]
+#44:Int32Constant[1]()
+#0:Start()  [Type: Internal]
+#2:Parameter[1](#0:Start)  [Type: NonInternal]
+#1:Parameter[0, debug name: %this](#0:Start)  [Type: Receiver]
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)  [Type: Internal]
+#10:TypedStateValues[, sparse:.]()  [Type: Internal]
+#42:TypedStateValues[, sparse:.]()
+#4:Parameter[5, debug name: %context](#0:Start)  [Type: OtherInternal]
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()  [Type: HeapConstant(0x630b79dd10f0)]
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()  [Type: HeapConstant(0x630b79dd10d8 {0x09ef0004b2f1 <NativeContext[304]>})]
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#43:CheckedTaggedToTaggedPointer[FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#43:CheckedTaggedToTaggedPointer, #43:CheckedTaggedToTaggedPointer, #8:JSStackCheck)
+#35:LoadField[JSFunctionContext, tagged base, 20, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](#30:HeapConstant, #29:CheckMaps, #8:JSStackCheck)  [Type: Internal]
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)  [Type: Internal]
+#21:Call[Code:JSTrampoline Descriptor:r1s1i7f1](#36:HeapConstant, #30:HeapConstant, #3:HeapConstant, #44:Int32Constant, #45:Int32Constant, #2:Parameter, #35:LoadField, #22:FrameState, #35:LoadField, #8:JSStackCheck)  [Type: String]
+#24:Return(#45:Int32Constant, #21:Call, #21:Call, #21:Call)
+#25:End(#24:Return)
+----- Graph after V8.TFUntyper ----- 
+#45:Int32Constant[0]()
+#36:HeapConstant[0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]()
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()
+#3:HeapConstant[0x09ef00000011 <undefined>]()
+#44:Int32Constant[1]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, sparse:.]()
+#42:TypedStateValues[, sparse:.]()
+#4:Parameter[5, debug name: %context](#0:Start)
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)
+#8:JSStackCheck[JSFunctionEntry](#6:HeapConstant, #13:FrameState, #0:Start, #0:Start)
+#14:Checkpoint(#15:FrameState, #8:JSStackCheck, #8:JSStackCheck)
+#43:CheckedTaggedToTaggedPointer[FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #8:JSStackCheck)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#43:CheckedTaggedToTaggedPointer, #43:CheckedTaggedToTaggedPointer, #8:JSStackCheck)
+#35:LoadField[JSFunctionContext, tagged base, 20, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](#30:HeapConstant, #29:CheckMaps, #8:JSStackCheck)
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)
+#21:Call[Code:JSTrampoline Descriptor:r1s1i7f1](#36:HeapConstant, #30:HeapConstant, #3:HeapConstant, #44:Int32Constant, #45:Int32Constant, #2:Parameter, #35:LoadField, #22:FrameState, #35:LoadField, #8:JSStackCheck)
+#24:Return(#45:Int32Constant, #21:Call, #21:Call, #21:Call)
+#25:End(#24:Return)
+----- Graph after V8.TFGenericLowering ----- 
+#45:Int32Constant[0]()
+#36:HeapConstant[0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]()
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()
+#3:HeapConstant[0x09ef00000011 <undefined>]()
+#44:Int32Constant[1]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, sparse:.]()
+#42:TypedStateValues[, sparse:.]()
+#4:Parameter[5, debug name: %context](#0:Start)
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)
+#46:ExternalConstant[0x630b79d10020]()
+#40:Int64Constant[0]()
+#47:Load[kRepWord64](#46:ExternalConstant, #40:Int64Constant, #0:Start, #0:Start)
+#48:StackPointerGreaterThan[JSFunctionEntry](#47:Load, #47:Load)
+#56:HeapConstant[0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#54:LoadStackCheckOffset()
+#55:ExternalConstant[0x71f1d13cc450 <StackGuardWithGap.entry>]()
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)
+#49:Branch[Unspecified, True](#48:StackPointerGreaterThan, #0:Start)
+#51:IfFalse(#49:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#56:HeapConstant, #54:LoadStackCheckOffset, #55:ExternalConstant, #44:Int32Constant, #6:HeapConstant, #13:FrameState, #48:StackPointerGreaterThan, #51:IfFalse)
+#50:IfTrue(#49:Branch)
+#52:Merge(#50:IfTrue, #8:Call)
+#53:EffectPhi(#48:StackPointerGreaterThan, #8:Call, #52:Merge)
+#14:Checkpoint(#15:FrameState, #53:EffectPhi, #52:Merge)
+#43:CheckedTaggedToTaggedPointer[FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #52:Merge)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#43:CheckedTaggedToTaggedPointer, #43:CheckedTaggedToTaggedPointer, #52:Merge)
+#35:LoadField[JSFunctionContext, tagged base, 20, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](#30:HeapConstant, #29:CheckMaps, #52:Merge)
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)
+#21:Call[Code:JSTrampoline Descriptor:r1s1i7f1](#36:HeapConstant, #30:HeapConstant, #3:HeapConstant, #44:Int32Constant, #45:Int32Constant, #2:Parameter, #35:LoadField, #22:FrameState, #35:LoadField, #52:Merge)
+#24:Return(#45:Int32Constant, #21:Call, #21:Call, #21:Call)
+#25:End(#24:Return)
+----- Graph after V8.TFEarlyOptimization ----- 
+#45:Int32Constant[0]()
+#36:HeapConstant[0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]()
+#30:HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]()
+#3:HeapConstant[0x09ef00000011 <undefined>]()
+#44:Int32Constant[1]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, sparse:.]()
+#42:TypedStateValues[, sparse:.]()
+#4:Parameter[5, debug name: %context](#0:Start)
+#28:HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]()
+#15:FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)
+#46:ExternalConstant[0x630b79d10020]()
+#40:Int64Constant[0]()
+#47:Load[kRepWord64](#46:ExternalConstant, #40:Int64Constant, #0:Start, #0:Start)
+#48:StackPointerGreaterThan[JSFunctionEntry](#47:Load, #47:Load)
+#56:HeapConstant[0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#54:LoadStackCheckOffset()
+#55:ExternalConstant[0x71f1d13cc450 <StackGuardWithGap.entry>]()
+#6:HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)
+#49:Branch[Unspecified, True](#48:StackPointerGreaterThan, #0:Start)
+#51:IfFalse(#49:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#56:HeapConstant, #54:LoadStackCheckOffset, #55:ExternalConstant, #44:Int32Constant, #6:HeapConstant, #13:FrameState, #48:StackPointerGreaterThan, #51:IfFalse)
+#50:IfTrue(#49:Branch)
+#52:Merge(#50:IfTrue, #8:Call)
+#53:EffectPhi(#48:StackPointerGreaterThan, #8:Call, #52:Merge)
+#14:Checkpoint(#15:FrameState, #53:EffectPhi, #52:Merge)
+#43:CheckedTaggedToTaggedPointer[FeedbackSource(INVALID)](#2:Parameter, #14:Checkpoint, #52:Merge)
+#29:CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](#43:CheckedTaggedToTaggedPointer, #43:CheckedTaggedToTaggedPointer, #52:Merge)
+#35:LoadField[JSFunctionContext, tagged base, 20, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](#30:HeapConstant, #29:CheckMaps, #52:Merge)
+#22:FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](#9:TypedStateValues, #10:TypedStateValues, #42:TypedStateValues, #4:Parameter, #28:HeapConstant, #0:Start)
+#21:Call[Code:JSTrampoline Descriptor:r1s1i7f1](#36:HeapConstant, #30:HeapConstant, #3:HeapConstant, #44:Int32Constant, #45:Int32Constant, #2:Parameter, #35:LoadField, #22:FrameState, #35:LoadField, #52:Merge)
+#24:Return(#45:Int32Constant, #21:Call, #21:Call, #21:Call)
+#25:End(#24:Return)
+----- schedule -----
+--- BLOCK B0 id0 ---
+  0: Start
+  2: Parameter[1](0)
+  4: Parameter[5, debug name: %context](0)
+  1: Parameter[0, debug name: %this](0)
+  40: Int64Constant[0]
+  46: ExternalConstant[0x630b79d10020]
+  47: Load[kRepWord64](46, 40, 0, 0)
+  28: HeapConstant[0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]
+  42: TypedStateValues[, sparse:.]
+  10: TypedStateValues[, sparse:.]
+  9: TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](1, 2)
+  48: StackPointerGreaterThan[JSFunctionEntry](47, 47)
+  44: Int32Constant[1]
+  49: Branch[Unspecified, True](48, 0) -> B2, B1
+--- BLOCK B1 id4 (deferred) <- B0 ---
+  51: IfFalse(49)
+  13: FrameState[UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](9, 10, 42, 4, 28, 0)
+  6: HeapConstant[0x09ef0004b2f1 <NativeContext[304]>]
+  55: ExternalConstant[0x71f1d13cc450 <StackGuardWithGap.entry>]
+  54: LoadStackCheckOffset
+  56: HeapConstant[0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]
+  8: Call[Code:StackGuardWithGap:r1s1i5f1](56, 54, 55, 44, 6, 13, 48, 51)
+  Goto -> B3
+--- BLOCK B2 id3 <- B0 ---
+  50: IfTrue(49)
+  Goto -> B3
+--- BLOCK B3 id2 <- B2, B1 ---
+  52: Merge(50, 8)
+  53: EffectPhi(48, 8, 52)
+  15: FrameState[UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>](9, 10, 42, 4, 28, 0)
+  14: Checkpoint(15, 53, 52)
+  43: CheckedTaggedToTaggedPointer[FeedbackSource(INVALID)](2, 14, 52)
+  29: CheckMaps[None, 0x630b79dd1818 {0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, FeedbackSource(INVALID)](43, 43, 52)
+  30: HeapConstant[0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]
+  35: LoadField[JSFunctionContext, tagged base, 20, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](30, 29, 52)
+  22: FrameState[UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>](9, 10, 42, 4, 28, 0)
+  45: Int32Constant[0]
+  3: HeapConstant[0x09ef00000011 <undefined>]
+  36: HeapConstant[0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]
+  21: Call[Code:JSTrampoline Descriptor:r1s1i7f1](36, 30, 3, 44, 45, 2, 35, 22, 35, 52)
+  24: Return(45, 21, 21, 21) -> B4
+--- BLOCK B4 id1 <- B3 ---
+  25: End(24)
+
+----- V8.TFTurboshaftBuildGraph -----
+
+MERGE B0
+    0: Parameter()[1]
+    1: Parameter()[5, %context]
+    3: Parameter()[0, %this]
+    4: Constant()[word64: 0]
+    5: Constant()[external: 0x630b79d10020]
+    6: Load *(#5) [raw, Uint64, Word64]
+    7: Constant()[heap object: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]
+    8: StackPointerGreaterThan(#6)[JSFunctionEntry]
+    9: Constant()[word32: 1]
+   10: Branch(#8)[B2, B1, True]
+
+BLOCK B1 <- B0
+   12: FrameState(#7, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #7(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   14: Constant()[heap object: 0x09ef0004b2f1 <NativeContext[304]>]
+   15: Constant()[external: 0x71f1d13cc450 <StackGuardWithGap.entry>]
+   16: FrameConstant()[stack check offset]
+   17: Constant()[heap object: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]
+   18: Call(#17, #12, #16, #15, #9, #14)[Code:StackGuardWithGap:r1s1i5f1]
+   21: DidntThrow(#18)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   23: Goto()[B3, 0]
+
+BLOCK B2 <- B0
+   24: Goto()[B3, 0]
+
+MERGE B3 <- B1, B2
+   25: FrameState(#7, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #7(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   27: ObjectIs(#0)[Smi, None]
+   28: DeoptimizeIf(#27, #25)[Smi, FeedbackSource(INVALID)]
+   30: CheckMaps(#0, #25)[{0x09ef0000044d <Map[16](SYMBOL_TYPE)>}, None, FeedbackSource(INVALID)]
+   32: Constant()[heap object: 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]
+   33: Load *(#32 + 20) [tagged base, TaggedPointer, Tagged, offset: 20]
+   34: FrameState(#7, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #7(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   36: Constant()[word32: 0]
+   37: Constant()[heap object: 0x09ef00000011 <undefined>]
+   38: Constant()[heap object: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]
+   39: Call(#38, #34, #32, #37, #9, #36, #0, #33)[Code:JSTrampoline Descriptor:r1s1i7f1]
+   43: DidntThrow(#39)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   45: Return(#36, #43)[0]
+
+----- V8.TFTurboshaftMachineLowering -----
+
+MERGE B0
+    0: Parameter()[1]
+    1: Parameter()[5, %context]
+    3: Parameter()[0, %this]
+    4: Constant()[external: 0x630b79d10020]
+    5: Load *(#4) [raw, Uint64, Word64]
+    6: Constant()[heap object: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]
+    7: StackPointerGreaterThan(#5)[JSFunctionEntry]
+    8: Constant()[word32: 1]
+    9: Branch(#7)[B2, B1, True]
+
+BLOCK B1 <- B0
+   11: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   13: Constant()[heap object: 0x09ef0004b2f1 <NativeContext[304]>]
+   14: Constant()[external: 0x71f1d13cc450 <StackGuardWithGap.entry>]
+   15: FrameConstant()[stack check offset]
+   16: Constant()[heap object: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]
+   17: Call(#16, #11, #15, #14, #8, #13)[Code:StackGuardWithGap:r1s1i5f1]
+   20: DidntThrow(#17)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   22: Goto()[B3, 0]
+
+BLOCK B2 <- B0
+   23: Goto()[B3, 0]
+
+MERGE B3 <- B1, B2
+   24: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   26: Constant()[word32: 1]
+   27: WordBinop(#0, #26)[BitwiseAnd, Word32]
+   28: Constant()[word32: 0]
+   29: Comparison(#27, #28)[Equal, Word32]
+   30: DeoptimizeIf(#27, #24)[negated, Smi, FeedbackSource(INVALID)]
+   32: Load *(#0) [tagged base, TaggedPointer, Tagged]
+   33: Constant()[heap object: 0x09ef0000044d <Map[16](SYMBOL_TYPE)>]
+   34: Comparison(#32, #33)[Equal, Tagged]
+   35: DeoptimizeIf(#34, #24)[negated, WrongMap, FeedbackSource(INVALID)]
+   36: AssumeMap(#0)[{0x09ef0000044d <Map[16](SYMBOL_TYPE)>}]
+   38: Constant()[heap object: 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]
+   39: Load *(#38 + 20) [tagged base, TaggedPointer, Tagged, offset: 20]
+   40: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   42: Constant()[word32: 0]
+   43: Constant()[heap object: 0x09ef00000011 <undefined>]
+   44: Constant()[heap object: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]
+   45: Call(#44, #40, #38, #43, #8, #42, #0, #39)[Code:JSTrampoline Descriptor:r1s1i7f1]
+   48: DidntThrow(#45)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   50: Return(#42, #48)[0]
+
+----- V8.TFTurboshaftLoopUnrolling -----
+
+MERGE B0
+    0: Parameter()[1]
+    1: Parameter()[5, %context]
+    3: Parameter()[0, %this]
+    4: Constant()[external: 0x630b79d10020]
+    5: Load *(#4) [raw, Uint64, Word64]
+    6: Constant()[heap object: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]
+    7: StackPointerGreaterThan(#5)[JSFunctionEntry]
+    8: Constant()[word32: 1]
+    9: Branch(#7)[B2, B1, True]
+
+BLOCK B1 <- B0
+   11: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   13: Constant()[heap object: 0x09ef0004b2f1 <NativeContext[304]>]
+   14: Constant()[external: 0x71f1d13cc450 <StackGuardWithGap.entry>]
+   15: FrameConstant()[stack check offset]
+   16: Constant()[heap object: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]
+   17: Call(#16, #11, #15, #14, #8, #13)[Code:StackGuardWithGap:r1s1i5f1]
+   20: DidntThrow(#17)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   22: Goto()[B3, 0]
+
+BLOCK B2 <- B0
+   23: Goto()[B3, 0]
+
+MERGE B3 <- B1, B2
+   24: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   26: Constant()[word32: 1]
+   27: WordBinop(#0, #26)[BitwiseAnd, Word32]
+   28: Constant()[word32: 0]
+   29: Comparison(#27, #28)[Equal, Word32]
+   30: DeoptimizeIf(#27, #24)[negated, Smi, FeedbackSource(INVALID)]
+   32: Load *(#0) [tagged base, TaggedPointer, Tagged]
+   33: Constant()[heap object: 0x09ef0000044d <Map[16](SYMBOL_TYPE)>]
+   34: Comparison(#32, #33)[Equal, Tagged]
+   35: DeoptimizeIf(#34, #24)[negated, WrongMap, FeedbackSource(INVALID)]
+   36: AssumeMap(#0)[{0x09ef0000044d <Map[16](SYMBOL_TYPE)>}]
+   38: Constant()[heap object: 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]
+   39: Load *(#38 + 20) [tagged base, TaggedPointer, Tagged, offset: 20]
+   40: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   42: Constant()[word32: 0]
+   43: Constant()[heap object: 0x09ef00000011 <undefined>]
+   44: Constant()[heap object: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]
+   45: Call(#44, #40, #38, #43, #8, #42, #0, #39)[Code:JSTrampoline Descriptor:r1s1i7f1]
+   48: DidntThrow(#45)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   50: Return(#42, #48)[0]
+
+----- V8.TFTurboshaftStoreStoreElimination -----
+
+MERGE B0
+    0: Parameter()[1]
+    1: Parameter()[5, %context]
+    3: Parameter()[0, %this]
+    4: Constant()[external: 0x630b79d10020]
+    5: Load *(#4) [raw, Uint64, Word64]
+    6: Constant()[heap object: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]
+    7: StackPointerGreaterThan(#5)[JSFunctionEntry]
+    8: Constant()[word32: 1]
+    9: Branch(#7)[B2, B1, True]
+
+BLOCK B1 <- B0
+   11: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   13: Constant()[heap object: 0x09ef0004b2f1 <NativeContext[304]>]
+   14: Constant()[external: 0x71f1d13cc450 <StackGuardWithGap.entry>]
+   15: FrameConstant()[stack check offset]
+   16: Constant()[heap object: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]
+   17: Call(#16, #11, #15, #14, #8, #13)[Code:StackGuardWithGap:r1s1i5f1]
+   20: DidntThrow(#17)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   22: Goto()[B3, 0]
+
+BLOCK B2 <- B0
+   23: Goto()[B3, 0]
+
+MERGE B3 <- B1, B2
+   24: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   26: WordBinop(#0, #8)[BitwiseAnd, Word32]
+   27: Constant()[word32: 0]
+   28: DeoptimizeIf(#26, #24)[negated, Smi, FeedbackSource(INVALID)]
+   30: Load *(#0) [tagged base, TaggedPointer, Tagged]
+   31: Constant()[heap object: 0x09ef0000044d <Map[16](SYMBOL_TYPE)>]
+   32: Comparison(#30, #31)[Equal, Tagged]
+   33: DeoptimizeIf(#32, #24)[negated, WrongMap, FeedbackSource(INVALID)]
+   34: Constant()[heap object: 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]
+   35: Load *(#34 + 20) [tagged base, TaggedPointer, Tagged, offset: 20]
+   36: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   38: Constant()[heap object: 0x09ef00000011 <undefined>]
+   39: Constant()[heap object: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]
+   40: Call(#39, #36, #34, #38, #8, #27, #0, #35)[Code:JSTrampoline Descriptor:r1s1i7f1]
+   44: DidntThrow(#40)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   46: Return(#27, #44)[0]
+
+----- V8.TFTurboshaftOptimize -----
+
+MERGE B0
+    0: Parameter()[1]
+    1: Parameter()[5, %context]
+    3: Parameter()[0, %this]
+    4: Constant()[external: 0x630b79d10020]
+    5: Load *(#4) [raw, Uint64, Word64]
+    6: Constant()[heap object: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]
+    7: StackPointerGreaterThan(#5)[JSFunctionEntry]
+    8: Constant()[word32: 1]
+    9: Branch(#7)[B2, B1, True]
+
+BLOCK B1 <- B0
+   11: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   13: Constant()[heap object: 0x09ef0004b2f1 <NativeContext[304]>]
+   14: Constant()[external: 0x71f1d13cc450 <StackGuardWithGap.entry>]
+   15: FrameConstant()[stack check offset]
+   16: Constant()[heap object: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]
+   17: Call(#16, #11, #15, #14, #8, #13)[Code:StackGuardWithGap:r1s1i5f1]
+   20: DidntThrow(#17)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   22: Goto()[B3, 0]
+
+BLOCK B2 <- B0
+   23: Goto()[B3, 0]
+
+MERGE B3 <- B1, B2
+   24: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   26: WordBinop(#0, #8)[BitwiseAnd, Word32]
+   27: Constant()[word32: 0]
+   28: DeoptimizeIf(#26, #24)[negated, Smi, FeedbackSource(INVALID)]
+   30: Load *(#0) [tagged base, TaggedPointer, Tagged]
+   31: Constant()[heap object: 0x09ef0000044d <Map[16](SYMBOL_TYPE)>]
+   32: Comparison(#30, #31)[Equal, Tagged]
+   33: DeoptimizeIf(#32, #24)[negated, WrongMap, FeedbackSource(INVALID)]
+   34: Constant()[heap object: 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]
+   35: Load *(#34 + 20) [tagged base, TaggedPointer, Tagged, offset: 20]
+   36: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   38: Constant()[heap object: 0x09ef00000011 <undefined>]
+   39: Constant()[heap object: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]
+   40: Call(#39, #36, #34, #38, #8, #27, #0, #35)[Code:JSTrampoline Descriptor:r1s1i7f1]
+   44: DidntThrow(#40)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   46: Return(#27, #44)[0]
+
+----- V8.TFTurboshaftCodeEliminationAndSimplification -----
+
+MERGE B0
+    0: Parameter()[1]
+    1: Parameter()[5, %context]
+    3: Parameter()[0, %this]
+    4: Constant()[external: 0x630b79d10020]
+    5: Load *(#4) [raw, Uint64, Word64]
+    6: Constant()[heap object: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]
+    7: StackPointerGreaterThan(#5)[JSFunctionEntry]
+    8: Constant()[word32: 1]
+    9: Branch(#7)[B2, B1, True]
+
+BLOCK B1 <- B0
+   11: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   13: Constant()[heap object: 0x09ef0004b2f1 <NativeContext[304]>]
+   14: Constant()[external: 0x71f1d13cc450 <StackGuardWithGap.entry>]
+   15: FrameConstant()[stack check offset]
+   16: Constant()[heap object: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]
+   17: Call(#16, #11, #15, #14, #8, #13)[Code:StackGuardWithGap:r1s1i5f1]
+   20: DidntThrow(#17)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   22: Goto()[B3, 0]
+
+BLOCK B2 <- B0
+   23: Goto()[B3, 0]
+
+MERGE B3 <- B1, B2
+   24: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   26: WordBinop(#0, #8)[BitwiseAnd, Word32]
+   27: Constant()[word32: 0]
+   28: DeoptimizeIf(#26, #24)[negated, Smi, FeedbackSource(INVALID)]
+   30: Load *(#0) [tagged base, TaggedPointer, Tagged]
+   31: Constant()[heap object: 0x09ef0000044d <Map[16](SYMBOL_TYPE)>]
+   32: Comparison(#30, #31)[Equal, Tagged]
+   33: DeoptimizeIf(#32, #24)[negated, WrongMap, FeedbackSource(INVALID)]
+   34: Constant()[heap object: 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]
+   35: Load *(#34 + 20) [tagged base, TaggedPointer, Tagged, offset: 20]
+   36: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   38: Constant()[heap object: 0x09ef00000011 <undefined>]
+   39: Constant()[heap object: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]
+   40: Call(#39, #36, #34, #38, #8, #27, #0, #35)[Code:JSTrampoline Descriptor:r1s1i7f1]
+   44: DidntThrow(#40)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   46: Return(#27, #44)[0]
+
+----- V8.TFTurboshaftDecompressionOptimization -----
+
+MERGE B0
+    0: Parameter()[1]
+    1: Parameter()[5, %context]
+    3: Parameter()[0, %this]
+    4: Constant()[external: 0x630b79d10020]
+    5: Load *(#4) [raw, Uint64, Word64]
+    6: Constant()[compressed heap object: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]
+    7: StackPointerGreaterThan(#5)[JSFunctionEntry]
+    8: Constant()[word32: 1]
+    9: Branch(#7)[B2, B1, True]
+
+BLOCK B1 <- B0
+   11: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   13: Constant()[heap object: 0x09ef0004b2f1 <NativeContext[304]>]
+   14: Constant()[external: 0x71f1d13cc450 <StackGuardWithGap.entry>]
+   15: FrameConstant()[stack check offset]
+   16: Constant()[heap object: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]
+   17: Call(#16, #11, #15, #14, #8, #13)[Code:StackGuardWithGap:r1s1i5f1]
+   20: DidntThrow(#17)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   22: Goto()[B3, 0]
+
+BLOCK B2 <- B0
+   23: Goto()[B3, 0]
+
+MERGE B3 <- B1, B2
+   24: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   26: WordBinop(#0, #8)[BitwiseAnd, Word32]
+   27: Constant()[word32: 0]
+   28: DeoptimizeIf(#26, #24)[negated, Smi, FeedbackSource(INVALID)]
+   30: Load *(#0) [tagged base, TaggedPointer, Compressed]
+   31: Constant()[compressed heap object: 0x09ef0000044d <Map[16](SYMBOL_TYPE)>]
+   32: Comparison(#30, #31)[Equal, Tagged]
+   33: DeoptimizeIf(#32, #24)[negated, WrongMap, FeedbackSource(INVALID)]
+   34: Constant()[heap object: 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]
+   35: Load *(#34 + 20) [tagged base, TaggedPointer, Tagged, offset: 20]
+   36: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   38: Constant()[heap object: 0x09ef00000011 <undefined>]
+   39: Constant()[heap object: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]
+   40: Call(#39, #36, #34, #38, #8, #27, #0, #35)[Code:JSTrampoline Descriptor:r1s1i7f1]
+   44: DidntThrow(#40)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   46: Return(#27, #44)[0]
+
+----- V8.TFTurboshaftSpecialRPOScheduling -----
+
+MERGE B0
+    0: Parameter()[1]
+    1: Parameter()[5, %context]
+    3: Parameter()[0, %this]
+    4: Constant()[external: 0x630b79d10020]
+    5: Load *(#4) [raw, Uint64, Word64]
+    6: Constant()[compressed heap object: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>]
+    7: StackPointerGreaterThan(#5)[JSFunctionEntry]
+    8: Constant()[word32: 1]
+    9: Branch(#7)[B2, B1, True]
+
+BLOCK B1 <- B0
+   11: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, -1, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   13: Constant()[heap object: 0x09ef0004b2f1 <NativeContext[304]>]
+   14: Constant()[external: 0x71f1d13cc450 <StackGuardWithGap.entry>]
+   15: FrameConstant()[stack check offset]
+   16: Constant()[heap object: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]
+   17: Call(#16, #11, #15, #14, #8, #13)[Code:StackGuardWithGap:r1s1i5f1]
+   20: DidntThrow(#17)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   22: Goto()[B3, 0]
+
+BLOCK B2 <- B0
+   23: Goto()[B3, 0]
+
+MERGE B3 <- B1, B2
+   24: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 0, Ignore, 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   26: WordBinop(#0, #8)[BitwiseAnd, Word32]
+   27: Constant()[word32: 0]
+   28: DeoptimizeIf(#26, #24)[negated, Smi, FeedbackSource(INVALID)]
+   30: Load *(#0) [tagged base, TaggedPointer, Compressed]
+   31: Constant()[compressed heap object: 0x09ef0000044d <Map[16](SYMBOL_TYPE)>]
+   32: Comparison(#30, #31)[Equal, Tagged]
+   33: DeoptimizeIf(#32, #24)[negated, WrongMap, FeedbackSource(INVALID)]
+   34: Constant()[heap object: 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>]
+   35: Load *(#34 + 20) [tagged base, TaggedPointer, Tagged, offset: 20]
+   36: FrameState(#6, #3, #0, #1)[not inlined, UNOPTIMIZED_FRAME, 5, PokeAt(0), 0x09ef00067341 <SharedFunctionInfo toStr>, state values: #6(kRepTagged|kTypeAny) #3(kRepTagged|kTypeAny) #0(kRepTagged|kTypeAny) #1(kRepTagged|kTypeAny) . .]
+   38: Constant()[heap object: 0x09ef00000011 <undefined>]
+   39: Constant()[heap object: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>]
+   40: Call(#39, #36, #34, #38, #8, #27, #0, #35)[Code:JSTrampoline Descriptor:r1s1i7f1]
+   44: DidntThrow(#40)[🁫🁫 🁫🁫 🁤🁪 🁫 i a, 0]
+   46: Return(#27, #44)[0]
+----- Instruction sequence after instruction selection -----
+IMM#0: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>
+IMM#1: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+IMM#2: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+IMM#3: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+IMM#4: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>
+IMM#5: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+CST#0: v7 = 1
+CST#1: v14 = 0x09ef0004b2f1 <NativeContext[304]>
+CST#2: v13 = 0x71f1d13cc450 <StackGuardWithGap.entry>
+CST#3: v8 = 0
+CST#4: v5 = 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>
+CST#5: v6 = 0x09ef00000011 <undefined>
+B0: AO#0  instructions: [0, 5)
+ predecessors:
+       0: gap () () 
+          v3(=-2S) = ArchNop
+       1: gap () () 
+          v4(=rsi) = ArchNop
+       2: gap () () 
+          v2(=-1S) = ArchNop
+       3: gap () () 
+          [constant:v7] = ArchNop
+       4: gap () () 
+          ArchStackPointerGreaterThan : Root && branch if unsigned greater than #-96 [rpo_immediate:2] [rpo_immediate:1]
+ successors: B2 B1
+B1: AO#3 (deferred) (no frame)  instructions: [5, 11)
+ predecessors: B0
+       5: gap () () 
+          [constant:v14] = ArchNop
+       6: gap () () 
+          [constant:v13] = ArchNop
+       7: gap () () 
+          v12(R) = ArchStackCheckOffset
+       8: gap () () 
+          X64Push #8 v12(-)
+       9: gap () () 
+          v11(=rax) = ArchCallCodeObject [immediate:4] #3 [immediate:5] v2(S) v3(S) v4(S) v13(=rbx) v7(=rax) v14(=rsi) #0
+      10: gap () () 
+          ArchJmp [rpo_immediate:3]
+ successors: B3
+B2: AO#1 (no frame)  instructions: [11, 12)
+ predecessors: B0
+      11: gap () () 
+          ArchJmp [rpo_immediate:3]
+ successors: B3
+B3: AO#2 (no frame)  instructions: [12, 22)
+ predecessors: B1 B2
+      12: gap () () 
+          [constant:v8] = ArchNop
+      13: gap () () 
+          X64Test32 && deoptimize if equal v3 #1 #2 [immediate:3] v2(-) v3(-) v4(S)
+      14: gap () () 
+          v10(R) = X64Movl : MRI v3(R) #-1
+      15: gap () () 
+          X64Cmp32 && deoptimize if not equal v10(R) #1101 #1 [immediate:2] v2(-) v3(-) v4(S)
+      16: gap () () 
+          [constant:v5] = ArchNop
+      17: gap () () 
+          v9(R) = X64MovqDecompressTagged : MRI v5(R) #19
+      18: gap () () 
+          [constant:v6] = ArchNop
+      19: gap () () 
+          X64Push #8 v3(-)
+      20: gap () () 
+          v1(=rax) = ArchCallCodeObject [immediate:0] #0 [immediate:1] v2(S) v3(S) v4(S) v5(=rdi) v6(=rdx) v7(=rax) v8(=r15) v9(=rsi) #0
+      21: gap () () 
+          ArchRet #0 v1(=rax)
+ successors:
+----- Instruction sequence before register allocation -----
+IMM#0: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>
+IMM#1: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+IMM#2: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+IMM#3: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+IMM#4: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>
+IMM#5: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+CST#0: v7 = 1
+CST#1: v14 = 0x09ef0004b2f1 <NativeContext[304]>
+CST#2: v13 = 0x71f1d13cc450 <StackGuardWithGap.entry>
+CST#3: v8 = 0
+CST#4: v5 = 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>
+CST#5: v6 = 0x09ef00000011 <undefined>
+B0: AO#0  instructions: [0, 5)
+ predecessors:
+       0: gap () () 
+          [stack:-2|t] = ArchNop
+       1: gap (v3(-) = [stack:-2|t]) () 
+          [rsi|R|t] = ArchNop
+       2: gap (v4(-) = [rsi|R|t]) () 
+          [stack:-1|t] = ArchNop
+       3: gap (v2(-) = [stack:-1|t]) () 
+          [constant:v7] = ArchNop
+       4: gap () () 
+          ArchStackPointerGreaterThan : Root && branch if unsigned greater than #-96 [rpo_immediate:2] [rpo_immediate:1]
+ successors: B2 B1
+B1: AO#3 (deferred) (no frame)  instructions: [5, 11)
+ predecessors: B0
+       5: gap () () 
+          [constant:v14] = ArchNop
+       6: gap () () 
+          [constant:v13] = ArchNop
+       7: gap () () 
+          v12(R) = ArchStackCheckOffset
+       8: gap () () 
+          X64Push #8 v12(-)
+       9: gap () ([rbx|R|w64] = v13(-); [rax|R|w64] = v7(-); [rsi|R|t] = v14(-)) 
+          [rax|R|t] = ArchCallCodeObject [immediate:4] #3 [immediate:5] v2(S) v3(S) v4(S) [rbx|R|w64] [rax|R|w64] [rsi|R|t] #0
+      10: gap () () 
+          ArchJmp [rpo_immediate:3]
+ successors: B3
+B2: AO#1 (no frame)  instructions: [11, 12)
+ predecessors: B0
+      11: gap () () 
+          ArchJmp [rpo_immediate:3]
+ successors: B3
+B3: AO#2 (no frame)  instructions: [12, 22)
+ predecessors: B1 B2
+      12: gap () () 
+          [constant:v8] = ArchNop
+      13: gap () () 
+          X64Test32 && deoptimize if equal v3 #1 #2 [immediate:3] v2(-) v3(-) v4(S)
+      14: gap () () 
+          v10(R) = X64Movl : MRI v3(R) #-1
+      15: gap () () 
+          X64Cmp32 && deoptimize if not equal v10(R) #1101 #1 [immediate:2] v2(-) v3(-) v4(S)
+      16: gap () () 
+          [constant:v5] = ArchNop
+      17: gap () () 
+          v9(R) = X64MovqDecompressTagged : MRI v5(R) #19
+      18: gap () () 
+          [constant:v6] = ArchNop
+      19: gap () () 
+          X64Push #8 v3(-)
+      20: gap () ([rdi|R|t] = v5(-); [rdx|R|t] = v6(-); [rax|R|w64] = v7(-); [r15|R|w64] = v8(-); [rsi|R|tp] = v9(-)) 
+          [rax|R|t] = ArchCallCodeObject [immediate:0] #0 [immediate:1] v2(S) v3(S) v4(S) [rdi|R|t] [rdx|R|t] [rax|R|w64] [r15|R|w64] [rsi|R|tp] #0
+      21: gap (v1(-) = [rax|R|t]) ([rax|R|t] = v1(-)) 
+          ArchRet #0 [rax|R|t]
+ successors:
+----- Instruction sequence after register allocation -----
+IMM#0: 0x09ef001da7e9 <Code BUILTIN SymbolPrototypeToString>
+IMM#1: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+IMM#2: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+IMM#3: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+IMM#4: 0x09ef001ce315 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>
+IMM#5: 0x09ef00067535 <JSFunction toStr (sfi = 0x9ef00067341)>
+CST#0: v7 = 1
+CST#1: v14 = 0x09ef0004b2f1 <NativeContext[304]>
+CST#2: v13 = 0x71f1d13cc450 <StackGuardWithGap.entry>
+CST#3: v8 = 0
+CST#4: v5 = 0x09ef00055d45 <JSFunction toString (sfi = 0x9ef0017b559)>
+CST#5: v6 = 0x09ef00000011 <undefined>
+B0: AO#0  instructions: [0, 5)
+ predecessors:
+       0: gap () () 
+          [stack:-2|t] = ArchNop
+       1: gap () () 
+          [rsi|R|t] = ArchNop
+       2: gap () () 
+          [stack:-1|t] = ArchNop
+       3: gap () () 
+          [constant:v7] = ArchNop
+       4: gap ([stack:5|t] = [rsi|R|t]) () 
+          ArchStackPointerGreaterThan : Root && branch if unsigned greater than #-96 [rpo_immediate:2] [rpo_immediate:1]
+ successors: B2 B1
+B1: AO#3 (deferred) (no frame)  instructions: [5, 11)
+ predecessors: B0
+       5: gap () () 
+          [constant:v14] = ArchNop
+       6: gap () () 
+          [constant:v13] = ArchNop
+       7: gap () () 
+          [rcx|R|w64] = ArchStackCheckOffset
+       8: gap () () 
+          X64Push #8 [rcx|R|w64]
+       9: gap ([rax|R|w64] = [constant:v7]; [rbx|R|w64] = [constant:v13]; [rsi|R|t] = [constant:v14]) () 
+          [rax|R|t] = ArchCallCodeObject [immediate:4] #3 [immediate:5] [stack:-1|t] [stack:-2|t] [stack:5|t] [rbx|R|w64] [rax|R|w64] [rsi|R|t] #0
+      10: gap () () 
+          ArchJmp [rpo_immediate:3]
+ successors: B3
+B2: AO#1 (no frame)  instructions: [11, 12)
+ predecessors: B0
+      11: gap () () 
+          ArchJmp [rpo_immediate:3]
+ successors: B3
+B3: AO#2 (no frame)  instructions: [12, 22)
+ predecessors: B1 B2
+      12: gap () () 
+          [constant:v8] = ArchNop
+      13: gap ([rcx|R|t] = [stack:-2|t]) () 
+          X64Test32 && deoptimize if equal [rcx|R|t] #1 #2 [immediate:3] [stack:-1|t] [rcx|R|t] [stack:5|t]
+      14: gap () () 
+          [r8|R|cp] = X64Movl : MRI [rcx|R|t] #-1
+      15: gap () () 
+          X64Cmp32 && deoptimize if not equal [r8|R|cp] #1101 #1 [immediate:2] [stack:-1|t] [rcx|R|t] [stack:5|t]
+      16: gap () () 
+          [constant:v5] = ArchNop
+      17: gap ([rdi|R|t] = [constant:v5]) () 
+          [rsi|R|tp] = X64MovqDecompressTagged : MRI [rdi|R|t] #19
+      18: gap () () 
+          [constant:v6] = ArchNop
+      19: gap () () 
+          X64Push #8 [rcx|R|t]
+      20: gap ([rdx|R|t] = [constant:v6]; [r15|R|w64] = [constant:v8]; [rax|R|w64] = [constant:v7]) () 
+          [rax|R|t] = ArchCallCodeObject [immediate:0] #0 [immediate:1] [stack:-1|t] [stack:-2|t] [stack:5|t] [rdi|R|t] [rdx|R|t] [rax|R|w64] [r15|R|w64] [rsi|R|tp] #0
+      21: gap () () 
+          ArchRet #0 [rax|R|t]
+ successors:
+---------------------------------------------------
+Finished compiling method toStr using TurboFan

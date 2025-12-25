@@ -37,7 +37,7 @@ TEST_CASES = [
     # ============================================
     {
         "name": "基本类型优化",
-        "description": "String、Number、Boolean 基本类型的类型注入优化",
+        "description": "String、Number、Boolean、Symbol 基本类型的类型注入优化",
         "functions": [
             {
                 "file": "test/mjsunit/compiler/type-injector/test-primitive.js",
@@ -64,6 +64,14 @@ TEST_CASES = [
                 "expected": {
                     "TruncateTaggedToBit": {"before": 1, "after": 0},
                     "ChangeTaggedToBit": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-primitive.js",
+                "name": "toStr",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedTaggedToTaggedPointer": {"before": 1, "after": 0}
                 }
             }
         ]
@@ -185,7 +193,7 @@ TEST_CASES = [
                 "name": "processNumber",
                 "flags": BUILTIN_FLAGS,
                 "expected": {
-                    "CheckedTaggedToTaggedPointer": {"before": 2, "after": 0},
+                    "CheckedTaggedToTaggedPointer": {"before": 1, "after": 0},
                     "CheckString": {"before": 1, "after": 0}
                 }
             },
@@ -203,7 +211,7 @@ TEST_CASES = [
                 "name": "testToFixed",
                 "flags": BUILTIN_FLAGS,
                 "expected": {
-                    "CheckedTaggedToTaggedPointer": {"before": 2, "after": 0},
+                    "CheckedTaggedToTaggedPointer": {"before": 1, "after": 0},
                     "CheckString": {"before": 1, "after": 0}
                 }
             },

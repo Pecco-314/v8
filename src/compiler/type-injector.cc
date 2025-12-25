@@ -43,6 +43,8 @@ Type TypeInjector::TypeASTToType(const TypeAST& ast) {
       return Type::String();
     case TypeAST::Bool:
       return Type::Boolean();
+    case TypeAST::Sym:
+      return Type::Symbol();
     case TypeAST::Arr:
       return Type::Array();
     case TypeAST::Tuple:
@@ -590,9 +592,31 @@ std::optional<TypeAST> TypeInjector::GetFunctionReturnType(int start_pos) {
   return std::nullopt;
 }
 
+void TypeInjector::ProcessCheckMapsNode(Node* node) {
+  if (node->opcode() != IrOpcode::kCheckMaps) return;
+
+  Node* value_input = NodeProperties::GetValueInput(node, 0);
+  Node* actual_input = value_input;
+
+  // Skip CheckedTaggedToTaggedPointer
+  if (actual_input->opcode() == IrOpcode::kCheckedTaggedToTaggedPointer) {
+    actual_input = NodeProperties::GetValueInput(actual_input, 0);
+  }
+
+  Type type = NodeProperties::GetType(actual_input);
+  if (type.Is(Type::Symbol())) {
+    TYPE_INJECTOR_DEBUG("Removing CheckMaps for Symbol input");
+
+    Node* effect_input = NodeProperties::GetEffectInput(node);
+    Node* control_input = NodeProperties::GetControlInput(node);
+    
+    NodeProperties::ReplaceUses(node, nullptr, effect_input, control_input, control_input);
+    node->Kill();
+  }
+}
+
 void TypeInjector::Run() {
   script_hash_ = compilation_info_->cached_script_hash();
-  TYPE_INJECTOR_DEBUG("script_hash=" << script_hash_);
 
   IndirectHandle<SharedFunctionInfo> shared = compilation_info_->shared_info();
   int start_pos = shared->StartPosition();
@@ -611,14 +635,15 @@ void TypeInjector::Run() {
   for (Node* node : all.reachable) {
     if (node->opcode() == IrOpcode::kParameter) {
       int index = ParameterIndexOf(node->op());
-      if (index >= 0 && index < static_cast<int>(param_types_.size())) {
+      // Parameter indices in V8:
+      // index=0: receiver (this)
+      // index=1: first argument
+      // index=2: second argument
+      // ...
+      // param_types_ format: [receiver, arg0, arg1, ..., return_type]
+      if (index >= 0 && index < static_cast<int>(param_types_.size()) - 1) {
         const TypeAST& ast = param_types_[index];
         Type type = TypeASTToType(ast);
-        TYPE_INJECTOR_DEBUG("Parameter #" << index << ": ");
-        if (V8_COMPILER_TYPE_INJECTOR_DEBUG) {
-        ast.Print();
-        std::cout << std::endl;
-        }
         NodeProperties::SetType(node, type);
       }
     }
@@ -637,6 +662,11 @@ void TypeInjector::Run() {
   // 第四次遍历：处理 JSCall 节点，注入返回值类型
   for (Node* node : all.reachable) {
     ProcessJSCallNode(node);
+  }
+
+  // 第五次遍历：移除冗余的 CheckMaps
+  for (Node* node : all.reachable) {
+    ProcessCheckMapsNode(node);
   }
 }
 

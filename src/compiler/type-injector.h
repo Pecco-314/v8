@@ -38,6 +38,7 @@ class TypeInjector {
   void ProcessLoadFieldNode(Node* node);
   void ProcessLoadElementNode(Node* node);
   void ProcessJSCallNode(Node* node);
+  void ProcessCheckMapsNode(Node* node);
   void RemoveTupleBoundsCheck(Node* load_element_node, Node* check_bounds_node,
                                Node* index_constant);
   void ReplaceTupleLengthWithConstant(Node* load_field_node, int tuple_length);
