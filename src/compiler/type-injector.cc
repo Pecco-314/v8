@@ -6,6 +6,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
@@ -503,6 +504,56 @@ void TypeInjector::ProcessJSCallNode(Node* node) {
   }
 
   SharedFunctionInfoRef shared = shared_opt.value();
+  
+  // 1. 尝试从内建函数类型表获取完整签名（基于 Builtin ID）
+  if (v8_flags.turbo_builtin_type_table && shared.HasBuiltinId()) {
+    Builtin builtin_id = shared.builtin_id();
+    TYPE_INJECTOR_DEBUG("Found builtin: " << Builtins::name(builtin_id) 
+                        << " (id=" << static_cast<int>(builtin_id) << ")");
+    
+    auto* storage = TypeStorage::Get();
+    auto signature = storage->GetBuiltinSignature(builtin_id);
+    
+    if (signature.has_value()) {
+      // 设置返回值类型
+      Type return_turbofan_type = TypeASTToType(signature->return_type);
+      NodeProperties::SetType(node, return_turbofan_type);
+      TYPE_INJECTOR_DEBUG("Applied builtin return type for " 
+                          << Builtins::name(builtin_id)
+                          << " -> " << return_turbofan_type);
+      
+      // 设置接收者和参数类型
+      JSCallNode call_node(node);
+      Node* receiver = call_node.receiver();
+      
+      // 参数类型列表：第一个是接收者，后续是其他参数
+      const auto& param_types = signature->param_types;
+      
+      // 设置接收者类型（如果有）
+      if (!param_types.empty() && receiver != nullptr) {
+        Type receiver_type = TypeASTToType(param_types[0]);
+        NodeProperties::SetType(receiver, receiver_type);
+        TYPE_INJECTOR_DEBUG("  Set receiver type: " << receiver_type);
+      }
+      
+      // 设置其他参数类型
+      size_t arg_count = call_node.ArgumentCount();
+      for (size_t i = 0; i < arg_count && i + 1 < param_types.size(); ++i) {
+        Node* arg = NodeProperties::GetValueInput(node, static_cast<int>(2 + i));  // 跳过 target 和 receiver
+        if (arg != nullptr) {
+          Type arg_type = TypeASTToType(param_types[i + 1]);
+          NodeProperties::SetType(arg, arg_type);
+          TYPE_INJECTOR_DEBUG("  Set arg[" << i << "] type: " << arg_type);
+        }
+      }
+      
+      return;
+    } else {
+      TYPE_INJECTOR_DEBUG("  No builtin signature found in metadata");
+    }
+  }
+  
+  // 2. 尝试从用户 metadata 获取返回值类型（基于 bytecode offset）
   int start_pos = shared.StartPosition();
 
   TYPE_INJECTOR_DEBUG("Processing JSCall #" << node->id() 

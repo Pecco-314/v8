@@ -1,6 +1,7 @@
 #ifndef V8_COMPILER_TYPE_STORAGE_H_
 #define V8_COMPILER_TYPE_STORAGE_H_
 
+#include "src/builtins/builtins.h"
 #include "src/compiler/turbofan-types.h"
 
 namespace v8 {
@@ -90,12 +91,28 @@ struct TypeAST {
 class TypeStorage {
  private:
   std::map<std::string, std::map<int, std::vector<TypeAST>>> storage_;
+  std::map<std::string, std::map<int, TypeAST>> return_types_;
+  
+  // 内建函数签名存储
+  struct BuiltinSignature {
+    std::vector<TypeAST> param_types;  // 参数类型列表（第一个是接收者）
+    TypeAST return_type;               // 返回值类型
+  };
+  std::map<int, BuiltinSignature> builtin_signatures_;
+  bool builtin_types_loaded_ = false;
+  
+  void ReadBuiltinFile();
 
  public:
   static TypeStorage* Get();
   TypeStorage() = default;
   void ReadFile(std::string hash);
   std::map<int, std::vector<TypeAST>> GetTypeMap(std::string hash);
+  std::optional<TypeAST> GetReturnType(std::string hash, int bytecode_offset);
+
+  // 内建函数类型表（基于 Builtin ID）
+  std::optional<TypeAST> GetBuiltinReturnType(Builtin builtin_id);
+  std::optional<BuiltinSignature> GetBuiltinSignature(Builtin builtin_id);
 };
 
 }  // namespace compiler

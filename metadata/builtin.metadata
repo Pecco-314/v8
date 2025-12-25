@@ -1,0 +1,54 @@
+# V8 内建函数类型签名
+# 格式: [BuiltinId] @params [receiver_type param_types...] @ret [return_type]
+# receiver_type: 第一个参数是接收者（this），可以是 num, str, bool, any 等
+# 使用 any 表示任意类型或不确定的类型
+
+# ===== Object.prototype 方法 =====
+# 所有对象都有 toString，接收者是任意类型
+1377 @params any @ret str  # ObjectPrototypeToString
+
+# ===== Number.prototype 方法 =====
+# 接收者是 num（原始数字或 Number 包装对象）
+1338 @params num @ret str  # NumberPrototypeToString
+498 @params num num @ret str  # NumberPrototypeToFixed(fractionDigits)
+1310 @params num num @ret str  # NumberPrototypeToExponential(fractionDigits)
+1317 @params num num @ret str  # NumberPrototypeToPrecision(precision)
+
+# ===== String.prototype 方法 =====
+# 接收者是 str（原始字符串或 String 包装对象）
+1605 @params str @ret str  # StringPrototypeToString
+1671 @params str num @ret str  # StringPrototypeCharAt(index)
+1672 @params str num @ret num  # StringPrototypeCharCodeAt(index)
+1678 @params str num num @ret str  # StringPrototypeSubstring(start, end)
+1680 @params str num num @ret str  # StringPrototypeSlice(start, end)
+1639 @params str str @ret num  # StringPrototypeIndexOf(searchString)
+1640 @params str str @ret num  # StringPrototypeLastIndexOf(searchString)
+1493 @params str num @ret str  # StringPrototypeRepeat(count)
+
+# ===== Boolean.prototype 方法 =====
+# 接收者是 bool（原始布尔值或 Boolean 包装对象）
+235 @params bool @ret str  # BooleanPrototypeToString
+
+# ===== Array.prototype 方法 =====
+# 接收者是数组，暂时标注为 any（未来可以标注为 arr）
+140 @params any str @ret str   # ArrayPrototypeJoin(separator)
+144 @params any @ret str   # ArrayPrototypeToString
+
+# ===== Function.prototype 方法 =====
+# 接收者是函数，标注为 any
+738 @params any @ret str   # FunctionPrototypeToString
+
+# ===== Symbol.prototype 方法 =====
+# 接收者是 Symbol，暂时标注为 any
+1591 @params any @ret str  # SymbolPrototypeToString
+
+# ===== Date.prototype 方法 =====
+# 接收者是 Date 对象，暂时标注为 any
+371 @params any @ret str   # DatePrototypeToString
+
+# ===== Error.prototype 方法 =====
+# 接收者是 Error 对象，暂时标注为 any
+710 @params any @ret str   # ErrorPrototypeToString
+
+# 可以继续添加更多内建函数...
+# 例如返回 boolean 的方法等

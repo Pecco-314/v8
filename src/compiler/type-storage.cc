@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <vector>
 #include <string>
 #include <vector>
 
@@ -226,6 +227,118 @@ std::map<int, std::vector<TypeAST>> TypeStorage::GetTypeMap(std::string hash) {
   } else {
     return {};
   }
+}
+
+// 读取内建函数类型文件
+void TypeStorage::ReadBuiltinFile() {
+  if (builtin_types_loaded_) {
+    return;
+  }
+  builtin_types_loaded_ = true;
+  
+  // 尝试从多个位置查找 builtin.metadata
+  std::vector<std::string> search_paths;
+  
+  // 1. 优先使用 --turbo_metadata_path 指定的目录
+  const char* metadata_path = v8_flags.turbo_metadata_path;
+  if (metadata_path != nullptr) {
+    std::string dir(metadata_path);
+    if (!dir.empty() && dir.back() != '/') {
+      dir += '/';
+    }
+    search_paths.push_back(dir + "builtin.metadata");
+  }
+  
+  // 2. 项目根目录的 metadata/ 目录（编译时路径）
+  search_paths.push_back("metadata/builtin.metadata");
+  
+  // 3. 相对于可执行文件的 metadata/ 目录
+  search_paths.push_back("../metadata/builtin.metadata");
+  
+  std::ifstream ifs;
+  for (const auto& path : search_paths) {
+    ifs.open(path);
+    if (ifs.is_open()) {
+      break;
+    }
+  }
+  
+  if (!ifs.is_open()) {
+    return;
+  }
+  
+  std::string line;
+  // 格式: [BuiltinId] @params [param1 param2 ...] @ret [return_type]
+  // 例如: 123 @params any @ret str  # NumberPrototypeToString
+  //      456 @params any @ret str  # ObjectPrototypeToString
+  while (std::getline(ifs, line)) {
+    // 移除注释
+    size_t comment_pos = line.find('#');
+    if (comment_pos != std::string::npos) {
+      line = line.substr(0, comment_pos);
+    }
+    
+    // 跳过空行
+    if (line.empty() || line.find_first_not_of(" \t\r\n") == std::string::npos) {
+      continue;
+    }
+    
+    std::istringstream iss(line);
+    int builtin_id;
+    std::string token;
+    
+    if (!(iss >> builtin_id)) continue;  // 读取 builtin ID
+    
+    BuiltinSignature signature;
+    signature.return_type.kind = TypeAST::Any;  // 默认返回值为 Any
+    
+    bool in_params = false;
+    bool in_ret = false;
+    
+    while (iss >> token) {
+      if (token == "@params") {
+        in_params = true;
+        in_ret = false;
+      } else if (token == "@ret") {
+        in_params = false;
+        in_ret = true;
+      } else if (in_params) {
+        // 解析参数类型（第一个是接收者）
+        TypeParser parser(token);
+        signature.param_types.push_back(parser.Parse());
+      } else if (in_ret) {
+        // 解析返回值类型
+        TypeParser parser(token);
+        signature.return_type = parser.Parse();
+        break;  // 返回值只有一个
+      }
+    }
+    
+    builtin_signatures_[builtin_id] = signature;
+  }
+}
+
+// 基于 Builtin ID 获取返回值类型
+std::optional<TypeAST> TypeStorage::GetBuiltinReturnType(Builtin builtin_id) {
+  auto sig = GetBuiltinSignature(builtin_id);
+  if (sig.has_value()) {
+    return sig->return_type;
+  }
+  return std::nullopt;
+}
+
+// 基于 Builtin ID 获取完整的函数签名
+std::optional<TypeStorage::BuiltinSignature> TypeStorage::GetBuiltinSignature(Builtin builtin_id) {
+  // 首次调用时加载内建函数类型文件
+  ReadBuiltinFile();
+  
+  int id = static_cast<int>(builtin_id);
+  auto it = builtin_signatures_.find(id);
+  if (it != builtin_signatures_.end()) {
+    return it->second;
+  }
+  
+  return std::nullopt;
 }
 
 }  // namespace compiler
