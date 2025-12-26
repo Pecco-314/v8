@@ -241,5 +241,51 @@ TEST_CASES = [
                 }
             }
         ]
+    },
+    
+    # ============================================
+    # 6. RawInt32 类型优化
+    # ============================================
+    {
+        "name": "RawInt32 类型优化",
+        "description": "RawInt32 类型的无溢出检查加法运算（移除溢出检查）",
+        "functions": [
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "addRawInt32",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Add": {"before": 1, "after": 0},
+                    "Int32Add": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "addRawInt32Overflow",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Add": {"before": 1, "after": 0},
+                    "Int32Add": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "addRawInt32Negative",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Add": {"before": 1, "after": 0},
+                    "Int32Add": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "addRawInt32Underflow",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Add": {"before": 1, "after": 0},
+                    "Int32Add": {"before": 0, "after": 1}
+                }
+            }
+        ]
     }
 ]

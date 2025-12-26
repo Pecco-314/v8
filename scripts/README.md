@@ -127,7 +127,33 @@ python3 scripts/verify_tests.py
 
 ### 5. 调试工具
 
-#### 5.1 查看单个函数的图
+#### 5.1 生成多阶段调试图
+使用 `generate_debug_graphs.py` 生成指定编译阶段的 TurboFan 图（用于调试优化过程）：
+
+```bash
+python3 scripts/generate_debug_graphs.py <test_name> <phase1> <phase2> ...
+```
+
+示例：
+```bash
+# 生成 RawInt32 优化在 TypeInjector 和 EarlyOptimization 阶段的图
+python3 scripts/generate_debug_graphs.py rawint32 TypeInjector EarlyOptimization
+```
+
+支持的阶段：
+- `TypeInjector` - 类型注入阶段（最早）
+- `TypedLowering` - 类型降低阶段
+- `EarlyOptimization` - 早期优化阶段（默认）
+- `SimplifiedLowering` - 简化降低阶段
+- `LateOptimization` - 后期优化阶段
+
+输出目录：`docs/graphs/early-optimization/{phase_name}/`
+
+**与 generate_graphs.py 的区别**：
+- `generate_graphs.py`：用于生成测试文档，只生成 EarlyOptimization 阶段
+- `generate_debug_graphs.py`：用于调试优化，可生成多个编译阶段的图
+
+#### 5.2 查看单个函数的图
 ```bash
 ./out.gn/x64.debug/d8 \
   --trace-turbo-graph \
@@ -137,7 +163,7 @@ python3 scripts/verify_tests.py
   2>&1 | grep -A 100 "twice_s"
 ```
 
-#### 5.2 查看 TypeInjector 调试信息
+#### 5.3 查看 TypeInjector 调试信息
 在 `src/compiler/type-injector.cc` 中设置 `V8_COMPILER_TYPE_INJECTOR_DEBUG` 为 `true`，重新编译后运行：
 
 ```bash
@@ -151,7 +177,7 @@ python3 scripts/verify_tests.py
 ## 脚本详细说明
 
 ### generate_graphs.py
-**功能**：从 d8 输出中提取 EarlyOptimization 阶段的 Graph
+**功能**：从 d8 输出中提取 EarlyOptimization 阶段的 Graph（用于生成测试文档）
 
 **核心功能**：
 - `normalize_addresses()`：规范化堆地址，处理 V8 前导零不一致问题
@@ -163,6 +189,24 @@ python3 scripts/verify_tests.py
 ```bash
 python3 scripts/generate_graphs.py
 ```
+
+### generate_debug_graphs.py
+**功能**：生成指定编译阶段的 TurboFan 图（用于调试优化过程）
+
+**核心功能**：
+- 支持多个编译阶段：TypeInjector, TypedLowering, EarlyOptimization, SimplifiedLowering, LateOptimization
+- 自动运行测试并提取指定阶段的图
+- 规范化堆地址，确保输出稳定
+
+**使用**：
+```bash
+python3 scripts/generate_debug_graphs.py <test_name> <phase1> <phase2> ...
+
+# 示例：生成 RawInt32 优化在多个阶段的图
+python3 scripts/generate_debug_graphs.py rawint32 TypeInjector EarlyOptimization
+```
+
+**输出**：`docs/graphs/early-optimization/{phase_name}/`
 
 ### analyze_optimization.py
 **功能**：分析优化效果并生成 Markdown 文档
@@ -276,7 +320,9 @@ A: 运行 `python3 scripts/clean_metadata.py`，它会自动删除不在 `test_c
 - 脚本：`scripts/` 
   - `gen_metadata_info.py` - 生成 metadata 信息
   - `clean_metadata.py` - 清理多余 metadata
-  - `generate_graphs.py` - 生成 TurboFan 图
+  - `generate_graphs.py` - 生成 TurboFan 图（用于测试文档）
+  - `generate_debug_graphs.py` - 生成多阶段调试图（用于调试优化）
   - `analyze_optimization.py` - 生成优化分析文档
   - `verify_tests.py` - 验证测试结果
+  - `inspect_graphs.py` - 检查图文件内容
   - `test_config.py` - 测试配置

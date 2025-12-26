@@ -36,6 +36,7 @@ class TypeParser {
     if (s == "str") return TypeAST::Str;
     if (s == "symbol") return TypeAST::Symbol;
     if (s == "bigint") return TypeAST::BigInt;
+    if (s == "rawint32") return TypeAST::RawInt32;
 
     if (s == "i32") return TypeAST::I32;
     if (s == "u32") return TypeAST::U32;

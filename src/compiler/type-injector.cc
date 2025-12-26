@@ -1,7 +1,5 @@
 #include "src/compiler/type-injector.h"
 
-#include <iostream>
-
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/heap-refs.h"
@@ -29,7 +27,7 @@ namespace compiler {
 
 #if V8_COMPILER_TYPE_INJECTOR_DEBUG
 #define TYPE_INJECTOR_DEBUG(...) \
-  do { std::cout << "[TypeInjector] "; std::cout << __VA_ARGS__ << std::endl; } while (false)
+  do { std::cout << "[TypeInjector] " << __VA_ARGS__ << std::endl; } while (false)
 #else
 #define TYPE_INJECTOR_DEBUG(...) ((void)0)
 #endif
@@ -47,6 +45,8 @@ Type TypeInjector::TypeASTToType(const TypeAST& ast) {
       return Type::Symbol();
     case TypeAST::BigInt:
       return Type::BigInt();
+    case TypeAST::RawInt32:
+      return Type::Signed32();  // 映射到 Signed32，表示 [-2^31, 2^31-1]
     case TypeAST::Arr:
       return Type::Array();
     case TypeAST::Tuple:
@@ -594,6 +594,55 @@ std::optional<TypeAST> TypeInjector::GetFunctionReturnType(int start_pos) {
   return std::nullopt;
 }
 
+// 处理 RawInt32 类型的加法操作
+// 将 SpeculativeSmallIntegerAdd 替换为 NumberAdd，移除溢出检查
+// NumberAdd 会在 SimplifiedLowering 阶段降低到 Int32Add（无检查）
+void TypeInjector::ProcessRawInt32AddNode(Node* node) {
+  // 只处理 SpeculativeSmallIntegerAdd
+  if (node->opcode() != IrOpcode::kSpeculativeSmallIntegerAdd) {
+    return;
+  }
+
+  // 检查两个输入是否都是 RawInt32 类型（映射到 Signed32）
+  Node* left = NodeProperties::GetValueInput(node, 0);
+  Node* right = NodeProperties::GetValueInput(node, 1);
+
+  Type left_type = NodeProperties::GetType(left);
+  Type right_type = NodeProperties::GetType(right);
+
+  // 只有当两个输入都是 Signed32 类型时才进行替换
+  if (!left_type.Is(Type::Signed32()) || !right_type.Is(Type::Signed32())) {
+    return;
+  }
+
+  TYPE_INJECTOR_DEBUG("Found RawInt32 add operation, replacing with NumberAdd");
+
+  // SpeculativeSmallIntegerAdd 有 4 个输入：left, right, effect, control
+  // NumberAdd 是纯操作，只需要 2 个输入：left, right
+  // 我们需要创建新节点，因为 ChangeOp 不会改变输入数量
+  
+  // 创建新的 NumberAdd 节点（仅 2 个输入，复用已有的 left/right）
+  Node* number_add = graph_->NewNode(simplified_->NumberAdd(), left, right);
+  
+  // 设置结果类型为 Signed32，确保 SimplifiedLowering 生成 Int32Add
+  NodeProperties::SetType(number_add, Type::Signed32());
+  
+  // 获取原节点的 effect 和 control 输入（用于替换）
+  Node* effect_input = NodeProperties::GetEffectInput(node);
+  Node* control_input = NodeProperties::GetControlInput(node);
+  
+  // 替换所有使用：
+  // - value 输出 -> number_add
+  // - effect 输出 -> effect_input（直通）
+  // - control 输出 -> control_input（直通）
+  NodeProperties::ReplaceUses(node, number_add, effect_input, control_input, control_input);
+  
+  // 删除原节点
+  node->Kill();
+  
+  TYPE_INJECTOR_DEBUG("Changed to NumberAdd successfully");
+}
+
 void TypeInjector::ProcessCheckMapsNode(Node* node) {
   if (node->opcode() != IrOpcode::kCheckMaps) return;
 
@@ -623,17 +672,27 @@ void TypeInjector::Run() {
   IndirectHandle<SharedFunctionInfo> shared = compilation_info_->shared_info();
   int start_pos = shared->StartPosition();
 
+  TYPE_INJECTOR_DEBUG("Run() called - script_hash: " << script_hash_ << ", start_pos: " << start_pos);
+
   storage_ = TypeStorage::Get();
   auto typemap = storage_->GetTypeMap(script_hash_);
+
+  TYPE_INJECTOR_DEBUG("Found " << typemap.size() << " entries in typemap");
 
   auto it = typemap.find(start_pos);
   if (it != typemap.end()) {
     param_types_ = it->second;
+    TYPE_INJECTOR_DEBUG("Found " << param_types_.size() << " parameter types");
+    for (size_t i = 0; i < param_types_.size(); i++) {
+      TYPE_INJECTOR_DEBUG("  param[" << i << "]: kind=" << param_types_[i].KindToString());
+    }
+  } else {
+    TYPE_INJECTOR_DEBUG("No type info found for start_pos " << start_pos);
   }
 
   AllNodes all(graph_->zone(), graph_);
 
-  // 第一次遍历：设置参数节点的类型
+  // Phase 1: 设置参数节点的类型
   for (Node* node : all.reachable) {
     if (node->opcode() == IrOpcode::kParameter) {
       int index = ParameterIndexOf(node->op());
@@ -661,12 +720,17 @@ void TypeInjector::Run() {
     ProcessLoadElementNode(node);
   }
 
-  // 第四次遍历：处理 JSCall 节点，注入返回值类型
+  // Phase 4: 处理 JSCall 节点，注入返回值类型
   for (Node* node : all.reachable) {
     ProcessJSCallNode(node);
   }
 
-  // 第五次遍历：移除冗余的 CheckMaps
+  // Phase 5: 处理 RawInt32 加法操作
+  for (Node* node : all.reachable) {
+    ProcessRawInt32AddNode(node);
+  }
+
+  // Phase 6: 移除冗余的 CheckMaps
   for (Node* node : all.reachable) {
     ProcessCheckMapsNode(node);
   }

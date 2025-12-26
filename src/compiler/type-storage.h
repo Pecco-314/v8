@@ -17,6 +17,7 @@ struct TypeAST {
     Str,
     Symbol,
     BigInt,
+    RawInt32,
     I32,
     U32,
     I64,
@@ -45,6 +46,8 @@ struct TypeAST {
         return "Symbol";
       case BigInt:
         return "BigInt";
+      case RawInt32:
+        return "RawInt32";
       case I32:
         return "I32";
       case U32:

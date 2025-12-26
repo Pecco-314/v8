@@ -1050,7 +1050,8 @@ struct TypeInjectorPhase {
 
   void Run(TFPipelineData* data, Zone* temp_zone) {
     USE(temp_zone);
-    TypeInjector injector(data->info(), data->graph(), data->common(), data->broker());
+    TypeInjector injector(data->info(), data->graph(), data->common(), 
+                          data->broker(), data->simplified());
     injector.Run();
   }
 };
@@ -2064,11 +2065,6 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   // types might even conflict with the representation/truncation logic.
   RUN_MAYBE_ABORT(SimplifiedLoweringPhase, linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
-
-// #ifdef DEBUG
-//   std::cout << "\n-------- (Simplified Lowering)\n";
-//   data->graph()->Print();
-// #endif
 
 #if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
