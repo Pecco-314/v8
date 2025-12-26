@@ -35,6 +35,7 @@ class TypeParser {
     if (s == "num") return TypeAST::Num;
     if (s == "str") return TypeAST::Str;
     if (s == "sym") return TypeAST::Sym;
+    if (s == "bigint") return TypeAST::BigInt;
 
     if (s == "i32") return TypeAST::I32;
     if (s == "u32") return TypeAST::U32;

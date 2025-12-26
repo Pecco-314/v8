@@ -104,3 +104,55 @@ assertEquals("Symbol(world)", result4);
 
 // 验证函数已被优化
 assertOptimized(toStr);
+
+
+// ===================================
+// 测试 5: BigInt 类型（小数值）
+// ===================================
+// 预期优化：注入 metadata 后，Parameter 类型变为 BigInt，
+// 编译器可以移除 CheckBigInt 检查（小 BigInt 使用 Int64 快速路径）
+
+function addBigInt(a, b) {
+    return a + b;
+}
+
+%PrepareFunctionForOptimization(addBigInt);
+
+// 预热：传入小 BigInt（Int64 范围内）
+for (var i = 0; i < 100; i++) {
+    addBigInt(BigInt(i), BigInt(i + 1));
+}
+
+%OptimizeFunctionOnNextCall(addBigInt);
+var result5 = addBigInt(1000n, 2000n);
+assertEquals(3000n, result5);
+
+// 验证函数已被优化
+assertOptimized(addBigInt);
+
+
+// ===================================
+// 测试 6: BigInt 类型（大数值）
+// ===================================
+// 预期优化：注入 metadata 后，Parameter 类型变为 BigInt，
+// 编译器可以移除 CheckBigInt 检查（大 BigInt 使用运行时调用）
+
+function addLargeBigInt(a, b) {
+    return a + b;
+}
+
+%PrepareFunctionForOptimization(addLargeBigInt);
+
+// 预热：传入大 BigInt（超出 Int64 范围）
+var largeBigInt1 = 2n ** 65n;  // 36893488147419103232n
+var largeBigInt2 = 2n ** 66n;
+for (var i = 0; i < 100; i++) {
+    addLargeBigInt(largeBigInt1, BigInt(i));
+}
+
+%OptimizeFunctionOnNextCall(addLargeBigInt);
+var result6 = addLargeBigInt(largeBigInt1, 1n);
+assertEquals(largeBigInt1 + 1n, result6);
+
+// 验证函数已被优化
+assertOptimized(addLargeBigInt);

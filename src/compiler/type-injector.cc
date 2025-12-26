@@ -45,6 +45,8 @@ Type TypeInjector::TypeASTToType(const TypeAST& ast) {
       return Type::Boolean();
     case TypeAST::Sym:
       return Type::Symbol();
+    case TypeAST::BigInt:
+      return Type::BigInt();
     case TypeAST::Arr:
       return Type::Array();
     case TypeAST::Tuple:

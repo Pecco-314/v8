@@ -37,7 +37,7 @@ TEST_CASES = [
     # ============================================
     {
         "name": "基本类型优化",
-        "description": "String、Number、Boolean、Symbol 基本类型的类型注入优化",
+        "description": "String、Number、Boolean、Symbol、BigInt 基本类型的类型注入优化",
         "functions": [
             {
                 "file": "test/mjsunit/compiler/type-injector/test-primitive.js",
@@ -72,6 +72,22 @@ TEST_CASES = [
                 "flags": METADATA_FLAGS,
                 "expected": {
                     "CheckedTaggedToTaggedPointer": {"before": 1, "after": 0}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-primitive.js",
+                "name": "addBigInt",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckBigInt": {"before": 2, "after": 0}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-primitive.js",
+                "name": "addLargeBigInt",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckBigInt": {"before": 2, "after": 0}
                 }
             }
         ]
