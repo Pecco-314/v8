@@ -18,12 +18,6 @@ struct TypeAST {
     Symbol,
     BigInt,
     RawInt32,
-    I32,
-    U32,
-    I64,
-    U64,
-    F32,
-    F64,
     Arr = 100, // 以下为复合类型
     Tuple,
     Obj,
@@ -48,18 +42,6 @@ struct TypeAST {
         return "BigInt";
       case RawInt32:
         return "RawInt32";
-      case I32:
-        return "I32";
-      case U32:
-        return "U32";
-      case I64:
-        return "I64";
-      case U64:
-        return "U64";
-      case F32:
-        return "F32";
-      case F64:
-        return "F64";
       case Arr:
         return "Arr";
       case Tuple:

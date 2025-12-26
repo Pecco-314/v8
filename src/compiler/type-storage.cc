@@ -38,13 +38,6 @@ class TypeParser {
     if (s == "bigint") return TypeAST::BigInt;
     if (s == "rawint32") return TypeAST::RawInt32;
 
-    if (s == "i32") return TypeAST::I32;
-    if (s == "u32") return TypeAST::U32;
-    if (s == "i64") return TypeAST::I64;
-    if (s == "u64") return TypeAST::U64;
-    if (s == "f32") return TypeAST::F32;
-    if (s == "f64") return TypeAST::F64;
-
     if (s == "arr") return TypeAST::Arr;
     if (s == "tuple") return TypeAST::Tuple;
     if (s == "obj") return TypeAST::Obj;

@@ -45,18 +45,32 @@ Type TypeInjector::TypeASTToType(const TypeAST& ast) {
       return Type::Symbol();
     case TypeAST::BigInt:
       return Type::BigInt();
-    case TypeAST::RawInt32:
-      return Type::Signed32();  // 映射到 Signed32，表示 [-2^31, 2^31-1]
+      return Type::Signed32();
     case TypeAST::Arr:
       return Type::Array();
     case TypeAST::Tuple:
-      // Tuple 底层也是数组，但长度固定，每个位置类型不同
       return Type::Array();
     case TypeAST::Obj:
       return Type::Object();
     default:
       return Type::Any();
   }
+}
+
+const TypeAST* TypeInjector::StoreOwnedTypeAST(const TypeAST& ast) {
+  owned_typeasts_.push_back(ast);
+  return &owned_typeasts_.back();
+}
+
+void TypeInjector::SetNodeType(Node* node, const TypeAST* type_ast) {
+  if (type_ast == nullptr) return;
+  node_type_map_[node] = type_ast;
+}
+
+const TypeAST* TypeInjector::GetNodeType(Node* node) {
+  auto it = node_type_map_.find(node);
+  if (it == node_type_map_.end()) return nullptr;
+  return it->second;
 }
 
 // 从 Obj 类型 AST 中查找字段
@@ -138,10 +152,14 @@ std::optional<int> TypeInjector::TryGetConstantIndex(Node* node) {
 // 如果 Node 是 LoadField，则递归获取其输入对象的类型，然后查找字段类型
 // 如果 Node 是 LoadElement，则递归获取其输入数组的类型，然后查找元素类型
 std::optional<TypeAST> TypeInjector::GetNodeTypeAST(Node* node) {
+  if (const TypeAST* cached = GetNodeType(node)) {
+    return *cached;
+  }
   if (node->opcode() == IrOpcode::kParameter) {
     int param_index = ParameterIndexOf(node->op());
     if (param_index >= 0 &&
         param_index < static_cast<int>(param_types_.size())) {
+      SetNodeType(node, &param_types_[param_index]);
       return param_types_[param_index];
     }
   } else if (node->opcode() == IrOpcode::kLoadField) {
@@ -233,13 +251,10 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
     auto object_type_opt = GetNodeTypeAST(object_node);
     if (object_type_opt.has_value()) {
       const TypeAST& object_type = object_type_opt.value();
+      // 注入阶段仅记录类型，不做替换
       if (object_type.kind == TypeAST::Tuple) {
-        // Tuple 的长度是固定的，直接用常量替换
-        int tuple_length = static_cast<int>(object_type.children.size());
-        TYPE_INJECTOR_DEBUG("Replacing Tuple length LoadField #" << node->id()
-                                                                  << " with constant: " << tuple_length);
-        ReplaceTupleLengthWithConstant(node, tuple_length);
-        return;
+        const TypeAST* len_ptr = StoreOwnedTypeAST(object_type);  // reuse object type pointer
+        SetNodeType(node, len_ptr);
       }
     }
   }
@@ -279,10 +294,12 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
   TYPE_INJECTOR_DEBUG("Field '" << field_name << "' lookup "
                                  << (field_type.has_value() ? "succeeded." : "failed."));
   if (field_type.has_value()) {
-    Type field_turbofan_type = TypeASTToType(field_type.value());
+    const TypeAST* field_ptr = StoreOwnedTypeAST(field_type.value());
+    Type field_turbofan_type = TypeASTToType(*field_ptr);
     TYPE_INJECTOR_DEBUG("Setting type for Node #" << node->id()
                                                    << " to: " << field_turbofan_type);
     NodeProperties::SetType(node, field_turbofan_type);
+    SetNodeType(node, field_ptr);
   }
 }
 
@@ -341,26 +358,6 @@ void TypeInjector::ProcessLoadElementNode(Node* node) {
         element_type = GetElementTypeInTuple(container_type, index);
         TYPE_INJECTOR_DEBUG("  Tuple element type lookup "
                             << (element_type.has_value() ? "succeeded." : "failed."));
-        
-        // 移除 bounds check：索引是常量且在范围内，bounds check 是冗余的
-        if (index_node->opcode() == IrOpcode::kCheckBounds ||
-            index_node->opcode() == IrOpcode::kCheckedUint32Bounds ||
-            index_node->opcode() == IrOpcode::kCheckedUint64Bounds) {
-          // 找到原始的索引常量节点
-          Node* index_constant = index_node->InputAt(0);
-          while (index_constant != nullptr &&
-                 (index_constant->opcode() == IrOpcode::kChangeUint32ToUint64 ||
-                  index_constant->opcode() == IrOpcode::kChangeInt32ToInt64)) {
-            index_constant = index_constant->InputAt(0);
-          }
-          
-          if (index_constant != nullptr &&
-              (index_constant->opcode() == IrOpcode::kInt32Constant ||
-               index_constant->opcode() == IrOpcode::kInt64Constant ||
-               index_constant->opcode() == IrOpcode::kNumberConstant)) {
-            RemoveTupleBoundsCheck(node, index_node, index_constant);
-          }
-        }
       } else {
         TYPE_INJECTOR_DEBUG("  Tuple index " << index << " out of bounds [0, " << tuple_length << ")");
       }
@@ -374,10 +371,12 @@ void TypeInjector::ProcessLoadElementNode(Node* node) {
   }
 
   if (element_type.has_value()) {
-    Type element_turbofan_type = TypeASTToType(element_type.value());
+    const TypeAST* elem_ptr = StoreOwnedTypeAST(element_type.value());
+    Type element_turbofan_type = TypeASTToType(*elem_ptr);
     TYPE_INJECTOR_DEBUG("Setting type for Node #" << node->id()
                                                    << " to: " << element_turbofan_type);
     NodeProperties::SetType(node, element_turbofan_type);
+    SetNodeType(node, elem_ptr);
   }
 }
 
@@ -571,7 +570,8 @@ void TypeInjector::ProcessJSCallNode(Node* node) {
   }
 
   const TypeAST& return_type_ast = return_type_opt.value();
-  Type return_type = TypeASTToType(return_type_ast);
+  const TypeAST* ret_ptr = StoreOwnedTypeAST(return_type_ast);
+  Type return_type = TypeASTToType(*ret_ptr);
 
   TYPE_INJECTOR_DEBUG("  Setting return type: ");
   if (V8_COMPILER_TYPE_INJECTOR_DEBUG) {
@@ -580,6 +580,7 @@ void TypeInjector::ProcessJSCallNode(Node* node) {
 
   // 设置 JSCall 节点的返回值类型
   NodeProperties::SetType(node, return_type);
+  SetNodeType(node, ret_ptr);
 }
 
 
@@ -594,10 +595,8 @@ std::optional<TypeAST> TypeInjector::GetFunctionReturnType(int start_pos) {
   return std::nullopt;
 }
 
-// 处理 RawInt32 类型的二元操作（加法、减法、乘法）
-// 将 SpeculativeSmallIntegerAdd/Subtract 和 SpeculativeNumberMultiply
-// 替换为对应的 Number* 运算，移除溢出检查
-// Number* 会在 SimplifiedLowering 阶段降低到 Int32*（无检查）
+// 处理 RawInt32 类型的二元操作（加/减/乘）
+// 基于注入的 TypeAST 决策，不再写 Type
 void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
   // 只处理 SpeculativeSmallIntegerAdd/Subtract 和 SpeculativeNumberMultiply
   IrOpcode::Value opcode = node->opcode();
@@ -610,12 +609,10 @@ void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
   // 检查两个输入是否都是 RawInt32 类型（映射到 Signed32）
   Node* left = NodeProperties::GetValueInput(node, 0);
   Node* right = NodeProperties::GetValueInput(node, 1);
-
-  Type left_type = NodeProperties::GetType(left);
-  Type right_type = NodeProperties::GetType(right);
-
-  // 只有当两个输入都是 Signed32 类型时才进行替换
-  if (!left_type.Is(Type::Signed32()) || !right_type.Is(Type::Signed32())) {
+  const TypeAST* left_ast = GetNodeType(left);
+  const TypeAST* right_ast = GetNodeType(right);
+  if (left_ast == nullptr || right_ast == nullptr ||
+      left_ast->kind != TypeAST::RawInt32 || right_ast->kind != TypeAST::RawInt32) {
     return;
   }
 
@@ -651,23 +648,83 @@ void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
   
   // 删除原节点
   node->Kill();
-  
   TYPE_INJECTOR_DEBUG("Changed to Number* successfully");
+}
+
+// Tuple length 常量化（使用已注入的 TypeAST 信息）
+void TypeInjector::OptimizeTupleLength(Node* node) {
+  if (node->opcode() != IrOpcode::kLoadField) return;
+
+  FieldAccess const& access = FieldAccessOf(node->op());
+  if (access.offset != JSArray::kLengthOffset) return;
+
+  Node* object_node = NodeProperties::GetValueInput(node, 0);
+  auto object_type_opt = GetNodeTypeAST(object_node);
+  if (!object_type_opt.has_value()) return;
+
+  const TypeAST& object_type = object_type_opt.value();
+  if (object_type.kind != TypeAST::Tuple) return;
+
+  int tuple_length = static_cast<int>(object_type.children.size());
+  ReplaceTupleLengthWithConstant(node, tuple_length);
+}
+
+// LoadElement bounds 消除，依赖注入的 TypeAST 信息
+void TypeInjector::OptimizeLoadElementBounds(Node* node) {
+  if (node->opcode() != IrOpcode::kLoadElement) return;
+
+  Node* elements_node = node->InputAt(0);
+  Node* array_node = elements_node;
+  if (elements_node->opcode() == IrOpcode::kLoadField) {
+    array_node = elements_node->InputAt(0);
+  }
+
+  auto container_type_opt = GetNodeTypeAST(array_node);
+  if (!container_type_opt.has_value()) return;
+
+  const TypeAST& container_type = container_type_opt.value();
+  if (container_type.kind != TypeAST::Tuple && container_type.kind != TypeAST::Arr) return;
+
+  Node* index_node = NodeProperties::GetValueInput(node, 1);
+  auto index_opt = TryGetConstantIndex(index_node);
+  if (!index_opt.has_value()) return;
+
+  int index = index_opt.value();
+  int length = 0;
+  if (container_type.kind == TypeAST::Tuple) {
+    length = static_cast<int>(container_type.children.size());
+  } else {
+    // Array 不确定长度，只有 Tuple 时能确定
+    return;
+  }
+
+  if (index < 0 || index >= length) return;
+
+  if (index_node->opcode() == IrOpcode::kCheckBounds ||
+      index_node->opcode() == IrOpcode::kCheckedUint32Bounds ||
+      index_node->opcode() == IrOpcode::kCheckedUint64Bounds) {
+    Node* index_constant = index_node->InputAt(0);
+    while (index_constant != nullptr &&
+           (index_constant->opcode() == IrOpcode::kChangeUint32ToUint64 ||
+            index_constant->opcode() == IrOpcode::kChangeInt32ToInt64)) {
+      index_constant = index_constant->InputAt(0);
+    }
+
+    if (index_constant != nullptr &&
+        (index_constant->opcode() == IrOpcode::kInt32Constant ||
+         index_constant->opcode() == IrOpcode::kInt64Constant ||
+         index_constant->opcode() == IrOpcode::kNumberConstant)) {
+      RemoveTupleBoundsCheck(node, index_node, index_constant);
+    }
+  }
 }
 
 void TypeInjector::ProcessCheckMapsNode(Node* node) {
   if (node->opcode() != IrOpcode::kCheckMaps) return;
 
   Node* value_input = NodeProperties::GetValueInput(node, 0);
-  Node* actual_input = value_input;
-
-  // Skip CheckedTaggedToTaggedPointer
-  if (actual_input->opcode() == IrOpcode::kCheckedTaggedToTaggedPointer) {
-    actual_input = NodeProperties::GetValueInput(actual_input, 0);
-  }
-
-  Type type = NodeProperties::GetType(actual_input);
-  if (type.Is(Type::Symbol())) {
+  const TypeAST* type = GetNodeType(value_input);
+  if (type != nullptr && type->kind == TypeAST::Symbol) {
     TYPE_INJECTOR_DEBUG("Removing CheckMaps for Symbol input");
 
     Node* effect_input = NodeProperties::GetEffectInput(node);
@@ -703,46 +760,62 @@ void TypeInjector::Run() {
   }
 
   AllNodes all(graph_->zone(), graph_);
+  // Phase A: 类型注入（写 Type + Tag，不做替换）
+  RunTypeAnnotation(all);
 
-  // Phase 1: 设置参数节点的类型
+  // Phase B: 定制消除/替换（只读 Tag，不写 Type）
+  RunCustomElimination(all);
+}
+
+// Phase A: 类型注入
+void TypeInjector::RunTypeAnnotation(AllNodes& all) {
+  // 参数类型注入
   for (Node* node : all.reachable) {
     if (node->opcode() == IrOpcode::kParameter) {
       int index = ParameterIndexOf(node->op());
-      // Parameter indices in V8:
-      // index=0: receiver (this)
-      // index=1: first argument
-      // index=2: second argument
-      // ...
-      // param_types_ format: [receiver, arg0, arg1, ..., return_type]
       if (index >= 0 && index < static_cast<int>(param_types_.size()) - 1) {
         const TypeAST& ast = param_types_[index];
+        SetNodeType(node, &ast);
         Type type = TypeASTToType(ast);
         NodeProperties::SetType(node, type);
       }
     }
   }
 
-  // 第二次遍历：处理 LoadField 节点，注入字段类型
+  // LoadField 注入
   for (Node* node : all.reachable) {
     ProcessLoadFieldNode(node);
   }
 
-  // 第三次遍历：处理 LoadElement 节点，注入元素类型
+  // LoadElement 注入
   for (Node* node : all.reachable) {
     ProcessLoadElementNode(node);
   }
 
-  // Phase 4: 处理 JSCall 节点，注入返回值类型
+  // JSCall 返回值注入
   for (Node* node : all.reachable) {
     ProcessJSCallNode(node);
   }
+}
 
-  // Phase 5: 处理 RawInt32 二元操作（加法和减法）
+// Phase B: 定制消除/替换
+void TypeInjector::RunCustomElimination(AllNodes& all) {
+  // Tuple length 常量化
+  for (Node* node : all.reachable) {
+    OptimizeTupleLength(node);
+  }
+
+  // LoadElement bounds 消除
+  for (Node* node : all.reachable) {
+    OptimizeLoadElementBounds(node);
+  }
+
+  // RawInt32 算术替换
   for (Node* node : all.reachable) {
     ProcessRawInt32BinaryOp(node);
   }
 
-  // Phase 6: 移除冗余的 CheckMaps
+  // CheckMaps 消除
   for (Node* node : all.reachable) {
     ProcessCheckMapsNode(node);
   }
