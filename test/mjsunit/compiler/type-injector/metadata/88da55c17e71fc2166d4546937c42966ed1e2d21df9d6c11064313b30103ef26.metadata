@@ -1,6 +1,6 @@
 369 @params any str @ret str
 882 @params any num @ret num
 1365 @params any bool bool @ret bool
-1900 @params any sym @ret str
+1900 @params any symbol @ret str
 2491 @params any bigint bigint @ret bigint
 3037 @params any bigint bigint @ret bigint

@@ -1,4 +1,0 @@
-369 @params any str @ret str
-882 @params any num @ret num
-1365 @params any bool bool @ret bool
-1900 @params any sym @ret str

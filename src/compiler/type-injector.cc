@@ -43,7 +43,7 @@ Type TypeInjector::TypeASTToType(const TypeAST& ast) {
       return Type::String();
     case TypeAST::Bool:
       return Type::Boolean();
-    case TypeAST::Sym:
+    case TypeAST::Symbol:
       return Type::Symbol();
     case TypeAST::BigInt:
       return Type::BigInt();
@@ -52,22 +52,22 @@ Type TypeInjector::TypeASTToType(const TypeAST& ast) {
     case TypeAST::Tuple:
       // Tuple 底层也是数组，但长度固定，每个位置类型不同
       return Type::Array();
-    case TypeAST::Interface:
+    case TypeAST::Obj:
       return Type::Object();
     default:
       return Type::Any();
   }
 }
 
-// 从 Interface 类型 AST 中查找字段
-std::optional<TypeAST> TypeInjector::FindFieldInInterface(
-    const TypeAST& interface_ast, const std::string& field_name) {
-  if (interface_ast.kind != TypeAST::Interface) {
+// 从 Obj 类型 AST 中查找字段
+std::optional<TypeAST> TypeInjector::FindFieldInObj(
+    const TypeAST& obj_ast, const std::string& field_name) {
+  if (obj_ast.kind != TypeAST::Obj) {
     return std::nullopt;
   }
 
-  // Interface 的 children 中每一项都有 field_name
-  for (const auto& child : interface_ast.children) {
+  // Obj 的 children 中每一项都有 field_name
+  for (const auto& child : obj_ast.children) {
     if (child.field_name == field_name) {
       return child;
     }
@@ -153,7 +153,7 @@ std::optional<TypeAST> TypeInjector::GetNodeTypeAST(Node* node) {
     }
 
     const TypeAST& object_type = object_type_opt.value();
-    if (object_type.kind != TypeAST::Interface) {
+    if (object_type.kind != TypeAST::Obj) {
       return std::nullopt;
     }
 
@@ -169,8 +169,8 @@ std::optional<TypeAST> TypeInjector::GetNodeTypeAST(Node* node) {
       DirectHandle<String> str = Cast<String>(name_handle);
       std::string field_name = str->ToCString().get();
 
-      // 从 Interface 中查找该字段的类型
-      return FindFieldInInterface(object_type, field_name);
+      // 从 Obj 中查找该字段的类型
+      return FindFieldInObj(object_type, field_name);
     }
   } else if (node->opcode() == IrOpcode::kLoadElement) {
     // 递归获取 LoadElement 的输入数组/元组的类型
@@ -244,7 +244,7 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
     }
   }
 
-  // 处理有字段名的 LoadField（Interface 字段访问）
+  // 处理有字段名的 LoadField（Obj 字段访问）
   std::string field_name;
   if (!access.name.is_null()) {
     Handle<Name> name_handle = access.name.ToHandleChecked();
@@ -270,12 +270,12 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
   }
 
   const TypeAST& object_type = object_type_opt.value();
-  if (object_type.kind != TypeAST::Interface) {
+  if (object_type.kind != TypeAST::Obj) {
     return;
   }
 
-  // 从 Interface 中查找字段
-  auto field_type = FindFieldInInterface(object_type, field_name);
+  // 从 Obj 中查找字段
+  auto field_type = FindFieldInObj(object_type, field_name);
   TYPE_INJECTOR_DEBUG("Field '" << field_name << "' lookup "
                                  << (field_type.has_value() ? "succeeded." : "failed."));
   if (field_type.has_value()) {

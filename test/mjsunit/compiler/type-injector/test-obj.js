@@ -1,10 +1,10 @@
 // Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 // Flags: --turbo_metadata_path=test/mjsunit/compiler/type-injector/metadata
 
-// 测试：Interface 类型注入优化
+// 测试：Obj 类型注入优化
 
 // ===================================
-// 测试 1: 简单 Interface
+// 测试 1: 简单 Obj
 // ===================================
 // 预期优化：注入 metadata 后，字段类型已知为 String，
 // 可以移除字段访问时的 CheckString 检查
@@ -30,7 +30,7 @@ assertOptimized(concat);
 
 
 // ===================================
-// 测试 2: 嵌套 Interface
+// 测试 2: 嵌套 Obj
 // ===================================
 // 预期优化：注入 metadata 后，嵌套字段类型已知，
 // 可以移除嵌套字段访问时的 CheckString 检查

@@ -94,14 +94,14 @@ TEST_CASES = [
     },
     
     # ============================================
-    # 2. 接口类型优化
+    # 2. 对象类型优化
     # ============================================
     {
-        "name": "接口类型优化",
-        "description": "Interface 和嵌套 Interface 的类型注入优化",
+        "name": "对象类型优化",
+        "description": "Obj 和嵌套 Obj 的类型注入优化",
         "functions": [
             {
-                "file": "test/mjsunit/compiler/type-injector/test-interface.js",
+                "file": "test/mjsunit/compiler/type-injector/test-obj.js",
                 "name": "concat",
                 "flags": METADATA_FLAGS,
                 "expected": {
@@ -110,7 +110,7 @@ TEST_CASES = [
                 }
             },
             {
-                "file": "test/mjsunit/compiler/type-injector/test-interface.js",
+                "file": "test/mjsunit/compiler/type-injector/test-obj.js",
                 "name": "concat_nested",
                 "flags": METADATA_FLAGS,
                 "expected": {

@@ -26,8 +26,8 @@ class TypeInjector {
 
  private:
   Type TypeASTToType(const TypeAST& ast);
-  std::optional<TypeAST> FindFieldInInterface(const TypeAST& interface_ast,
-                                               const std::string& field_name);
+  std::optional<TypeAST> FindFieldInObj(const TypeAST& obj_ast,
+                                         const std::string& field_name);
   std::optional<TypeAST> GetElementTypeInArray(const TypeAST& array_ast);
   std::optional<TypeAST> GetElementTypeInTuple(const TypeAST& tuple_ast,
                                                 int index);

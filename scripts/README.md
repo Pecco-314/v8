@@ -48,7 +48,19 @@ python3 scripts/gen_metadata_info.py test/mjsunit/compiler/type-injector/test-pr
 
 格式：`位置 @params 参数类型... @ret 返回类型`
 
-类型支持：`any`, `void`, `bool`, `num`, `str`, `sym`, `interface{...}`, `tuple<...>`, `array<...>`
+类型支持：`any`, `void`, `bool`, `num`, `str`, `symbol`, `bigint`, `obj{...}`, `tuple<...>`, `array<...>`
+
+#### 1.4 清理多余的 Metadata（可选）
+使用 `clean_metadata.py` 删除不再使用的 metadata 文件：
+
+```bash
+python3 scripts/clean_metadata.py
+```
+
+这会自动：
+- 扫描 test_config.py 中配置的所有测试文件
+- 删除不在配置中的 metadata 文件
+- 检测并提示缺失的 metadata 文件
 
 ### 2. 配置测试
 
@@ -191,6 +203,29 @@ python3 scripts/verify_tests.py
 python3 scripts/gen_metadata_info.py <test-file>
 ```
 
+### clean_metadata.py
+**功能**：清理多余的 metadata 文件
+
+**核心功能**：
+- `get_required_metadata_files()`：从 test_config.py 获取需要的 metadata
+- `clean_metadata()`：删除不在配置中的 metadata 文件
+- 自动检测缺失的 metadata 并给出生成命令
+
+**使用**：
+```bash
+python3 scripts/clean_metadata.py
+```
+
+**输出示例**：
+```
+✓ 保留: 88da55c17e71fc2166d4546937c42966ed1e2d21df9d6c11064313b30103ef26.metadata
+✗ 删除: ae900e13b76cc6e2ecbe702e959e53047c53f5fa8f18ffdef1b01326da99054a.metadata
+
+总文件数: 14
+保留: 4
+删除: 10
+```
+
 ### test_config.py
 **功能**：测试配置文件
 
@@ -204,11 +239,12 @@ python3 scripts/gen_metadata_info.py <test-file>
 
 1. **编写测试文件**：`test/mjsunit/compiler/type-injector/test-bigint.js`
 2. **获取位置信息**：`python3 scripts/gen_metadata_info.py test/.../test-bigint.js`
-3. **创建 metadata 文件**：`test/.../metadata/{hash}`
+3. **创建 metadata 文件**：`test/.../metadata/{hash}.metadata`
 4. **配置测试**：编辑 `scripts/test_config.py`
-5. **生成图**：`python3 scripts/generate_graphs.py`
-6. **生成文档**：`python3 scripts/analyze_optimization.py`
-7. **验证结果**：`python3 scripts/verify_tests.py`
+5. **清理多余文件**（可选）：`python3 scripts/clean_metadata.py`
+6. **生成图**：`python3 scripts/generate_graphs.py`
+7. **生成文档**：`python3 scripts/analyze_optimization.py`
+8. **验证结果**：`python3 scripts/verify_tests.py`
 
 ## 常见问题
 
@@ -227,6 +263,9 @@ A:
 2. 查看生成的图文件（`docs/graphs/early-optimization/`）
 3. 对比优化前后的节点差异
 
+### Q: 如何清理不用的 metadata 文件？
+A: 运行 `python3 scripts/clean_metadata.py`，它会自动删除不在 `test_config.py` 中配置的 metadata 文件
+
 ## 相关文件
 
 - 测试文件：`test/mjsunit/compiler/type-injector/`
@@ -234,3 +273,10 @@ A:
 - 输出图：`docs/graphs/early-optimization/`
 - 文档：`docs/sections/`
 - 源码：`src/compiler/type-injector.{h,cc}`
+- 脚本：`scripts/` 
+  - `gen_metadata_info.py` - 生成 metadata 信息
+  - `clean_metadata.py` - 清理多余 metadata
+  - `generate_graphs.py` - 生成 TurboFan 图
+  - `analyze_optimization.py` - 生成优化分析文档
+  - `verify_tests.py` - 验证测试结果
+  - `test_config.py` - 测试配置

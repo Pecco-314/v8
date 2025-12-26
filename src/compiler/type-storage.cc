@@ -34,7 +34,7 @@ class TypeParser {
     if (s == "bool") return TypeAST::Bool;
     if (s == "num") return TypeAST::Num;
     if (s == "str") return TypeAST::Str;
-    if (s == "sym") return TypeAST::Sym;
+    if (s == "symbol") return TypeAST::Symbol;
     if (s == "bigint") return TypeAST::BigInt;
 
     if (s == "i32") return TypeAST::I32;
@@ -46,8 +46,7 @@ class TypeParser {
 
     if (s == "arr") return TypeAST::Arr;
     if (s == "tuple") return TypeAST::Tuple;
-    if (s == "interface") return TypeAST::Interface;
-    if (s == "class") return TypeAST::Class;
+    if (s == "obj") return TypeAST::Obj;
 
     return TypeAST::Any;  // 默认或未知
   }

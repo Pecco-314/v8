@@ -1,1 +1,0 @@
-303 @params any interface{first:interface{x:str,y:str},second:str} @ret str

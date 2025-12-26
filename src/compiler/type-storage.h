@@ -15,7 +15,7 @@ struct TypeAST {
     Bool,
     Num,
     Str,
-    Sym,
+    Symbol,
     BigInt,
     I32,
     U32,
@@ -25,8 +25,7 @@ struct TypeAST {
     F64,
     Arr = 100, // 以下为复合类型
     Tuple,
-    Interface,
-    Class,
+    Obj,
   } kind;
   std::string field_name;  // 仅用于 obj 的字段名
   std::vector<TypeAST> children;
@@ -42,8 +41,8 @@ struct TypeAST {
         return "Num";
       case Str:
         return "Str";
-      case Sym:
-        return "Sym";
+      case Symbol:
+        return "Symbol";
       case BigInt:
         return "BigInt";
       case I32:
@@ -62,10 +61,8 @@ struct TypeAST {
         return "Arr";
       case Tuple:
         return "Tuple";
-      case Interface:
-        return "Interface";
-      case Class:
-        return "Class";
+      case Obj:
+        return "Obj";
       default:
         return "Unknown";
     }
