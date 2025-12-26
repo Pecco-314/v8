@@ -43,7 +43,7 @@ class TypeInjector {
   void ProcessLoadElementNode(Node* node);
   void ProcessJSCallNode(Node* node);
   void ProcessCheckMapsNode(Node* node);
-  void ProcessRawInt32AddNode(Node* node);
+  void ProcessRawInt32BinaryOp(Node* node);
   void RemoveTupleBoundsCheck(Node* load_element_node, Node* check_bounds_node,
                                Node* index_constant);
   void ReplaceTupleLengthWithConstant(Node* load_field_node, int tuple_length);

@@ -594,12 +594,13 @@ std::optional<TypeAST> TypeInjector::GetFunctionReturnType(int start_pos) {
   return std::nullopt;
 }
 
-// 处理 RawInt32 类型的加法操作
-// 将 SpeculativeSmallIntegerAdd 替换为 NumberAdd，移除溢出检查
-// NumberAdd 会在 SimplifiedLowering 阶段降低到 Int32Add（无检查）
-void TypeInjector::ProcessRawInt32AddNode(Node* node) {
-  // 只处理 SpeculativeSmallIntegerAdd
-  if (node->opcode() != IrOpcode::kSpeculativeSmallIntegerAdd) {
+// 处理 RawInt32 类型的二元操作（加法和减法）
+// 将 SpeculativeSmallIntegerAdd/Subtract 替换为 NumberAdd/Subtract，移除溢出检查
+// NumberAdd/Subtract 会在 SimplifiedLowering 阶段降低到 Int32Add/Sub（无检查）
+void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
+  // 只处理 SpeculativeSmallIntegerAdd 和 SpeculativeSmallIntegerSubtract
+  if (node->opcode() != IrOpcode::kSpeculativeSmallIntegerAdd &&
+      node->opcode() != IrOpcode::kSpeculativeSmallIntegerSubtract) {
     return;
   }
 
@@ -615,27 +616,30 @@ void TypeInjector::ProcessRawInt32AddNode(Node* node) {
     return;
   }
 
-  TYPE_INJECTOR_DEBUG("Found RawInt32 add operation, replacing with NumberAdd");
+  TYPE_INJECTOR_DEBUG("Found RawInt32 binary operation, replacing with Number op");
 
-  // SpeculativeSmallIntegerAdd 有 4 个输入：left, right, effect, control
-  // NumberAdd 是纯操作，只需要 2 个输入：left, right
+  // SpeculativeSmallIntegerAdd/Subtract 有 4 个输入：left, right, effect, control
+  // NumberAdd/Subtract 是纯操作，只需要 2 个输入：left, right
   // 我们需要创建新节点，因为 ChangeOp 不会改变输入数量
   
-  // 创建新的 NumberAdd 节点（仅 2 个输入，复用已有的 left/right）
-  Node* number_add = graph_->NewNode(simplified_->NumberAdd(), left, right);
+  // 根据操作类型创建对应的 Number 操作节点
+  const Operator* number_op = (node->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd)
+                                  ? simplified_->NumberAdd()
+                                  : simplified_->NumberSubtract();
+  Node* number_node = graph_->NewNode(number_op, left, right);
   
-  // 设置结果类型为 Signed32，确保 SimplifiedLowering 生成 Int32Add
-  NodeProperties::SetType(number_add, Type::Signed32());
+  // 设置结果类型为 Signed32，确保 SimplifiedLowering 生成 Int32Add/Sub
+  NodeProperties::SetType(number_node, Type::Signed32());
   
   // 获取原节点的 effect 和 control 输入（用于替换）
   Node* effect_input = NodeProperties::GetEffectInput(node);
   Node* control_input = NodeProperties::GetControlInput(node);
   
   // 替换所有使用：
-  // - value 输出 -> number_add
+  // - value 输出 -> number_node
   // - effect 输出 -> effect_input（直通）
   // - control 输出 -> control_input（直通）
-  NodeProperties::ReplaceUses(node, number_add, effect_input, control_input, control_input);
+  NodeProperties::ReplaceUses(node, number_node, effect_input, control_input, control_input);
   
   // 删除原节点
   node->Kill();
@@ -725,9 +729,9 @@ void TypeInjector::Run() {
     ProcessJSCallNode(node);
   }
 
-  // Phase 5: 处理 RawInt32 加法操作
+  // Phase 5: 处理 RawInt32 二元操作（加法和减法）
   for (Node* node : all.reachable) {
-    ProcessRawInt32AddNode(node);
+    ProcessRawInt32BinaryOp(node);
   }
 
   // Phase 6: 移除冗余的 CheckMaps

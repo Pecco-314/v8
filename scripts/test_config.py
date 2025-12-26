@@ -248,7 +248,7 @@ TEST_CASES = [
     # ============================================
     {
         "name": "RawInt32 类型优化",
-        "description": "RawInt32 类型的无溢出检查加法运算（移除溢出检查）",
+        "description": "RawInt32 类型的无溢出检查加法和减法运算（移除溢出检查）",
         "functions": [
             {
                 "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
@@ -284,6 +284,42 @@ TEST_CASES = [
                 "expected": {
                     "CheckedInt32Add": {"before": 1, "after": 0},
                     "Int32Add": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "subRawInt32",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Sub": {"before": 1, "after": 0},
+                    "Int32Sub": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "subRawInt32Overflow",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Sub": {"before": 1, "after": 0},
+                    "Int32Sub": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "subRawInt32Negative",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Sub": {"before": 1, "after": 0},
+                    "Int32Sub": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "subRawInt32Underflow",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Sub": {"before": 1, "after": 0},
+                    "Int32Sub": {"before": 0, "after": 1}
                 }
             }
         ]
