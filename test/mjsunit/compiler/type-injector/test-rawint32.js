@@ -142,3 +142,73 @@ for (var i = 0; i < 100; i++) {
 
 var result8 = subRawInt32Underflow(2147483647, -1);
 print("Sub underflow result: " + result8);
+
+// ===================================
+// 乘法测试
+// ===================================
+
+// 测试 9: 正常乘法（不溢出）
+function mulRawInt32(a, b) {
+    return a * b;
+}
+
+%PrepareFunctionForOptimization(mulRawInt32);
+
+for (var i = 0; i < 100; i++) {
+    mulRawInt32(10, 20);
+}
+
+%OptimizeFunctionOnNextCall(mulRawInt32);
+
+var result9 = mulRawInt32(30, 40);
+assertEquals(1200, result9);
+assertOptimized(mulRawInt32);
+
+// 测试 10: 溢出情况（UB - 应该回绕）
+function mulRawInt32Overflow(a, b) {
+    return a * b;
+}
+
+%PrepareFunctionForOptimization(mulRawInt32Overflow);
+
+for (var i = 0; i < 100; i++) {
+    mulRawInt32Overflow(1000, 2000);
+}
+
+%OptimizeFunctionOnNextCall(mulRawInt32Overflow);
+
+var result10 = mulRawInt32Overflow(2147483647, 2);
+print("Mul overflow result: " + result10);
+
+// 测试 11: 负数乘法
+function mulRawInt32Negative(a, b) {
+    return a * b;
+}
+
+%PrepareFunctionForOptimization(mulRawInt32Negative);
+
+for (var i = 0; i < 100; i++) {
+    mulRawInt32Negative(-3, 7);
+}
+
+%OptimizeFunctionOnNextCall(mulRawInt32Negative);
+
+var result11 = mulRawInt32Negative(-30, 4);
+assertEquals(-120, result11);
+assertOptimized(mulRawInt32Negative);
+
+// 测试 12: 下溢情况（UB - 应该回绕）
+function mulRawInt32Underflow(a, b) {
+    return a * b;
+}
+
+%PrepareFunctionForOptimization(mulRawInt32Underflow);
+
+for (var i = 0; i < 100; i++) {
+    mulRawInt32Underflow(-1000, 2000);
+}
+
+%OptimizeFunctionOnNextCall(mulRawInt32Underflow);
+
+var result12 = mulRawInt32Underflow(-2147483648, 2);
+print("Mul underflow result: " + result12);

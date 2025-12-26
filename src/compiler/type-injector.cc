@@ -594,13 +594,16 @@ std::optional<TypeAST> TypeInjector::GetFunctionReturnType(int start_pos) {
   return std::nullopt;
 }
 
-// 处理 RawInt32 类型的二元操作（加法和减法）
-// 将 SpeculativeSmallIntegerAdd/Subtract 替换为 NumberAdd/Subtract，移除溢出检查
-// NumberAdd/Subtract 会在 SimplifiedLowering 阶段降低到 Int32Add/Sub（无检查）
+// 处理 RawInt32 类型的二元操作（加法、减法、乘法）
+// 将 SpeculativeSmallIntegerAdd/Subtract 和 SpeculativeNumberMultiply
+// 替换为对应的 Number* 运算，移除溢出检查
+// Number* 会在 SimplifiedLowering 阶段降低到 Int32*（无检查）
 void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
-  // 只处理 SpeculativeSmallIntegerAdd 和 SpeculativeSmallIntegerSubtract
-  if (node->opcode() != IrOpcode::kSpeculativeSmallIntegerAdd &&
-      node->opcode() != IrOpcode::kSpeculativeSmallIntegerSubtract) {
+  // 只处理 SpeculativeSmallIntegerAdd/Subtract 和 SpeculativeNumberMultiply
+  IrOpcode::Value opcode = node->opcode();
+  if (opcode != IrOpcode::kSpeculativeSmallIntegerAdd &&
+      opcode != IrOpcode::kSpeculativeSmallIntegerSubtract &&
+      opcode != IrOpcode::kSpeculativeNumberMultiply) {
     return;
   }
 
@@ -623,9 +626,14 @@ void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
   // 我们需要创建新节点，因为 ChangeOp 不会改变输入数量
   
   // 根据操作类型创建对应的 Number 操作节点
-  const Operator* number_op = (node->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd)
-                                  ? simplified_->NumberAdd()
-                                  : simplified_->NumberSubtract();
+  const Operator* number_op = nullptr;
+  if (opcode == IrOpcode::kSpeculativeSmallIntegerAdd) {
+    number_op = simplified_->NumberAdd();
+  } else if (opcode == IrOpcode::kSpeculativeSmallIntegerSubtract) {
+    number_op = simplified_->NumberSubtract();
+  } else {
+    number_op = simplified_->NumberMultiply();
+  }
   Node* number_node = graph_->NewNode(number_op, left, right);
   
   // 设置结果类型为 Signed32，确保 SimplifiedLowering 生成 Int32Add/Sub
@@ -644,7 +652,7 @@ void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
   // 删除原节点
   node->Kill();
   
-  TYPE_INJECTOR_DEBUG("Changed to NumberAdd successfully");
+  TYPE_INJECTOR_DEBUG("Changed to Number* successfully");
 }
 
 void TypeInjector::ProcessCheckMapsNode(Node* node) {
