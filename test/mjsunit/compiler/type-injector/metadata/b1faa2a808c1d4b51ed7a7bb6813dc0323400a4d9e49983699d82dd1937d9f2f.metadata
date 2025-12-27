@@ -1,2 +1,0 @@
-338 @params any obj{x:str,y:str} @ret str
-924 @params any obj{first:obj{x:str,y:str},second:str} @ret str

@@ -15,18 +15,18 @@ def get_file_hash(file_path):
         return hashlib.sha256(f.read()).hexdigest()
 
 def get_required_metadata_files():
-    """获取所有需要的 metadata 文件哈希"""
-    required = set()
+    """获取所有需要的 metadata 文件哈希（只包含使用 metadata 的测试）"""
+    required = {}  # {hash: file_path}
     v8_root = Path.cwd()  # 假设从 v8 根目录运行
     
     for test_case in TEST_CASES:
         for func in test_case["functions"]:
-            test_file = v8_root / func["file"]
-            if test_file.exists():
-                file_hash = get_file_hash(test_file)
-                required.add(file_hash)
-                print(f"✓ {func['file']}")
-                print(f"  哈希: {file_hash}")
+            # 只处理使用 METADATA_FLAGS 的测试
+            if "flags" in func and any("metadata" in str(flag).lower() for flag in func.get("flags", [])):
+                test_file = v8_root / func["file"]
+                if test_file.exists():
+                    file_hash = get_file_hash(test_file)
+                    required[file_hash] = func["file"]
     
     return required
 
@@ -42,7 +42,11 @@ def clean_metadata():
     print("=" * 60)
     print("获取需要的 metadata 文件...")
     print("=" * 60)
-    required_hashes = get_required_metadata_files()
+    required_files = get_required_metadata_files()
+    
+    for file_hash, file_path in required_files.items():
+        print(f"✓ {file_path}")
+        print(f"  哈希: {file_hash}")
     
     print("\n" + "=" * 60)
     print("扫描现有 metadata 文件...")
@@ -55,7 +59,7 @@ def clean_metadata():
     for metadata_file in all_files:
         file_hash = metadata_file.stem  # 去掉 .metadata 后缀
         
-        if file_hash in required_hashes:
+        if file_hash in required_files:
             kept.append(metadata_file.name)
             print(f"✓ 保留: {metadata_file.name}")
         else:
@@ -74,26 +78,6 @@ def clean_metadata():
         print("\n已删除的文件:")
         for name in sorted(removed):
             print(f"  - {name}")
-    
-    # 检查是否有缺失的 metadata 文件
-    existing_hashes = {f.stem for f in metadata_dir.glob("*.metadata")}
-    missing = required_hashes - existing_hashes
-    
-    if missing:
-        print("\n" + "=" * 60)
-        print("⚠️  缺失的 metadata 文件:")
-        print("=" * 60)
-        for file_hash in sorted(missing):
-            print(f"  {file_hash}.metadata")
-        print("\n请使用以下命令生成缺失的 metadata 文件:")
-        
-        for test_case in TEST_CASES:
-            for func in test_case["functions"]:
-                test_file = v8_root / func["file"]
-                if test_file.exists():
-                    file_hash = get_file_hash(test_file)
-                    if file_hash in missing:
-                        print(f"  python3 scripts/gen_metadata_info.py {func['file']}")
 
 if __name__ == "__main__":
     clean_metadata()

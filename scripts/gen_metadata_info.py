@@ -20,17 +20,53 @@ def get_file_hash(file_path):
     return result.stdout.split()[0]
 
 
-def get_function_positions(file_path, d8_path="out.gn/x64.debug/d8", mjsunit_path="test/mjsunit/mjsunit.js"):
+def get_function_positions(file_path, d8_path="out.gn/x64.debug/d8"):
     """
     使用 d8 --print-ast 获取所有函数的位置
     返回 [(函数名, start_position), ...]
+    通过在 harness 中标记测试文件起始位置来过滤
     """
-    # 运行 d8 --print-ast（需要加载 mjsunit.js）
-    result = subprocess.run(
-        [d8_path, '--allow-natives-syntax', '--print-ast', mjsunit_path, file_path],
-        capture_output=True,
-        text=True
-    )
+    import tempfile
+    import os
+    
+    # 创建临时 harness 文件，使用最小化的 stub 函数
+    stub_prelude = ';'.join([
+        'function assertEquals(){}',
+        'function assertOptimized(){}',
+        'function assertUnoptimized(){}',
+        'function assertTrue(){}',
+        'function assertFalse(){}',
+    ])
+    
+    # 创建临时目录和 harness 文件
+    with tempfile.TemporaryDirectory(prefix='genmeta-') as tmpdir:
+        harness_path = os.path.join(tmpdir, 'harness.js')
+        abs_test_path = os.path.abspath(file_path)
+        
+        # 读取测试文件内容以获取实际函数名列表
+        with open(abs_test_path, 'r') as f:
+            test_content = f.read()
+        
+        # 使用正则提取测试文件中声明的所有函数名
+        import re
+        # 匹配 function name(...) 或 const/let/var name = function(...)
+        func_pattern = r'(?:^|\n)\s*(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*function)'
+        test_functions = set()
+        for match in re.finditer(func_pattern, test_content, re.MULTILINE):
+            func_name = match.group(1) or match.group(2)
+            if func_name:
+                test_functions.add(func_name)
+        
+        # 构建 harness
+        with open(harness_path, 'w') as f:
+            f.write(f"{stub_prelude}; load('{abs_test_path}');")
+        
+        # 运行 d8 --print-ast
+        result = subprocess.run(
+            [d8_path, '--allow-natives-syntax', '--print-ast', harness_path],
+            capture_output=True,
+            text=True
+        )
     
     if result.returncode != 0:
         print(f"❌ d8 执行失败: {file_path}", file=sys.stderr)
@@ -66,8 +102,10 @@ def get_function_positions(file_path, d8_path="out.gn/x64.debug/d8", mjsunit_pat
                     func_name = name_match.group(1)
                     break
             
-            if func_name:
-                functions.append((func_name, position))
+            if func_name and func_name:  # 忽略空名称
+                # 只保留在测试文件中实际声明的函数
+                if func_name in test_functions:
+                    functions.append((func_name, position))
         
         i += 1
     

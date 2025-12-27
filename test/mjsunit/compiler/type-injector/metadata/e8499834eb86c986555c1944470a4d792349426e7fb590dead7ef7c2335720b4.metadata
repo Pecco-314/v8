@@ -1,4 +1,0 @@
-356 @params any num @ret num
-857 @params any any @ret any
-1360 @params any num num @ret str
-1915 @params any str num @ret str

@@ -75,13 +75,15 @@ main();
 function collectTypesFromTs(tsFile) {
 	const src = readFileSync(tsFile, 'utf8');
 	const sf = ts.createSourceFile(tsFile, src, ts.ScriptTarget.ES2020, true);
+	const namedTypeNodes = collectNamedTypeNodes(sf);
+	const ctx = { namedTypeNodes };
 	const results = [];
 
 	sf.forEachChild((node) => {
 		if (ts.isFunctionDeclaration(node) && node.name) {
 			const name = node.name.text;
-			const params = node.parameters.map((p) => mapTsType(p.type));
-			const ret = mapTsType(node.type);
+			const params = node.parameters.map((p) => mapTsType(p.type, ctx));
+			const ret = mapTsType(node.type, ctx);
 			results.push({ name, params, ret });
 		}
 	});
@@ -92,7 +94,30 @@ function collectTypesFromTs(tsFile) {
 	return results;
 }
 
-function mapTsType(typeNode) {
+function collectNamedTypeNodes(sf) {
+	const namedTypeNodes = new Map();
+	sf.forEachChild((node) => {
+		if ((ts.isInterfaceDeclaration(node) || ts.isClassDeclaration(node)) && node.name) {
+			namedTypeNodes.set(node.name.text, node.members);
+		}
+	});
+	return namedTypeNodes;
+}
+
+function mapObjectMembers(members, ctx, stack) {
+	const parts = [];
+	for (const member of members) {
+		const isProp = ts.isPropertySignature(member) || ts.isPropertyDeclaration(member);
+		if (isProp && member.name && member.type) {
+			const key = member.name.getText();
+			const val = mapTsType(member.type, ctx, stack);
+			parts.push(`${key}:${val}`);
+		}
+	}
+	return parts;
+}
+
+function mapTsType(typeNode, ctx = {}, stack = new Set()) {
 	if (!typeNode) return 'any';
 	switch (typeNode.kind) {
 		case ts.SyntaxKind.StringKeyword:
@@ -110,29 +135,30 @@ function mapTsType(typeNode) {
 		case ts.SyntaxKind.AnyKeyword:
 			return 'any';
 		case ts.SyntaxKind.ArrayType: {
-			const elem = mapTsType(typeNode.elementType);
+			const elem = mapTsType(typeNode.elementType, ctx, stack);
 			return `arr<${elem}>`;
 		}
 		case ts.SyntaxKind.TupleType: {
-			const elems = typeNode.elements.map((e) => mapTsType(e));
+			const elems = typeNode.elements.map((e) => mapTsType(e, ctx, stack));
 			return `tuple<${elems.join(',')}>`;
 		}
 		case ts.SyntaxKind.TypeReference: {
 			const name = typeNode.typeName.getText();
 			const lower = name.toLowerCase();
 			if (lower === 'rawint32') return 'rawint32';
+			const members = ctx.namedTypeNodes?.get(name);
+			if (members) {
+				if (stack.has(name)) return 'any'; // 防止递归引用死循环
+				stack.add(name);
+				const parts = mapObjectMembers(members, ctx, stack);
+				stack.delete(name);
+				if (parts.length > 0) return `obj{${parts.join(',')}}`;
+			}
 			return 'any';
 		}
 		case ts.SyntaxKind.TypeLiteral: {
 			// 对象字面量: obj{field:type,...}
-			const parts = [];
-			for (const member of typeNode.members) {
-				if (ts.isPropertySignature(member) && member.name && member.type) {
-					const key = member.name.getText();
-					const val = mapTsType(member.type);
-					parts.push(`${key}:${val}`);
-				}
-			}
+			const parts = mapObjectMembers(typeNode.members, ctx, stack);
 			if (parts.length > 0) return `obj{${parts.join(',')}}`;
 			return 'any';
 		}
