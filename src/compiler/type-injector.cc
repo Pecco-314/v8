@@ -43,9 +43,10 @@ Type TypeInjector::TypeASTToType(const TypeAST& ast) {
       return Type::Boolean();
     case TypeAST::Symbol:
       return Type::Symbol();
+    case TypeAST::RawInt32:
+      return Type::Signed32();
     case TypeAST::BigInt:
       return Type::BigInt();
-      return Type::Signed32();
     case TypeAST::Arr:
       return Type::Array();
     case TypeAST::Tuple:
@@ -598,11 +599,12 @@ std::optional<TypeAST> TypeInjector::GetFunctionReturnType(int start_pos) {
 // 处理 RawInt32 类型的二元操作（加/减/乘）
 // 基于注入的 TypeAST 决策，不再写 Type
 void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
-  // 只处理 SpeculativeSmallIntegerAdd/Subtract 和 SpeculativeNumberMultiply
+  // 只处理 SpeculativeSmallIntegerAdd/Subtract、SpeculativeNumberMultiply/Divide
   IrOpcode::Value opcode = node->opcode();
   if (opcode != IrOpcode::kSpeculativeSmallIntegerAdd &&
       opcode != IrOpcode::kSpeculativeSmallIntegerSubtract &&
-      opcode != IrOpcode::kSpeculativeNumberMultiply) {
+      opcode != IrOpcode::kSpeculativeNumberMultiply &&
+      opcode != IrOpcode::kSpeculativeNumberDivide) {
     return;
   }
 
@@ -628,8 +630,10 @@ void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
     number_op = simplified_->NumberAdd();
   } else if (opcode == IrOpcode::kSpeculativeSmallIntegerSubtract) {
     number_op = simplified_->NumberSubtract();
-  } else {
+  } else if (opcode == IrOpcode::kSpeculativeNumberMultiply) {
     number_op = simplified_->NumberMultiply();
+  } else {
+    number_op = simplified_->NumberDivide();
   }
   Node* number_node = graph_->NewNode(number_op, left, right);
   

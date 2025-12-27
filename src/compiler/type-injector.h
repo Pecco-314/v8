@@ -33,6 +33,7 @@ class TypeInjector {
  private:
   // 注入阶段：写 Turbofan Type + 记录 Node 对应的 TypeAST 指针
   // 消除阶段：基于 Node→TypeAST 做替换/消除，不再写 Type
+  void RunTypeAnnotation(AllNodes& all);
   void RunCustomElimination(AllNodes& all);
 
   // Node → TypeAST side map（指针指向已有存储，或 owned_typeasts_ 中的拷贝）

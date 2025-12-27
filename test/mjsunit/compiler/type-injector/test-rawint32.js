@@ -212,3 +212,79 @@ for (var i = 0; i < 100; i++) {
 
 var result12 = mulRawInt32Underflow(-2147483648, 2);
 print("Mul underflow result: " + result12);
+
+// ===================================
+// 除法测试
+// ===================================
+
+// 测试 13: 精确整除
+function divRawInt32Exact(a, b) {
+    return a / b;
+}
+
+%PrepareFunctionForOptimization(divRawInt32Exact);
+
+for (var i = 0; i < 100; i++) {
+    divRawInt32Exact(2000, 40);
+}
+
+%OptimizeFunctionOnNextCall(divRawInt32Exact);
+
+var result13 = divRawInt32Exact(1000, 20);
+assertEquals(50, result13);
+assertOptimized(divRawInt32Exact);
+
+// 测试 14: 非整除（向零截断）
+function divRawInt32Trunc(a, b) {
+    return a / b;
+}
+
+%PrepareFunctionForOptimization(divRawInt32Trunc);
+
+for (var i = 0; i < 100; i++) {
+    divRawInt32Trunc(15, 4);
+}
+
+%OptimizeFunctionOnNextCall(divRawInt32Trunc);
+
+var result14 = divRawInt32Trunc(15, 4);
+assertEquals(3, result14);
+assertOptimized(divRawInt32Trunc);
+
+// 测试 15: 溢出路径（INT_MIN / -1）
+function divRawInt32Overflow(a, b) {
+    return a / b;
+}
+
+%PrepareFunctionForOptimization(divRawInt32Overflow);
+
+for (var i = 0; i < 100; i++) {
+    divRawInt32Overflow(-100, -1);
+}
+
+%OptimizeFunctionOnNextCall(divRawInt32Overflow);
+
+var result15 = divRawInt32Overflow(-2147483648, -1);
+// 硬件 INT32 溢出回绕，当前流水线返回 INT_MIN
+assertEquals(-2147483648, result15);
+assertOptimized(divRawInt32Overflow);
+
+// 测试 16: 除以 0（兜底行为观察）
+function divRawInt32ByZero(a, b) {
+    return a / b;
+}
+
+%PrepareFunctionForOptimization(divRawInt32ByZero);
+
+for (var i = 0; i < 100; i++) {
+    divRawInt32ByZero(64, 8);
+}
+
+%OptimizeFunctionOnNextCall(divRawInt32ByZero);
+
+var result16 = divRawInt32ByZero(64, 8);
+assertEquals(8, result16);
+assertOptimized(divRawInt32ByZero);
+
+var result16Zero = divRawInt32ByZero(123, 0);
+print("Div by zero result: " + result16Zero);

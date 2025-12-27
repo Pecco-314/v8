@@ -357,6 +357,42 @@ TEST_CASES = [
                     "CheckedInt32Mul": {"before": 1, "after": 0},
                     "Int32Mul": {"before": 0, "after": 1}
                 }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "divRawInt32Exact",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Div": {"before": 1, "after": 0},
+                    "Int32Div": {"before": 0, "after": 2}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "divRawInt32Trunc",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "Float64Div": {"before": 1, "after": 0},
+                    "Int32Div": {"before": 0, "after": 2}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "divRawInt32Overflow",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Div": {"before": 1, "after": 0},
+                    "Int32Div": {"before": 0, "after": 2}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "divRawInt32ByZero",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Div": {"before": 1, "after": 0},
+                    "Int32Div": {"before": 0, "after": 2}
+                }
             }
         ]
     }
