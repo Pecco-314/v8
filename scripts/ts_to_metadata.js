@@ -178,6 +178,7 @@ function collectOffsetsFromJs(jsFile, names) {
 		'function assertEquals(){}',
 		'function assertOptimized(){}',
 		'function assertUnoptimized(){}',
+		'function assertTrue(){}',
 	].join(';');
 	const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'tsmeta-'));
 	const harness = path.join(tmpDir, 'harness.js');

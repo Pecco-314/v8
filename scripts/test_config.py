@@ -269,7 +269,7 @@ TEST_CASES = [
     # ============================================
     {
         "name": "RawInt32 类型优化",
-        "description": "RawInt32 类型的无溢出检查加法、减法和乘法运算（移除溢出检查）",
+        "description": "RawInt32 类型的无溢出检查加法、减法、乘法和取模运算（移除溢出检查）",
         "functions": [
             {
                 "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
@@ -413,6 +413,33 @@ TEST_CASES = [
                 "expected": {
                     "CheckedInt32Div": {"before": 1, "after": 0},
                     "Int32Div": {"before": 0, "after": 2}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "modRawInt32",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Mod": {"before": 1, "after": 0},
+                    "Int32Mod": {"before": 0, "after": 2}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "modRawInt32Negative",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Mod": {"before": 1, "after": 0},
+                    "Int32Mod": {"before": 0, "after": 2}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "modRawInt32ByZero",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Mod": {"before": 1, "after": 0},
+                    "Int32Mod": {"before": 0, "after": 2}
                 }
             }
         ]

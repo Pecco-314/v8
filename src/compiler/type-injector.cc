@@ -26,8 +26,9 @@ namespace compiler {
 #endif
 
 #if V8_COMPILER_TYPE_INJECTOR_DEBUG
+#include "src/base/logging.h"
 #define TYPE_INJECTOR_DEBUG(...) \
-  do { std::cout << "[TypeInjector] " << __VA_ARGS__ << std::endl; } while (false)
+  do { PrintF("[TypeInjector] " __VA_ARGS__); PrintF("\n"); } while (false)
 #else
 #define TYPE_INJECTOR_DEBUG(...) ((void)0)
 #endif
@@ -274,7 +275,7 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
   } else {
     return;  // 没有字段名且不是 JSArrayLength，跳过
   }
-  TYPE_INJECTOR_DEBUG("Processing LoadField for field: " << field_name);
+  TYPE_INJECTOR_DEBUG("Processing LoadField for field: %s", field_name.c_str());
 
   // 获取 LoadField 的输入节点（object）
   Node* object_node = NodeProperties::GetValueInput(node, 0);
@@ -292,13 +293,15 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
 
   // 从 Obj 中查找字段
   auto field_type = FindFieldInObj(object_type, field_name);
-  TYPE_INJECTOR_DEBUG("Field '" << field_name << "' lookup "
-                                 << (field_type.has_value() ? "succeeded." : "failed."));
+  TYPE_INJECTOR_DEBUG("Field '%s' lookup %s", 
+                      field_name.c_str(),
+                      field_type.has_value() ? "succeeded." : "failed.");
   if (field_type.has_value()) {
     const TypeAST* field_ptr = StoreOwnedTypeAST(field_type.value());
     Type field_turbofan_type = TypeASTToType(*field_ptr);
-    TYPE_INJECTOR_DEBUG("Setting type for Node #" << node->id()
-                                                   << " to: " << field_turbofan_type);
+    TYPE_INJECTOR_DEBUG("Setting type for Node #%d to: %s", 
+                        node->id(), 
+                        field_turbofan_type.ToString().c_str());
     NodeProperties::SetType(node, field_turbofan_type);
     SetNodeType(node, field_ptr);
   }
@@ -309,22 +312,24 @@ void TypeInjector::ProcessLoadFieldNode(Node* node) {
 void TypeInjector::ProcessLoadElementNode(Node* node) {
   if (node->opcode() != IrOpcode::kLoadElement) return;
 
-  TYPE_INJECTOR_DEBUG("Processing LoadElement for Node #" << node->id());
+  TYPE_INJECTOR_DEBUG("Processing LoadElement for Node #%d", node->id());
 
   // 获取 LoadElement 的输入节点（array/tuple elements）
   // LoadElement 的输入通常是：[0] = elements buffer, [1] = index
   // 在 IR 中，elements buffer 通常来自 LoadField 操作
   Node* elements_node = node->InputAt(0);
-  TYPE_INJECTOR_DEBUG("  Input[0]: Node #" << elements_node->id()
-                                           << " (" << elements_node->op()->mnemonic() << ")");
+  TYPE_INJECTOR_DEBUG("  Input[0]: Node #%d (%s)", 
+                      elements_node->id(),
+                      elements_node->op()->mnemonic());
 
   // 如果 elements_node 是 LoadField，需要找到真正的数组/元组对象
   Node* array_node = elements_node;
   if (elements_node->opcode() == IrOpcode::kLoadField) {
     // 这是 LoadField，其输入应该是数组/元组对象
     array_node = elements_node->InputAt(0);
-    TYPE_INJECTOR_DEBUG("  Following LoadField to Node #"
-                        << array_node->id() << " (" << array_node->op()->mnemonic() << ")");
+    TYPE_INJECTOR_DEBUG("  Following LoadField to Node #%d (%s)",
+                        array_node->id(), 
+                        array_node->op()->mnemonic());
   }
 
   // 递归获取数组/元组的类型
@@ -335,15 +340,15 @@ void TypeInjector::ProcessLoadElementNode(Node* node) {
   }
 
   const TypeAST& container_type = container_type_opt.value();
-  TYPE_INJECTOR_DEBUG("  Container type: " << container_type.KindToString());
+  TYPE_INJECTOR_DEBUG("  Container type: %s", container_type.KindToString().c_str());
 
   std::optional<TypeAST> element_type;
 
   if (container_type.kind == TypeAST::Arr) {
     // Array: 所有元素类型相同
     element_type = GetElementTypeInArray(container_type);
-    TYPE_INJECTOR_DEBUG("  Array element type lookup "
-                        << (element_type.has_value() ? "succeeded." : "failed."));
+    TYPE_INJECTOR_DEBUG("  Array element type lookup %s",
+                        element_type.has_value() ? "succeeded." : "failed.");
   } else if (container_type.kind == TypeAST::Tuple) {
     // Tuple: 每个位置类型不同，需要获取索引
     Node* index_node = NodeProperties::GetValueInput(node, 1);
@@ -352,15 +357,15 @@ void TypeInjector::ProcessLoadElementNode(Node* node) {
     if (index_opt.has_value()) {
       int index = index_opt.value();
       int tuple_length = static_cast<int>(container_type.children.size());
-      TYPE_INJECTOR_DEBUG("  Tuple index: " << index << ", length: " << tuple_length);
+      TYPE_INJECTOR_DEBUG("  Tuple index: %d, length: %d", index, tuple_length);
       
       // 检查索引是否在 Tuple 长度范围内
       if (index >= 0 && index < tuple_length) {
         element_type = GetElementTypeInTuple(container_type, index);
-        TYPE_INJECTOR_DEBUG("  Tuple element type lookup "
-                            << (element_type.has_value() ? "succeeded." : "failed."));
+        TYPE_INJECTOR_DEBUG("  Tuple element type lookup %s",
+                            element_type.has_value() ? "succeeded." : "failed.");
       } else {
-        TYPE_INJECTOR_DEBUG("  Tuple index " << index << " out of bounds [0, " << tuple_length << ")");
+        TYPE_INJECTOR_DEBUG("  Tuple index %d out of bounds [0, %d)", index, tuple_length);
       }
     } else {
       TYPE_INJECTOR_DEBUG("  Failed to get constant index for Tuple");
@@ -374,8 +379,9 @@ void TypeInjector::ProcessLoadElementNode(Node* node) {
   if (element_type.has_value()) {
     const TypeAST* elem_ptr = StoreOwnedTypeAST(element_type.value());
     Type element_turbofan_type = TypeASTToType(*elem_ptr);
-    TYPE_INJECTOR_DEBUG("Setting type for Node #" << node->id()
-                                                   << " to: " << element_turbofan_type);
+    TYPE_INJECTOR_DEBUG("Setting type for Node #%d to: %s",
+                        node->id(),
+                        element_turbofan_type.ToString().c_str());
     NodeProperties::SetType(node, element_turbofan_type);
     SetNodeType(node, elem_ptr);
   }
@@ -398,10 +404,10 @@ void TypeInjector::RemoveTupleBoundsCheck(Node* load_element_node,
     return;
   }
   
-  TYPE_INJECTOR_DEBUG("Removing redundant bounds check for Tuple LoadElement #"
-                      << load_element_node->id() << ", CheckBounds #"
-                      << check_bounds_node->id() << ", using constant #"
-                      << index_constant->id());
+  TYPE_INJECTOR_DEBUG("Removing redundant bounds check for Tuple LoadElement #%d, CheckBounds #%d, using constant #%d",
+                      load_element_node->id(),
+                      check_bounds_node->id(),
+                      index_constant->id());
 
   // 替换 LoadElement 的索引输入（value input），用 index_constant
   if (index_input == check_bounds_node) {
@@ -430,8 +436,9 @@ void TypeInjector::ReplaceTupleLengthWithConstant(Node* load_field_node,
   // NumberConstant 的类型会自动设置
   // SimplifiedLowering 会将其转换为 TaggedSigned (Smi)
   
-  TYPE_INJECTOR_DEBUG("Created Int32Constant #" << constant_node->id()
-                                                 << " with value: " << tuple_length);
+  TYPE_INJECTOR_DEBUG("Created Int32Constant #%d with value: %d",
+                      constant_node->id(),
+                      tuple_length);
   
   // 替换 LoadField 节点的所有 value 使用
   // LoadField 的输出是 value，我们需要替换所有使用 LoadField 的节点
@@ -460,8 +467,9 @@ void TypeInjector::ReplaceTupleLengthWithConstant(Node* load_field_node,
     Node* use = pair.first;
     int index = pair.second;
     use->ReplaceInput(index, constant_node);
-    TYPE_INJECTOR_DEBUG("Replaced value input #" << index << " of node #"
-                                                 << use->id());
+    TYPE_INJECTOR_DEBUG("Replaced value input #%d of node #%d",
+                        index,
+                        use->id());
   }
 
   // 替换所有 effect 使用（用 LoadField 的 effect 输入替换）
@@ -469,8 +477,9 @@ void TypeInjector::ReplaceTupleLengthWithConstant(Node* load_field_node,
     Node* use = pair.first;
     int index = pair.second;
     use->ReplaceInput(index, load_field_effect);
-    TYPE_INJECTOR_DEBUG("Replaced effect input #" << index << " of node #"
-                                                  << use->id());
+    TYPE_INJECTOR_DEBUG("Replaced effect input #%d of node #%d",
+                        index,
+                        use->id());
 }
 
   // 注意：LoadField 节点本身不会被删除，因为它可能还有 control 使用
@@ -512,8 +521,9 @@ void TypeInjector::ProcessJSCallNode(Node* node) {
   // 1. 尝试从内建函数类型表获取完整签名（基于 Builtin ID）
   if (v8_flags.turbo_builtin_type_table && shared.HasBuiltinId()) {
     Builtin builtin_id = shared.builtin_id();
-    TYPE_INJECTOR_DEBUG("Found builtin: " << Builtins::name(builtin_id) 
-                        << " (id=" << static_cast<int>(builtin_id) << ")");
+    TYPE_INJECTOR_DEBUG("Found builtin: %s (id=%d)",
+                        Builtins::name(builtin_id),
+                        static_cast<int>(builtin_id));
     
     auto* storage = TypeStorage::Get();
     auto signature = storage->GetBuiltinSignature(builtin_id);
@@ -522,9 +532,9 @@ void TypeInjector::ProcessJSCallNode(Node* node) {
       // 设置返回值类型
       Type return_turbofan_type = TypeASTToType(signature->return_type);
       NodeProperties::SetType(node, return_turbofan_type);
-      TYPE_INJECTOR_DEBUG("Applied builtin return type for " 
-                          << Builtins::name(builtin_id)
-                          << " -> " << return_turbofan_type);
+      TYPE_INJECTOR_DEBUG("Applied builtin return type for %s -> %s",
+                          Builtins::name(builtin_id),
+                          return_turbofan_type.ToString().c_str());
       
       // 设置接收者和参数类型
       JSCallNode call_node(node);
@@ -537,7 +547,7 @@ void TypeInjector::ProcessJSCallNode(Node* node) {
       if (!param_types.empty() && receiver != nullptr) {
         Type receiver_type = TypeASTToType(param_types[0]);
         NodeProperties::SetType(receiver, receiver_type);
-        TYPE_INJECTOR_DEBUG("  Set receiver type: " << receiver_type);
+        TYPE_INJECTOR_DEBUG("  Set receiver type: %s", receiver_type.ToString().c_str());
       }
       
       // 设置其他参数类型
@@ -547,7 +557,7 @@ void TypeInjector::ProcessJSCallNode(Node* node) {
         if (arg != nullptr) {
           Type arg_type = TypeASTToType(param_types[i + 1]);
           NodeProperties::SetType(arg, arg_type);
-          TYPE_INJECTOR_DEBUG("  Set arg[" << i << "] type: " << arg_type);
+          TYPE_INJECTOR_DEBUG("  Set arg[%zu] type: %s", i, arg_type.ToString().c_str());
         }
       }
       
@@ -560,8 +570,9 @@ void TypeInjector::ProcessJSCallNode(Node* node) {
   // 2. 尝试从用户 metadata 获取返回值类型（基于 bytecode offset）
   int start_pos = shared.StartPosition();
 
-  TYPE_INJECTOR_DEBUG("Processing JSCall #" << node->id() 
-                      << " to function at position " << start_pos);
+  TYPE_INJECTOR_DEBUG("Processing JSCall #%d to function at position %d",
+                      node->id(),
+                      start_pos);
 
   // 获取函数的返回值类型
   auto return_type_opt = GetFunctionReturnType(start_pos);
@@ -596,15 +607,17 @@ std::optional<TypeAST> TypeInjector::GetFunctionReturnType(int start_pos) {
   return std::nullopt;
 }
 
-// 处理 RawInt32 类型的二元操作（加/减/乘）
+// 处理 RawInt32 类型的二元操作（加/减/乘/除/模）
 // 基于注入的 TypeAST 决策，不再写 Type
 void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
-  // 只处理 SpeculativeSmallIntegerAdd/Subtract、SpeculativeNumberMultiply/Divide
+  // 只处理 SpeculativeSmallIntegerAdd/Subtract、SpeculativeNumberMultiply/Divide/Modulus
   IrOpcode::Value opcode = node->opcode();
+  
   if (opcode != IrOpcode::kSpeculativeSmallIntegerAdd &&
       opcode != IrOpcode::kSpeculativeSmallIntegerSubtract &&
       opcode != IrOpcode::kSpeculativeNumberMultiply &&
-      opcode != IrOpcode::kSpeculativeNumberDivide) {
+      opcode != IrOpcode::kSpeculativeNumberDivide &&
+      opcode != IrOpcode::kSpeculativeNumberModulus) {
     return;
   }
 
@@ -613,6 +626,7 @@ void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
   Node* right = NodeProperties::GetValueInput(node, 1);
   const TypeAST* left_ast = GetNodeType(left);
   const TypeAST* right_ast = GetNodeType(right);
+  
   if (left_ast == nullptr || right_ast == nullptr ||
       left_ast->kind != TypeAST::RawInt32 || right_ast->kind != TypeAST::RawInt32) {
     return;
@@ -632,8 +646,10 @@ void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
     number_op = simplified_->NumberSubtract();
   } else if (opcode == IrOpcode::kSpeculativeNumberMultiply) {
     number_op = simplified_->NumberMultiply();
-  } else {
+  } else if (opcode == IrOpcode::kSpeculativeNumberDivide) {
     number_op = simplified_->NumberDivide();
+  } else {
+    number_op = simplified_->NumberModulus();
   }
   Node* number_node = graph_->NewNode(number_op, left, right);
   
@@ -745,22 +761,23 @@ void TypeInjector::Run() {
   IndirectHandle<SharedFunctionInfo> shared = compilation_info_->shared_info();
   int start_pos = shared->StartPosition();
 
-  TYPE_INJECTOR_DEBUG("Run() called - script_hash: " << script_hash_ << ", start_pos: " << start_pos);
+  TYPE_INJECTOR_DEBUG("Run() called - script_hash: %s, start_pos: %d", 
+                      script_hash_.c_str(), start_pos);
 
   storage_ = TypeStorage::Get();
   auto typemap = storage_->GetTypeMap(script_hash_);
 
-  TYPE_INJECTOR_DEBUG("Found " << typemap.size() << " entries in typemap");
+  TYPE_INJECTOR_DEBUG("Found %zu entries in typemap", typemap.size());
 
   auto it = typemap.find(start_pos);
   if (it != typemap.end()) {
     param_types_ = it->second;
-    TYPE_INJECTOR_DEBUG("Found " << param_types_.size() << " parameter types");
+    TYPE_INJECTOR_DEBUG("Found %zu parameter types", param_types_.size());
     for (size_t i = 0; i < param_types_.size(); i++) {
-      TYPE_INJECTOR_DEBUG("  param[" << i << "]: kind=" << param_types_[i].KindToString());
+      TYPE_INJECTOR_DEBUG("  param[%zu]: kind=%s", i, param_types_[i].KindToString().c_str());
     }
   } else {
-    TYPE_INJECTOR_DEBUG("No type info found for start_pos " << start_pos);
+    TYPE_INJECTOR_DEBUG("No type info found for start_pos %d", start_pos);
   }
 
   AllNodes all(graph_->zone(), graph_);

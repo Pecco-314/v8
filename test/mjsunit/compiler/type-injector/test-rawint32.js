@@ -219,3 +219,51 @@ else {
     print('divRawInt32ByZero fallback to normal JS division: ' + result16Zero);
 }
 print('Div by zero result: ' + result16Zero);
+// ===================================
+// 取模测试
+// ===================================
+function modRawInt32(a, b) {
+    return a % b;
+}
+prepare(modRawInt32);
+for (let i = 0; i < 100; i++) {
+    modRawInt32(100, 7);
+}
+optimize(modRawInt32);
+const result17 = modRawInt32(1000, 64);
+assertEquals(40, result17);
+assertOptimized(modRawInt32);
+function modRawInt32Negative(a, b) {
+    return a % b;
+}
+prepare(modRawInt32Negative);
+for (let i = 0; i < 100; i++) {
+    modRawInt32Negative(-35, 8);
+}
+optimize(modRawInt32Negative);
+const result18 = modRawInt32Negative(-35, 8);
+assertEquals(-3, result18);
+assertOptimized(modRawInt32Negative);
+function modRawInt32ByZero(a, b) {
+    return a % b;
+}
+prepare(modRawInt32ByZero);
+for (let i = 0; i < 100; i++) {
+    modRawInt32ByZero(123, 7);
+}
+optimize(modRawInt32ByZero);
+const result19 = modRawInt32ByZero(64, 8);
+assertEquals(0, result19);
+// 有 metadata 时应走 RawInt32 模运算
+assertOptimized(modRawInt32ByZero);
+const result19Zero = modRawInt32ByZero(123, 0);
+if (result19Zero === 0) {
+    // RawInt32 路径，除以零返回 0
+    assertOptimized(modRawInt32ByZero);
+}
+else {
+    // 无 metadata，普通 JS 语义返回 NaN
+    assertTrue(Number.isNaN(result19Zero));
+    print('modRawInt32ByZero fallback to normal JS modulus: ' + result19Zero);
+}
+print('Mod by zero result: ' + result19Zero);
