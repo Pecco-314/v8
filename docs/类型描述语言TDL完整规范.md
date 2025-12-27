@@ -50,13 +50,12 @@ TDL 是连接类型元数据与 V8 TypeInjector 的中间语言，提供统一�
 
 ```
 arr<ElementType>
-array<ElementType>
 ```
 
 **示例**：
 ```
 @params any arr<num> @ret num
-@params any array<str> @ret void
+@params any arr<str> @ret void
 ```
 
 #### 元组类型
@@ -80,17 +79,15 @@ tuple<Type1, Type2, ...>
 
 ```
 obj{field1:Type1, field2:Type2, ...}
-interface{field1:Type1, field2:Type2, ...}
 ```
 
 **示例**：
 ```
 @params any obj{x:num,y:num} @ret num
-@params any interface{id:num,name:str} @ret str
+@params any obj{id:num,name:str} @ret str
 ```
 
 **说明**：
-- `obj` 和 `interface` 语义相同，不区分
 - 字段顺序对应对象属性定义顺序
 
 ### 嵌套类型
@@ -189,6 +186,8 @@ Type TypeInjector::ConvertToV8Type(const TypeAST& type_ast) {
 - 用户输入未验证
 - 浮点运算结果
 - 可能溢出的累加操作
+
+**生成提醒**：可在 TS 中通过类型别名 `type rawint32 = number;` 并在签名中使用 `rawint32`，元数据生成器会将 `rawint32` 识别为 RawInt32。避免与其他同名别名混用即可。
 
 ## 文件格式规范
 

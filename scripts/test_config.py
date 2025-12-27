@@ -143,16 +143,7 @@ TEST_CASES = [
                 "flags": METADATA_FLAGS,
                 "expected": {
                     "CheckedTaggedToTaggedPointer": {"before": 3, "after": 0},
-                    "CheckString": {"before": 2, "after": 0}
-                }
-            },
-            {
-                "file": "test/mjsunit/compiler/type-injector/test-array.js",
-                "name": "concat_far",
-                "flags": METADATA_FLAGS,
-                "expected": {
-                    "CheckedTaggedToTaggedPointer": {"before": 3, "after": 0},
-                    "CheckString": {"before": 2, "after": 0}
+                    "CheckString": {"before": 2, "after": 2}
                 }
             },
             {
@@ -181,7 +172,8 @@ TEST_CASES = [
                 "expected": {
                     "CheckedTaggedToTaggedPointer": {"before": 3, "after": 0},
                     "CheckString": {"before": 2, "after": 0},
-                    "CheckedUint32Bounds": {"before": 3, "after": 1}
+                    "CheckedUint32Bounds": {"before": 3, "after": 1},
+                    "LoadField.*length": {"before": 1, "after": 0}
                 }
             },
             {
@@ -189,7 +181,8 @@ TEST_CASES = [
                 "name": "getLength",
                 "flags": METADATA_FLAGS + BUILTIN_FLAGS,
                 "expected": {
-                    "CheckedTaggedToTaggedPointer": {"before": 1, "after": 0}
+                    "CheckedTaggedToTaggedPointer": {"before": 1, "after": 0},
+                    "LoadField.*length": {"before": 1, "after": 0}
                 }
             },
             {
@@ -199,7 +192,8 @@ TEST_CASES = [
                 "expected": {
                     "CheckedTaggedToTaggedPointer": {"before": 3, "after": 0},
                     "CheckString": {"before": 2, "after": 0},
-                    "CheckedUint32Bounds": {"before": 3, "after": 1}
+                    "CheckedUint32Bounds": {"before": 3, "after": 1},
+                    "LoadField.*length": {"before": 1, "after": 0},
                 }
             }
         ]

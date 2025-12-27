@@ -119,10 +119,8 @@ function mapTsType(typeNode) {
 		}
 		case ts.SyntaxKind.TypeReference: {
 			const name = typeNode.typeName.getText();
-			if ((name === 'Array' || name === 'ReadonlyArray') && typeNode.typeArguments?.length === 1) {
-				const elem = mapTsType(typeNode.typeArguments[0]);
-				return `arr<${elem}>`;
-			}
+			const lower = name.toLowerCase();
+			if (lower === 'rawint32') return 'rawint32';
 			return 'any';
 		}
 		case ts.SyntaxKind.TypeLiteral: {

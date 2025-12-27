@@ -85,34 +85,22 @@ class TypeParser {
     std::string token = ParseIdentifier();
     node.kind = StringToKind(token);
 
-    // 情况 A: 泛型 <T>
+    // 情况 A: 泛型 <T, U, ...> 
     if (Match('<')) {
-      // 递归解析内部类型
-      node.children.push_back(ParseNext());
-
-      // 注意：如果将来支持类似于 Map<K,V>，这里需要循环处理逗号
-
+      while (Peek() != '>' && Peek() != 0) {
+        node.children.push_back(ParseNext());
+        if (Peek() == ',') {
+          Advance();
+        } else {
+          break;  // 期待 '>'
+        }
+      }
       if (!Match('>')) {
         std::cerr << "[Metadata Parse Error] Expected '>' at pos " << pos_
                   << std::endl;
       }
     }
-    // 情况 B: 元组 [T1, T2]
-    else if (Match('[')) {
-      while (Peek() != ']' && Peek() != 0) {
-        node.children.push_back(ParseNext());
-        if (Peek() == ',') {
-          Advance();
-        } else {
-          break;  // 期待 ']'
-        }
-      }
-      if (!Match(']')) {
-        std::cerr << "[Metadata Parse Error] Expected ']' at pos " << pos_
-                  << std::endl;
-      }
-    }
-    // 情况 C: 接口/类 {key:Val, #key:Val}
+    // 情况 B: 接口/类 {key:Val, #key:Val}
     else if (Match('{')) {
       while (Peek() != '}' && Peek() != 0) {
         // 1. 解析 Key (字段名，可能包含 # 前缀)

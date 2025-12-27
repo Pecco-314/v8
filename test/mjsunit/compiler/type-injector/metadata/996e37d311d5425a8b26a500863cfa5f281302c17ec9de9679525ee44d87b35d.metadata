@@ -1,3 +1,0 @@
-449 @params any tuple[str,str] @ret str
-1021 @params any tuple[str,str] @ret num
-1619 @params any tuple[str,num] @ret str
