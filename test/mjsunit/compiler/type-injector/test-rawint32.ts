@@ -14,17 +14,19 @@ function optimize(fn: Function): void {
   eval('%OptimizeFunctionOnNextCall(' + fn.name + ')');
 }
 
+function warmupAndOptimize(fn: Function, ...args: any[]): void {
+  prepare(fn);
+  fn(...args);
+  optimize(fn);
+}
+
 // ===================================
 // 加法测试
 // ===================================
 function addRawInt32(a: rawint32, b: rawint32): rawint32 {
   return a + b;
 }
-prepare(addRawInt32);
-for (let i = 0; i < 100; i++) {
-  addRawInt32(100, 200);
-}
-optimize(addRawInt32);
+warmupAndOptimize(addRawInt32, 100, 200);
 const result1 = addRawInt32(1000, 2000);
 assertEquals(3000, result1);
 assertOptimized(addRawInt32);
@@ -32,22 +34,14 @@ assertOptimized(addRawInt32);
 function addRawInt32Overflow(a: rawint32, b: rawint32): rawint32 {
   return a + b;
 }
-prepare(addRawInt32Overflow);
-for (let i = 0; i < 100; i++) {
-  addRawInt32Overflow(100, 200);
-}
-optimize(addRawInt32Overflow);
+warmupAndOptimize(addRawInt32Overflow, 100, 200);
 const result2 = addRawInt32Overflow(2147483647, 1);
 print('Overflow result: ' + result2);
 
 function addRawInt32Negative(a: rawint32, b: rawint32): rawint32 {
   return a + b;
 }
-prepare(addRawInt32Negative);
-for (let i = 0; i < 100; i++) {
-  addRawInt32Negative(-100, -200);
-}
-optimize(addRawInt32Negative);
+warmupAndOptimize(addRawInt32Negative, -100, -200);
 const result3 = addRawInt32Negative(-1000, -2000);
 assertEquals(-3000, result3);
 assertOptimized(addRawInt32Negative);
@@ -55,11 +49,7 @@ assertOptimized(addRawInt32Negative);
 function addRawInt32Underflow(a: rawint32, b: rawint32): rawint32 {
   return a + b;
 }
-prepare(addRawInt32Underflow);
-for (let i = 0; i < 100; i++) {
-  addRawInt32Underflow(-100, -200);
-}
-optimize(addRawInt32Underflow);
+warmupAndOptimize(addRawInt32Underflow, -100, -200);
 const result4 = addRawInt32Underflow(-2147483648, -1);
 print('Underflow result: ' + result4);
 
@@ -69,11 +59,7 @@ print('Underflow result: ' + result4);
 function subRawInt32(a: rawint32, b: rawint32): rawint32 {
   return a - b;
 }
-prepare(subRawInt32);
-for (let i = 0; i < 100; i++) {
-  subRawInt32(300, 100);
-}
-optimize(subRawInt32);
+warmupAndOptimize(subRawInt32, 300, 100);
 const result5 = subRawInt32(3000, 1000);
 assertEquals(2000, result5);
 assertOptimized(subRawInt32);
@@ -81,22 +67,14 @@ assertOptimized(subRawInt32);
 function subRawInt32Overflow(a: rawint32, b: rawint32): rawint32 {
   return a - b;
 }
-prepare(subRawInt32Overflow);
-for (let i = 0; i < 100; i++) {
-  subRawInt32Overflow(300, 100);
-}
-optimize(subRawInt32Overflow);
+warmupAndOptimize(subRawInt32Overflow, 300, 100);
 const result6 = subRawInt32Overflow(-2147483648, 1);
 print('Sub overflow result: ' + result6);
 
 function subRawInt32Negative(a: rawint32, b: rawint32): rawint32 {
   return a - b;
 }
-prepare(subRawInt32Negative);
-for (let i = 0; i < 100; i++) {
-  subRawInt32Negative(-100, -200);
-}
-optimize(subRawInt32Negative);
+warmupAndOptimize(subRawInt32Negative, -100, -200);
 const result7 = subRawInt32Negative(-1000, -2000);
 assertEquals(1000, result7);
 assertOptimized(subRawInt32Negative);
@@ -104,11 +82,7 @@ assertOptimized(subRawInt32Negative);
 function subRawInt32Underflow(a: rawint32, b: rawint32): rawint32 {
   return a - b;
 }
-prepare(subRawInt32Underflow);
-for (let i = 0; i < 100; i++) {
-  subRawInt32Underflow(100, 200);
-}
-optimize(subRawInt32Underflow);
+warmupAndOptimize(subRawInt32Underflow, 100, 200);
 const result8 = subRawInt32Underflow(2147483647, -1);
 print('Sub underflow result: ' + result8);
 
@@ -118,11 +92,7 @@ print('Sub underflow result: ' + result8);
 function mulRawInt32(a: rawint32, b: rawint32): rawint32 {
   return a * b;
 }
-prepare(mulRawInt32);
-for (let i = 0; i < 100; i++) {
-  mulRawInt32(10, 20);
-}
-optimize(mulRawInt32);
+warmupAndOptimize(mulRawInt32, 10, 20);
 const result9 = mulRawInt32(30, 40);
 assertEquals(1200, result9);
 assertOptimized(mulRawInt32);
@@ -130,22 +100,14 @@ assertOptimized(mulRawInt32);
 function mulRawInt32Overflow(a: rawint32, b: rawint32): rawint32 {
   return a * b;
 }
-prepare(mulRawInt32Overflow);
-for (let i = 0; i < 100; i++) {
-  mulRawInt32Overflow(1000, 2000);
-}
-optimize(mulRawInt32Overflow);
+warmupAndOptimize(mulRawInt32Overflow, 1000, 2000);
 const result10 = mulRawInt32Overflow(2147483647, 2);
 print('Mul overflow result: ' + result10);
 
 function mulRawInt32Negative(a: rawint32, b: rawint32): rawint32 {
   return a * b;
 }
-prepare(mulRawInt32Negative);
-for (let i = 0; i < 100; i++) {
-  mulRawInt32Negative(-3, 7);
-}
-optimize(mulRawInt32Negative);
+warmupAndOptimize(mulRawInt32Negative, -3, 7);
 const result11 = mulRawInt32Negative(-30, 4);
 assertEquals(-120, result11);
 assertOptimized(mulRawInt32Negative);
@@ -153,11 +115,7 @@ assertOptimized(mulRawInt32Negative);
 function mulRawInt32Underflow(a: rawint32, b: rawint32): rawint32 {
   return a * b;
 }
-prepare(mulRawInt32Underflow);
-for (let i = 0; i < 100; i++) {
-  mulRawInt32Underflow(-1000, 2000);
-}
-optimize(mulRawInt32Underflow);
+warmupAndOptimize(mulRawInt32Underflow, -1000, 2000);
 const result12 = mulRawInt32Underflow(-2147483648, 2);
 print('Mul underflow result: ' + result12);
 
@@ -167,11 +125,7 @@ print('Mul underflow result: ' + result12);
 function divRawInt32Exact(a: rawint32, b: rawint32): rawint32 {
   return a / b;
 }
-prepare(divRawInt32Exact);
-for (let i = 0; i < 100; i++) {
-  divRawInt32Exact(2000, 40);
-}
-optimize(divRawInt32Exact);
+warmupAndOptimize(divRawInt32Exact, 2000, 40);
 const result13 = divRawInt32Exact(1000, 20);
 assertEquals(50, result13);
 assertOptimized(divRawInt32Exact);
@@ -179,11 +133,7 @@ assertOptimized(divRawInt32Exact);
 function divRawInt32Trunc(a: rawint32, b: rawint32): rawint32 {
   return a / b;
 }
-prepare(divRawInt32Trunc);
-for (let i = 0; i < 100; i++) {
-  divRawInt32Trunc(15, 4);
-}
-optimize(divRawInt32Trunc);
+warmupAndOptimize(divRawInt32Trunc, 15, 4);
 const result14 = divRawInt32Trunc(15, 4);
 // 有 metadata 时返回 3 (int 除法截断)，无 metadata 时返回 3.75 (float 除法)
 if (result14 === 3) {
@@ -198,11 +148,7 @@ if (result14 === 3) {
 function divRawInt32Overflow(a: rawint32, b: rawint32): rawint32 {
   return a / b;
 }
-prepare(divRawInt32Overflow);
-for (let i = 0; i < 100; i++) {
-  divRawInt32Overflow(-100, -1);
-}
-optimize(divRawInt32Overflow);
+warmupAndOptimize(divRawInt32Overflow, -100, -1);
 const result15 = divRawInt32Overflow(-2147483648, -1);
 // 有 metadata 时走 RawInt32 路径返回 INT_MIN (-2147483648)，无 metadata 时返回 2147483648 (普通 JS 语义)
 if (result15 === -2147483648) {
@@ -217,11 +163,7 @@ if (result15 === -2147483648) {
 function divRawInt32ByZero(a: rawint32, b: rawint32): rawint32 {
   return a / b;
 }
-prepare(divRawInt32ByZero);
-for (let i = 0; i < 100; i++) {
-  divRawInt32ByZero(64, 8);
-}
-optimize(divRawInt32ByZero);
+warmupAndOptimize(divRawInt32ByZero, 64, 8);
 const result16 = divRawInt32ByZero(64, 8);
 assertEquals(8, result16);
 // 有 metadata 时应该已优化

@@ -26,6 +26,12 @@ function optimize(fn: Function): void {
   eval('%OptimizeFunctionOnNextCall(' + fn.name + ')');
 }
 
+function warmupAndOptimize(fn: Function, ...args: any[]): void {
+  prepare(fn);
+  fn(...args);
+  optimize(fn);
+}
+
 // ===================================
 // 测试 1: interface 形状
 // ===================================
@@ -33,12 +39,7 @@ function concat(data: Pair): string {
   return data.x + data.y;
 }
 
-prepare(concat);
-for (let i = 0; i < 100; i++) {
-  const str = i.toString();
-  concat({ x: str, y: str });
-}
-optimize(concat);
+warmupAndOptimize(concat, { x: 'warm', y: 'up' });
 const result1 = concat({ x: 'hello', y: 'world' });
 assertEquals('helloworld', result1);
 assertOptimized(concat);
@@ -50,13 +51,7 @@ function concat_nested(wrapper: Wrapper): string {
   return wrapper.first.x + wrapper.first.y;
 }
 
-prepare(concat_nested);
-for (let i = 0; i < 100; i++) {
-  const str = i.toString();
-  const inner: Pair = { x: str, y: str };
-  concat_nested(new Wrapper(inner, 'extra'));
-}
-optimize(concat_nested);
+warmupAndOptimize(concat_nested, new Wrapper({ x: 'foo', y: 'foo' }, 'extra'));
 const result2 = concat_nested(new Wrapper({ x: 'foo', y: 'bar' }, 'baz'));
 assertEquals('foobar', result2);
 assertOptimized(concat_nested);

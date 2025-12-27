@@ -12,17 +12,18 @@ function optimize(fn: Function): void {
   eval('%OptimizeFunctionOnNextCall(' + fn.name + ')');
 }
 
+function warmupAndOptimize(fn: Function, ...args: any[]): void {
+  prepare(fn);
+  fn(...args);
+  optimize(fn);
+}
+
 // packed array: 直接读取前两项
 function concat_arr(data: string[]): string {
   return data[0] + data[1];
 }
 
-prepare(concat_arr);
-for (let i = 0; i < 100; i++) {
-  const s = i.toString();
-  concat_arr([s, s, 'extra']);
-}
-optimize(concat_arr);
+warmupAndOptimize(concat_arr, ['warm', 'up', 'extra']);
 const r1 = concat_arr(['hello', 'world', '!']);
 assertEquals('helloworld', r1);
 assertOptimized(concat_arr);
@@ -38,14 +39,10 @@ function concat_holey(data: string[]): string {
   return data[0] + data[2];
 }
 
-prepare(concat_holey);
-for (let i = 0; i < 100; i++) {
-  const a: string[] = ['a'];
-  a[2] = 'c'; // 创建 holey，随后填满
-  a[1] = 'b';
-  concat_holey(a);
-}
-optimize(concat_holey);
+const warmHoley: string[] = ['a'];
+warmHoley[2] = 'c'; // 创建 holey，随后填满
+warmHoley[1] = 'b';
+warmupAndOptimize(concat_holey, warmHoley);
 const holey: string[] = ['foo'];
 holey[2] = 'bar';
 holey[1] = 'mid';
@@ -62,11 +59,7 @@ function concat_loop(data: string[]): string {
   return acc;
 }
 
-prepare(concat_loop);
-for (let i = 0; i < 100; i++) {
-  concat_loop(['x', 'y', 'z', i.toString()]);
-}
-optimize(concat_loop);
+warmupAndOptimize(concat_loop, ['x', 'y', 'z', '0']);
 const r3 = concat_loop(['v8', '-', 'tf', '-ok']);
 assertEquals('v8-tf-ok', r3);
 assertOptimized(concat_loop);

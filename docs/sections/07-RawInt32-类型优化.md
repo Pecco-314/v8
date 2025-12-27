@@ -15,7 +15,7 @@ function addRawInt32(a, b) {
 **Metadata：**
 
 ```
-434 @params any rawint32 rawint32 @ret rawint32  # addRawInt32
+530 @params any rawint32 rawint32 @ret rawint32  # addRawInt32
 ```
 
 **优化 Flags：**
@@ -123,7 +123,7 @@ function addRawInt32Overflow(a, b) {
 **Metadata：**
 
 ```
-697 @params any rawint32 rawint32 @ret rawint32  # addRawInt32Overflow
+729 @params any rawint32 rawint32 @ret rawint32  # addRawInt32Overflow
 ```
 
 **优化 Flags：**
@@ -231,7 +231,7 @@ function addRawInt32Negative(a, b) {
 **Metadata：**
 
 ```
-974 @params any rawint32 rawint32 @ret rawint32  # addRawInt32Negative
+926 @params any rawint32 rawint32 @ret rawint32  # addRawInt32Negative
 ```
 
 **优化 Flags：**
@@ -339,7 +339,7 @@ function addRawInt32Underflow(a, b) {
 **Metadata：**
 
 ```
-1283 @params any rawint32 rawint32 @ret rawint32  # addRawInt32Underflow
+1155 @params any rawint32 rawint32 @ret rawint32  # addRawInt32Underflow
 ```
 
 **优化 Flags：**
@@ -447,7 +447,7 @@ function subRawInt32(a, b) {
 **Metadata：**
 
 ```
-1647 @params any rawint32 rawint32 @ret rawint32  # subRawInt32
+1437 @params any rawint32 rawint32 @ret rawint32  # subRawInt32
 ```
 
 **优化 Flags：**
@@ -555,7 +555,7 @@ function subRawInt32Overflow(a, b) {
 **Metadata：**
 
 ```
-1910 @params any rawint32 rawint32 @ret rawint32  # subRawInt32Overflow
+1636 @params any rawint32 rawint32 @ret rawint32  # subRawInt32Overflow
 ```
 
 **优化 Flags：**
@@ -663,7 +663,7 @@ function subRawInt32Negative(a, b) {
 **Metadata：**
 
 ```
-2192 @params any rawint32 rawint32 @ret rawint32  # subRawInt32Negative
+1838 @params any rawint32 rawint32 @ret rawint32  # subRawInt32Negative
 ```
 
 **优化 Flags：**
@@ -771,7 +771,7 @@ function subRawInt32Underflow(a, b) {
 **Metadata：**
 
 ```
-2500 @params any rawint32 rawint32 @ret rawint32  # subRawInt32Underflow
+2066 @params any rawint32 rawint32 @ret rawint32  # subRawInt32Underflow
 ```
 
 **优化 Flags：**
@@ -879,7 +879,7 @@ function mulRawInt32(a, b) {
 **Metadata：**
 
 ```
-2865 @params any rawint32 rawint32 @ret rawint32  # mulRawInt32
+2349 @params any rawint32 rawint32 @ret rawint32  # mulRawInt32
 ```
 
 **优化 Flags：**
@@ -987,7 +987,7 @@ function mulRawInt32Overflow(a, b) {
 **Metadata：**
 
 ```
-3122 @params any rawint32 rawint32 @ret rawint32  # mulRawInt32Overflow
+2542 @params any rawint32 rawint32 @ret rawint32  # mulRawInt32Overflow
 ```
 
 **优化 Flags：**
@@ -1095,7 +1095,7 @@ function mulRawInt32Negative(a, b) {
 **Metadata：**
 
 ```
-3407 @params any rawint32 rawint32 @ret rawint32  # mulRawInt32Negative
+2747 @params any rawint32 rawint32 @ret rawint32  # mulRawInt32Negative
 ```
 
 **优化 Flags：**
@@ -1203,7 +1203,7 @@ function mulRawInt32Underflow(a, b) {
 **Metadata：**
 
 ```
-3706 @params any rawint32 rawint32 @ret rawint32  # mulRawInt32Underflow
+2966 @params any rawint32 rawint32 @ret rawint32  # mulRawInt32Underflow
 ```
 
 **优化 Flags：**
@@ -1311,7 +1311,7 @@ function divRawInt32Exact(a, b) {
 **Metadata：**
 
 ```
-4081 @params any rawint32 rawint32 @ret rawint32  # divRawInt32Exact
+3259 @params any rawint32 rawint32 @ret rawint32  # divRawInt32Exact
 ```
 
 **优化 Flags：**
@@ -1439,7 +1439,7 @@ function divRawInt32Trunc(a, b) {
 **Metadata：**
 
 ```
-4364 @params any rawint32 rawint32 @ret rawint32  # divRawInt32Trunc
+3468 @params any rawint32 rawint32 @ret rawint32  # divRawInt32Trunc
 ```
 
 **优化 Flags：**
@@ -1567,7 +1567,7 @@ function divRawInt32Overflow(a, b) {
 **Metadata：**
 
 ```
-4889 @params any rawint32 rawint32 @ret rawint32  # divRawInt32Overflow
+3919 @params any rawint32 rawint32 @ret rawint32  # divRawInt32Overflow
 ```
 
 **优化 Flags：**
@@ -1695,7 +1695,7 @@ function divRawInt32ByZero(a, b) {
 **Metadata：**
 
 ```
-5487 @params any rawint32 rawint32 @ret rawint32  # divRawInt32ByZero
+4437 @params any rawint32 rawint32 @ret rawint32  # divRawInt32ByZero
 ```
 
 **优化 Flags：**
@@ -1823,7 +1823,7 @@ function modRawInt32(a, b) {
 **Metadata：**
 
 ```
-6270 @params any rawint32 rawint32 @ret rawint32  # modRawInt32
+5144 @params any rawint32 rawint32 @ret rawint32  # modRawInt32
 ```
 
 **优化 Flags：**
@@ -1962,7 +1962,7 @@ function modRawInt32Negative(a, b) {
 **Metadata：**
 
 ```
-6529 @params any rawint32 rawint32 @ret rawint32  # modRawInt32Negative
+5403 @params any rawint32 rawint32 @ret rawint32  # modRawInt32Negative
 ```
 
 **优化 Flags：**
@@ -2101,7 +2101,7 @@ function modRawInt32ByZero(a, b) {
 **Metadata：**
 
 ```
-6824 @params any rawint32 rawint32 @ret rawint32  # modRawInt32ByZero
+5698 @params any rawint32 rawint32 @ret rawint32  # modRawInt32ByZero
 ```
 
 **优化 Flags：**

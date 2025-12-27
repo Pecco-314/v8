@@ -9,6 +9,11 @@ function prepare(fn) {
 function optimize(fn) {
     eval('%OptimizeFunctionOnNextCall(' + fn.name + ')');
 }
+function warmupAndOptimize(fn, ...args) {
+    prepare(fn);
+    fn(...args);
+    optimize(fn);
+}
 // ===================================
 // 测试 1: Number.prototype.toString()
 // ===================================
@@ -19,11 +24,7 @@ function processNumber(num) {
     const str = num.toString();
     return str + '!';
 }
-prepare(processNumber);
-for (let i = 0; i < 100; i++) {
-    processNumber(42);
-}
-optimize(processNumber);
+warmupAndOptimize(processNumber, 42);
 const result1 = processNumber(123);
 assertEquals('123!', result1);
 assertOptimized(processNumber);
@@ -36,11 +37,7 @@ function processAny(obj) {
     const str = obj.toString();
     return str.length;
 }
-prepare(processAny);
-for (let i = 0; i < 100; i++) {
-    processAny({});
-}
-optimize(processAny);
+warmupAndOptimize(processAny, {});
 const result2 = processAny({});
 assertTrue(result2 > 0);
 assertOptimized(processAny);
@@ -54,11 +51,7 @@ function testToFixed(num, digits) {
     const result = num.toFixed(digits);
     return result + ' units';
 }
-prepare(testToFixed);
-for (let i = 0; i < 100; i++) {
-    testToFixed(3.14159, 2);
-}
-optimize(testToFixed);
+warmupAndOptimize(testToFixed, 3.14159, 2);
 const result3 = testToFixed(3.14159, 2);
 assertEquals('3.14 units', result3);
 assertOptimized(testToFixed);
@@ -72,11 +65,7 @@ function testRepeat(str, count) {
     const result = str.repeat(count);
     return result.length;
 }
-prepare(testRepeat);
-for (let i = 0; i < 100; i++) {
-    testRepeat('ab', 3);
-}
-optimize(testRepeat);
+warmupAndOptimize(testRepeat, 'ab', 3);
 const result4 = testRepeat('ab', 3);
 assertEquals(6, result4);
 assertOptimized(testRepeat);
