@@ -136,6 +136,33 @@ TEST_CASES = [
                     "CheckedTaggedToTaggedPointer": {"before": 3, "after": 0},
                     "CheckString": {"before": 2, "after": 0}
                 }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-array.js",
+                "name": "concat_holey",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedTaggedToTaggedPointer": {"before": 3, "after": 0},
+                    "CheckString": {"before": 2, "after": 0}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-array.js",
+                "name": "concat_far",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedTaggedToTaggedPointer": {"before": 3, "after": 0},
+                    "CheckString": {"before": 2, "after": 0}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-array.js",
+                "name": "concat_loop",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedTaggedToTaggedPointer": {"before": 3, "after": 0},
+                    "CheckString": {"before": 2, "after": 0}
+                }
             }
         ]
     },
