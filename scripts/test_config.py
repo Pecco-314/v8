@@ -59,6 +59,22 @@ TEST_CASES = [
             },
             {
                 "file": "test/mjsunit/compiler/type-injector/test-primitive.js",
+                "name": "twice_smi",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedTaggedToFloat64": {"before": 1, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-primitive.js",
+                "name": "twice_mixed",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedTaggedToFloat64": {"before": 1, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-primitive.js",
                 "name": "cal",
                 "flags": METADATA_FLAGS,
                 "expected": {

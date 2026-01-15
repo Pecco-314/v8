@@ -25,7 +25,7 @@ const result1 = twice_s('test');
 assertEquals('testtest', result1);
 assertOptimized(twice_s);
 // ===================================
-// 测试 2: Number 类型
+// 测试 2: Number 类型 - 浮点数热身
 // ===================================
 function twice_f(arg) {
     return arg + arg;
@@ -34,6 +34,38 @@ warmupAndOptimize(twice_f, 1.5);
 const result2 = twice_f(3.5);
 assertEquals(7.0, result2);
 assertOptimized(twice_f);
+// ===================================
+// 测试 2.1: Number 类型 - Smi 热身
+// ===================================
+function twice_smi(arg) {
+    return arg + arg;
+}
+// 关键：用 Smi（小整数）热身
+warmupAndOptimize(twice_smi, 10);
+const resultSmi1 = twice_smi(5);
+assertEquals(10, resultSmi1);
+const resultSmi2 = twice_smi(100);
+assertEquals(200, resultSmi2);
+assertOptimized(twice_smi);
+// ===================================
+// 测试 2.2: Number 类型 - 混合热身
+// ===================================
+function twice_mixed(arg) {
+    return arg + arg;
+}
+// 关键：交替使用 Smi 和 HeapNumber 热身
+prepare(twice_mixed);
+twice_mixed(10); // Smi
+twice_mixed(1.5); // HeapNumber
+twice_mixed(20); // Smi
+optimize(twice_mixed);
+const resultMixed1 = twice_mixed(5); // Smi
+assertEquals(10, resultMixed1);
+const resultMixed2 = twice_mixed(3.5); // HeapNumber
+assertEquals(7.0, resultMixed2);
+const resultMixed3 = twice_mixed(100); // Smi
+assertEquals(200, resultMixed3);
+assertOptimized(twice_mixed);
 // ===================================
 // 测试 3: Boolean 类型
 // ===================================
