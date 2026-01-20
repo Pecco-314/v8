@@ -214,6 +214,79 @@ std::optional<TypeAST> TypeInjector::GetNodeTypeAST(Node* node) {
         return GetElementTypeInTuple(array_type, index_opt.value());
       }
     }
+  } else if (node->opcode() == IrOpcode::kChangeTaggedToInt32) {
+    // RawInt32 经过 ChangeTaggedToInt32 后保持类型标签，便于后续消除 Checked* 节点
+    auto input_type_opt = GetNodeTypeAST(node->InputAt(0));
+    if (input_type_opt.has_value() && input_type_opt->kind == TypeAST::RawInt32) {
+      const TypeAST* input_ptr = StoreOwnedTypeAST(input_type_opt.value());
+      SetNodeType(node, input_ptr);
+      NodeProperties::SetType(node, Type::Signed32());
+      return input_type_opt;
+    }
+  } else if (node->opcode() == IrOpcode::kNumberAdd ||
+             node->opcode() == IrOpcode::kNumberSubtract ||
+             node->opcode() == IrOpcode::kNumberMultiply ||
+             node->opcode() == IrOpcode::kNumberDivide ||
+             node->opcode() == IrOpcode::kNumberModulus) {
+    // Number* 节点：若双输入都是 RawInt32，则将当前节点标记为 RawInt32，便于后续继续替换/消除
+    auto left_type_opt = GetNodeTypeAST(node->InputAt(0));
+    auto right_type_opt = GetNodeTypeAST(node->InputAt(1));
+    if (left_type_opt.has_value() && right_type_opt.has_value() &&
+        left_type_opt->kind == TypeAST::RawInt32 &&
+        right_type_opt->kind == TypeAST::RawInt32) {
+      const TypeAST* left_ptr = StoreOwnedTypeAST(left_type_opt.value());
+      SetNodeType(node, left_ptr);
+      NodeProperties::SetType(node, Type::Signed32());
+      return left_type_opt;
+    }
+  } else if (node->opcode() == IrOpcode::kInt32Add ||
+             node->opcode() == IrOpcode::kInt32Sub ||
+             node->opcode() == IrOpcode::kInt32Mul ||
+             node->opcode() == IrOpcode::kInt32Div ||
+             node->opcode() == IrOpcode::kInt32Mod) {
+    // 纯 Int32 算术节点：若输入都是 RawInt32，写入类型便于链式传播
+    auto left_type_opt = GetNodeTypeAST(node->InputAt(0));
+    auto right_type_opt = GetNodeTypeAST(node->InputAt(1));
+    if (left_type_opt.has_value() && right_type_opt.has_value() &&
+        left_type_opt->kind == TypeAST::RawInt32 &&
+        right_type_opt->kind == TypeAST::RawInt32) {
+      const TypeAST* left_ptr = StoreOwnedTypeAST(left_type_opt.value());
+      SetNodeType(node, left_ptr);
+      NodeProperties::SetType(node, Type::Signed32());
+      return left_type_opt;
+    }
+  } else if (node->opcode() == IrOpcode::kPhi) {
+    // 循环累加场景下，Phi 应该继承 RawInt32 标签，避免后续重新落回 Speculative*
+    bool all_raw = true;
+    const TypeAST* first_raw = nullptr;
+    int value_count = node->op()->ValueInputCount();
+    for (int i = 0; i < value_count; ++i) {
+      Node* input = NodeProperties::GetValueInput(node, i);
+      auto input_type_opt = GetNodeTypeAST(input);
+      bool is_raw = input_type_opt.has_value() &&
+                    input_type_opt->kind == TypeAST::RawInt32;
+      if (!is_raw) {
+        Type t = NodeProperties::GetType(input);
+        is_raw = t.Is(Type::Signed32());
+      }
+      if (!is_raw) {
+        all_raw = false;
+        break;
+      }
+      if (first_raw == nullptr && input_type_opt.has_value()) {
+        first_raw = StoreOwnedTypeAST(input_type_opt.value());
+      }
+    }
+
+    if (all_raw) {
+      if (first_raw == nullptr) {
+        TypeAST fallback(TypeAST::RawInt32);
+        first_raw = StoreOwnedTypeAST(fallback);
+      }
+      SetNodeType(node, first_raw);
+      NodeProperties::SetType(node, Type::Signed32());
+      return *first_raw;
+    }
   }
 
   return std::nullopt;
@@ -609,52 +682,132 @@ std::optional<TypeAST> TypeInjector::GetFunctionReturnType(int start_pos) {
 
 // 处理 RawInt32 类型的二元操作（加/减/乘/除/模）
 // 基于注入的 TypeAST 决策，不再写 Type
-void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
-  // 只处理 SpeculativeSmallIntegerAdd/Subtract、SpeculativeNumberMultiply/Divide/Modulus
+bool TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
+  // 如果没有 metadata（param_types_ 为空），直接跳过，避免误优化
+  if (param_types_.empty()) return false;
+
+    // 只处理 SpeculativeSmallIntegerAdd/Subtract、SpeculativeNumberAdd/Subtract
+    // 以及 SpeculativeNumberMultiply/Divide/Modulus
   IrOpcode::Value opcode = node->opcode();
   
   if (opcode != IrOpcode::kSpeculativeSmallIntegerAdd &&
       opcode != IrOpcode::kSpeculativeSmallIntegerSubtract &&
+      opcode != IrOpcode::kSpeculativeNumberAdd &&
+      opcode != IrOpcode::kSpeculativeNumberSubtract &&
       opcode != IrOpcode::kSpeculativeNumberMultiply &&
       opcode != IrOpcode::kSpeculativeNumberDivide &&
-      opcode != IrOpcode::kSpeculativeNumberModulus) {
-    return;
+      opcode != IrOpcode::kSpeculativeNumberModulus &&
+      opcode != IrOpcode::kInt32Add &&
+      opcode != IrOpcode::kInt32Sub &&
+      opcode != IrOpcode::kInt32Mul &&
+      opcode != IrOpcode::kInt32Div &&
+      opcode != IrOpcode::kInt32Mod &&
+      opcode != IrOpcode::kCheckedInt32Add &&
+      opcode != IrOpcode::kCheckedInt32Sub &&
+      opcode != IrOpcode::kCheckedInt32Mul &&
+      opcode != IrOpcode::kCheckedInt32Div &&
+      opcode != IrOpcode::kCheckedInt32Mod) {
+    return false;
+  }
+
+  TYPE_INJECTOR_DEBUG("rawint32 bin op id=%d opcode=%d (%s) start_pos=%d",
+                       node->id(), static_cast<int>(opcode),
+                       node->op()->mnemonic(), current_start_pos_);
+
+  // 若本函数的参数全部为 RawInt32，则允许无条件地视为 RawInt32 运算，避免遗漏链式传播
+  bool fn_all_rawint32 = true;
+  if (param_types_.empty()) {
+    fn_all_rawint32 = false;
+  } else {
+    // 最后一位是返回类型
+    for (size_t i = 0; i + 1 < param_types_.size(); ++i) {
+      if (param_types_[i].kind != TypeAST::RawInt32) {
+        fn_all_rawint32 = false;
+        break;
+      }
+    }
   }
 
   // 检查两个输入是否都是 RawInt32 类型（映射到 Signed32）
   Node* left = NodeProperties::GetValueInput(node, 0);
   Node* right = NodeProperties::GetValueInput(node, 1);
-  const TypeAST* left_ast = GetNodeType(left);
-  const TypeAST* right_ast = GetNodeType(right);
-  
-  if (left_ast == nullptr || right_ast == nullptr ||
-      left_ast->kind != TypeAST::RawInt32 || right_ast->kind != TypeAST::RawInt32) {
-    return;
+  auto left_ast_opt = GetNodeTypeAST(left);
+  auto right_ast_opt = GetNodeTypeAST(right);
+
+  // 允许通过 Turbofan Type 来兜底识别 RawInt32（参数已被标为 Signed32）
+  bool left_is_raw = left_ast_opt.has_value() && left_ast_opt->kind == TypeAST::RawInt32;
+  bool right_is_raw = right_ast_opt.has_value() && right_ast_opt->kind == TypeAST::RawInt32;
+  if (!left_is_raw) {
+    Type left_type = NodeProperties::GetType(left);
+    left_is_raw = left_type.Is(Type::Signed32());
+  }
+  if (!right_is_raw) {
+    Type right_type = NodeProperties::GetType(right);
+    right_is_raw = right_type.Is(Type::Signed32());
+  }
+
+  if (!left_is_raw || !right_is_raw) {
+    if (!fn_all_rawint32) return false;
+    // 函数级 RawInt32，缺少标记也继续替换
+    left_is_raw = right_is_raw = true;
+  }
+
+  // 确保我们给新节点留下 RawInt32 的 TypeAST 标签
+  const TypeAST* left_ast = nullptr;
+  if (left_ast_opt.has_value()) {
+    left_ast = StoreOwnedTypeAST(left_ast_opt.value());
+  } else if (right_ast_opt.has_value()) {
+    // 尽量复用右侧的 RawInt32 标签以保持结构一致
+    left_ast = StoreOwnedTypeAST(right_ast_opt.value());
+  } else {
+    TypeAST fallback(TypeAST::RawInt32);
+    left_ast = StoreOwnedTypeAST(fallback);
+  }
+
+  // 纯 Int32* 运算：仅写入类型标签以便后续节点继续识别为 RawInt32
+  if (opcode == IrOpcode::kInt32Add || opcode == IrOpcode::kInt32Sub ||
+      opcode == IrOpcode::kInt32Mul || opcode == IrOpcode::kInt32Div ||
+      opcode == IrOpcode::kInt32Mod) {
+    NodeProperties::SetType(node, Type::Signed32());
+    SetNodeType(node, left_ast);
+    return false;
   }
 
   TYPE_INJECTOR_DEBUG("Found RawInt32 binary operation, replacing with Number op");
 
-  // SpeculativeSmallIntegerAdd/Subtract 有 4 个输入：left, right, effect, control
-  // NumberAdd/Subtract 是纯操作，只需要 2 个输入：left, right
-  // 我们需要创建新节点，因为 ChangeOp 不会改变输入数量
+  // SpeculativeSmallInteger/Number* 和 CheckedInt32* 有 effect/control，
+  // Number* 是纯操作，只需要 value 输入。需要新节点来移除 effect/control。
   
   // 根据操作类型创建对应的 Number 操作节点
   const Operator* number_op = nullptr;
-  if (opcode == IrOpcode::kSpeculativeSmallIntegerAdd) {
+  if (opcode == IrOpcode::kSpeculativeSmallIntegerAdd ||
+      opcode == IrOpcode::kSpeculativeNumberAdd ||
+      opcode == IrOpcode::kCheckedInt32Add ||
+      opcode == IrOpcode::kInt32Add) {
     number_op = simplified_->NumberAdd();
-  } else if (opcode == IrOpcode::kSpeculativeSmallIntegerSubtract) {
+  } else if (opcode == IrOpcode::kSpeculativeSmallIntegerSubtract ||
+             opcode == IrOpcode::kSpeculativeNumberSubtract ||
+             opcode == IrOpcode::kCheckedInt32Sub ||
+             opcode == IrOpcode::kInt32Sub) {
     number_op = simplified_->NumberSubtract();
-  } else if (opcode == IrOpcode::kSpeculativeNumberMultiply) {
+  } else if (opcode == IrOpcode::kSpeculativeNumberMultiply ||
+             opcode == IrOpcode::kCheckedInt32Mul ||
+             opcode == IrOpcode::kInt32Mul) {
     number_op = simplified_->NumberMultiply();
-  } else if (opcode == IrOpcode::kSpeculativeNumberDivide) {
+  } else if (opcode == IrOpcode::kSpeculativeNumberDivide ||
+             opcode == IrOpcode::kCheckedInt32Div ||
+             opcode == IrOpcode::kInt32Div) {
     number_op = simplified_->NumberDivide();
   } else {
     number_op = simplified_->NumberModulus();
   }
+
   Node* number_node = graph_->NewNode(number_op, left, right);
   
   // 设置结果类型为 Signed32，确保 SimplifiedLowering 生成 Int32Add/Sub
   NodeProperties::SetType(number_node, Type::Signed32());
+  // 保持 RawInt32 的类型标签，便于后续链式运算继续走 RawInt32 快路径
+  SetNodeType(number_node, left_ast);
   
   // 获取原节点的 effect 和 control 输入（用于替换）
   Node* effect_input = NodeProperties::GetEffectInput(node);
@@ -667,8 +820,12 @@ void TypeInjector::ProcessRawInt32BinaryOp(Node* node) {
   NodeProperties::ReplaceUses(node, number_node, effect_input, control_input, control_input);
   
   // 删除原节点
-  node->Kill();
+    node->Kill();
+    TYPE_INJECTOR_DEBUG("replaced node id=%d (%s) with Number* (id=%d) start_pos=%d",
+                         node->id(), node->op()->mnemonic(), number_node->id(),
+                         current_start_pos_);
   TYPE_INJECTOR_DEBUG("Changed to Number* successfully");
+  return true;
 }
 
 // Tuple length 常量化（使用已注入的 TypeAST 信息）
@@ -760,6 +917,7 @@ void TypeInjector::Run() {
 
   IndirectHandle<SharedFunctionInfo> shared = compilation_info_->shared_info();
   int start_pos = shared->StartPosition();
+  current_start_pos_ = start_pos;
 
   TYPE_INJECTOR_DEBUG("Run() called - script_hash: %s, start_pos: %d", 
                       script_hash_.c_str(), start_pos);
@@ -772,12 +930,14 @@ void TypeInjector::Run() {
   auto it = typemap.find(start_pos);
   if (it != typemap.end()) {
     param_types_ = it->second;
-    TYPE_INJECTOR_DEBUG("Found %zu parameter types", param_types_.size());
-    for (size_t i = 0; i < param_types_.size(); i++) {
-      TYPE_INJECTOR_DEBUG("  param[%zu]: kind=%s", i, param_types_[i].KindToString().c_str());
-    }
   } else {
-    TYPE_INJECTOR_DEBUG("No type info found for start_pos %d", start_pos);
+    // 仅打印轻量日志，避免依赖 Type::ToString
+    TYPE_INJECTOR_DEBUG("no metadata for script_hash=%s start_pos=%d",
+                         script_hash_.c_str(), start_pos);
+  }
+  if (!param_types_.empty()) {
+    TYPE_INJECTOR_DEBUG("metadata ok: start_pos=%d params=%zu", start_pos,
+                         param_types_.size());
   }
 
   AllNodes all(graph_->zone(), graph_);
@@ -831,10 +991,19 @@ void TypeInjector::RunCustomElimination(AllNodes& all) {
     OptimizeLoadElementBounds(node);
   }
 
-  // RawInt32 算术替换
-  for (Node* node : all.reachable) {
-    ProcessRawInt32BinaryOp(node);
-  }
+  // RawInt32 算术替换：迭代直到无新替换，确保链式累加完全转换
+  int iteration = 0;
+  bool changed = false;
+  do {
+    changed = false;
+    AllNodes fresh(graph_->zone(), graph_);
+    TYPE_INJECTOR_DEBUG("RawInt32 pass #%d start_pos=%d nodes=%zu", iteration,
+                         current_start_pos_, fresh.reachable.size());
+    for (Node* node : fresh.reachable) {
+      changed |= ProcessRawInt32BinaryOp(node);
+    }
+    iteration++;
+  } while (changed && iteration < 32);
 
   // CheckMaps 消除
   for (Node* node : all.reachable) {

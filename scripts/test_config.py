@@ -62,7 +62,7 @@ TEST_CASES = [
                 "name": "twice_smi",
                 "flags": METADATA_FLAGS,
                 "expected": {
-                    "CheckedTaggedToFloat64": {"before": 1, "after": 1}
+                    "CheckedTaggedSignedToInt32": {"before": 1, "after": 1}
                 }
             },
             {
@@ -70,7 +70,8 @@ TEST_CASES = [
                 "name": "twice_mixed",
                 "flags": METADATA_FLAGS,
                 "expected": {
-                    "CheckedTaggedToFloat64": {"before": 1, "after": 1}
+                    "CheckedTaggedToFloat64": {"before": 1, "after": 0},
+                    "ChangeTaggedToFloat64": {"before": 0, "after": 1}
                 }
             },
             {
@@ -317,6 +318,24 @@ TEST_CASES = [
             {
                 "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
                 "name": "addRawInt32Underflow",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Add": {"before": 1, "after": 0},
+                    "Int32Add": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "addTenRawInt32",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt32Add": {"before": 9, "after": 0},
+                    "Int32Add": {"before": 0, "after": 9}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "sumLoopRawInt32",
                 "flags": METADATA_FLAGS,
                 "expected": {
                     "CheckedInt32Add": {"before": 1, "after": 0},

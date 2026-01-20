@@ -38,6 +38,40 @@ warmupAndOptimize(addRawInt32Overflow, 100, 200);
 const result2 = addRawInt32Overflow(2147483647, 1);
 print('Overflow result: ' + result2);
 
+// 10 个小整数相加：检验多次加法链的溢出检查是否被重复插入
+function addTenRawInt32(
+  a: rawint32,
+  b: rawint32,
+  c: rawint32,
+  d: rawint32,
+  e: rawint32,
+  f: rawint32,
+  g: rawint32,
+  h: rawint32,
+  i: rawint32,
+  j: rawint32,
+): rawint32 {
+  return a + b + c + d + e + f + g + h + i + j;
+}
+warmupAndOptimize(addTenRawInt32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+const add10Result = addTenRawInt32(11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
+assertEquals(155, add10Result);
+assertOptimized(addTenRawInt32);
+
+// 循环累加：覆盖 Phi 链上的 RawInt32 传播
+function sumLoopRawInt32(arr: rawint32[]): rawint32 {
+  let acc: rawint32 = 0;
+  for (let i = 0; i < arr.length; i++) {
+    acc += arr[i];
+  }
+  return acc;
+}
+const loopInput: rawint32[] = [1, 2, 3, 4, 5, 6, 7, 8];
+warmupAndOptimize(sumLoopRawInt32, loopInput);
+const loopResult = sumLoopRawInt32(loopInput);
+assertEquals(36, loopResult);
+assertOptimized(sumLoopRawInt32);
+
 function addRawInt32Negative(a: rawint32, b: rawint32): rawint32 {
   return a + b;
 }

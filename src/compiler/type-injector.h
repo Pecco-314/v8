@@ -61,7 +61,7 @@ class TypeInjector {
 
   // 消除/替换（仅读 Node→TypeAST，不写 Type）
   void ProcessCheckMapsNode(Node* node);
-  void ProcessRawInt32BinaryOp(Node* node);
+  bool ProcessRawInt32BinaryOp(Node* node);
   void OptimizeTupleLength(Node* node);
   void OptimizeLoadElementBounds(Node* node);
   void RemoveTupleBoundsCheck(Node* load_element_node, Node* check_bounds_node,
@@ -78,6 +78,7 @@ class TypeInjector {
   std::vector<TypeAST> param_types_;
   std::string script_hash_;
   TypeStorage* storage_;
+  int current_start_pos_ = 0;  // 记录当前函数的起始位置，用于日志
 };
 
 }  // namespace compiler
