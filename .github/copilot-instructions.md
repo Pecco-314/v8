@@ -21,6 +21,27 @@ JavaScript 测试 → gen_metadata_info.py → 手写类型 → metadata → gen
 
 ---
 
+## Metadata Type 架构
+
+### 核心分层
+- **TypeStorage**：解析 metadata，按 `script_hash + start_pos` 存储 `TypeAST`。
+- **MetadataTypeContext**：跨 phase 共享上下文，函数切换时清空缓存。
+- **MetadataTypeAnnotation**：只做类型注入（写 Turbofan Type + 标签）。
+- **MetadataBasedGraphOptimization**：基于 metadata 标签做图改写。
+- **RawInt32StrengthReduction**：预留强度缩减接口（在 `SimplifiedLowering` 后）。
+
+### 关键文件
+- `src/compiler/metadata-type-context.{cc,h}`
+- `src/compiler/metadata-type-helper.{cc,h}`
+- `src/compiler/metadata-type-annotator.{cc,h}`
+- `src/compiler/metadata-based-graph-optimizer.{cc,h}`
+- `src/compiler/rawint32-strength-reduction.{cc,h}`
+
+### 详细架构文档
+- `docs/MetadataType-架构重构.md`
+
+---
+
 ## 核心工具
 
 ## 1. ts_to_metadata.js (推荐)

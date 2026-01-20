@@ -79,7 +79,9 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turbofan-typer.h"
-#include "src/compiler/type-injector.h"
+#include "src/compiler/metadata-based-graph-optimizer.h"
+#include "src/compiler/metadata-type-annotator.h"
+#include "src/compiler/rawint32-strength-reduction.h"
 #include "src/compiler/turboshaft/build-graph-phase.h"
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
@@ -1045,14 +1047,38 @@ struct EarlyGraphTrimmingPhase {
   }
 };
 
-struct TypeInjectorPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(TypeInjector)
+struct MetadataTypeAnnotationPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(MetadataTypeAnnotation)
 
   void Run(TFPipelineData* data, Zone* temp_zone) {
     USE(temp_zone);
-    TypeInjector injector(data->info(), data->graph(), data->common(), 
-                          data->broker(), data->simplified());
-    injector.Run();
+    MetadataTypeAnnotator annotator(data->info(), data->graph(), data->common(),
+                                    data->broker(), data->simplified());
+    annotator.Run();
+  }
+};
+
+struct MetadataBasedGraphOptimizationPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(MetadataBasedGraphOptimization)
+
+  void Run(TFPipelineData* data, Zone* temp_zone) {
+    USE(temp_zone);
+    MetadataBasedGraphOptimizer optimizer(
+        data->info(), data->graph(), data->common(), data->broker(),
+        data->simplified());
+    optimizer.Run();
+  }
+};
+
+struct RawInt32StrengthReductionPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(RawInt32StrengthReduction)
+
+  void Run(TFPipelineData* data, Zone* temp_zone) {
+    USE(temp_zone);
+    RawInt32StrengthReduction reducer(data->info(), data->graph(),
+                                      data->common(), data->broker(),
+                                      data->simplified());
+    reducer.Run();
   }
 };
 
@@ -2030,8 +2056,11 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   RUN_MAYBE_ABORT(TyperPhase, data->CreateTyper());
   RunPrintAndVerify(TyperPhase::phase_name());
 
-  RUN_MAYBE_ABORT(TypeInjectorPhase);
-  RunPrintAndVerify(TypeInjectorPhase::phase_name(), true);
+  RUN_MAYBE_ABORT(MetadataTypeAnnotationPhase);
+  RunPrintAndVerify(MetadataTypeAnnotationPhase::phase_name(), true);
+
+  RUN_MAYBE_ABORT(MetadataBasedGraphOptimizationPhase);
+  RunPrintAndVerify(MetadataBasedGraphOptimizationPhase::phase_name(), true);
 
   RUN_MAYBE_ABORT(TypedLoweringPhase);
   RunPrintAndVerify(TypedLoweringPhase::phase_name());
@@ -2065,6 +2094,9 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   // types might even conflict with the representation/truncation logic.
   RUN_MAYBE_ABORT(SimplifiedLoweringPhase, linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
+
+  RUN_MAYBE_ABORT(RawInt32StrengthReductionPhase);
+  RunPrintAndVerify(RawInt32StrengthReductionPhase::phase_name(), true);
 
 #if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
@@ -2125,7 +2157,7 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
   if (!ComputeScheduledGraph()) return false;
 
 #if V8_COMPILER_TYPE_INJECTOR_DEBUG
-  std::cout << "[TypeInjector] Start position: " << data->start_source_position() << std::endl;
+  std::cout << "[MetadataType] Start position: " << data->start_source_position() << std::endl;
   data->graph()->Print();
 #endif
 
