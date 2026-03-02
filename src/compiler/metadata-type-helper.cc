@@ -52,6 +52,12 @@ Type MetadataTypeHelper::TypeASTToType(const TypeAST& ast) {
       return Type::Symbol();
     case TypeAST::RawInt32:
       return Type::Any();
+    case TypeAST::RawUint32:
+      return Type::Unsigned32();
+    case TypeAST::RawInt64:
+      return Type::SignedBigInt64();
+    case TypeAST::RawUint64:
+      return Type::UnsignedBigInt64();
     case TypeAST::BigInt:
       return Type::BigInt();
     case TypeAST::Arr:

@@ -146,6 +146,9 @@ function mapTsType(typeNode, ctx = {}, stack = new Set()) {
 			const name = typeNode.typeName.getText();
 			const lower = name.toLowerCase();
 			if (lower === 'rawint32') return 'rawint32';
+			if (lower === 'rawuint32') return 'rawuint32';
+			if (lower === 'rawint64') return 'rawint64';
+			if (lower === 'rawuint64') return 'rawuint64';
 			const members = ctx.namedTypeNodes?.get(name);
 			if (members) {
 				if (stack.has(name)) return 'any'; // 防止递归引用死循环

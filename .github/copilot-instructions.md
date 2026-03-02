@@ -87,6 +87,9 @@ done
 
 #### 特殊类型
 - `type rawint32 = number;` → `rawint32` (类型别名)
+- `type rawuint32 = number;` → `rawuint32` (类型别名)
+- `type rawint64 = bigint;` → `rawint64` (类型别名)
+- `type rawuint64 = bigint;` → `rawuint64` (类型别名)
 
 ### 输出
 

@@ -42,7 +42,10 @@ TDL 是连接类型元数据与 V8 TypeInjector 的中间语言，提供统一�
 | `str` | 字符串 | `Type::String()` | 文本处理 |
 | `symbol` | Symbol | `Type::Symbol()` | 符号类型 |
 | `bigint` | BigInt | `Type::BigInt()` | 大整数 |
-| `rawint32` | 32位整数 | `Type::Range(INT32_MIN, INT32_MAX)` | **特殊优化类型** |
+| `rawint32` | 32位有符号整数 | `Type::Signed32()` | **强度缩减预留类型** |
+| `rawuint32` | 32位无符号整数 | `Type::Unsigned32()` | **强度缩减预留类型** |
+| `rawint64` | 64位有符号整数 | `Type::SignedBigInt64()` | **强度缩减预留类型** |
+| `rawuint64` | 64位无符号整数 | `Type::UnsignedBigInt64()` | **强度缩减预留类型** |
 
 ### 复合类型
 
@@ -108,7 +111,8 @@ obj{data:arr<num>, meta:obj{id:num}}       # {data: number[], meta: {id: number}
 struct TypeAST {
     enum TypeKind : int {
         // 原始类型 (0-99)
-        Any = 0, Void, Bool, Num, Str, Symbol, BigInt, RawInt32,
+        Any = 0, Void, Bool, Num, Str, Symbol, BigInt, RawInt32, RawUint32,
+        RawInt64, RawUint64,
         // 复合类型 (100+)
         Arr = 100, Tuple, Obj
     } kind;
