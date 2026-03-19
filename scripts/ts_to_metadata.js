@@ -6,10 +6,9 @@
 
 const ts = require('typescript');
 const crypto = require('crypto');
-const { execSync } = require('child_process');
-const { existsSync, statSync, mkdirSync, writeFileSync, readFileSync, mkdtempSync } = require('fs');
+const { execFileSync } = require('child_process');
+const { existsSync, statSync, mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync } = require('fs');
 const path = require('path');
-const os = require('os');
 
 function usage() {
 	console.error('用法: node scripts/ts_to_metadata.js <ts_file> [--outDir <dir>]');
@@ -45,10 +44,17 @@ function main() {
 	const jsFile = path.join(targetDir, `${base}.js`);
 
 	console.log('=== Step 1: tsc 编译 TS -> JS ===');
-	execSync(
-		`npx tsc ${absTs} --target es2020 --module none --outDir ${targetDir}`,
-		{ stdio: 'inherit' }
-	);
+	execFileSync('npx', [
+		'tsc',
+		absTs,
+		'--target',
+		'es2020',
+		'--module',
+		'none',
+		'--noEmitOnError',
+		'--outDir',
+		targetDir,
+	], { stdio: 'inherit' });
 
 	if (!existsSync(jsFile)) {
 		console.error(`❌ 未找到生成的 JS: ${jsFile}`);
@@ -59,7 +65,7 @@ function main() {
 	const typeInfo = collectTypesFromTs(absTs);
 
 	console.log('=== Step 3: 解析 JS 偏移 (d8 --print-ast) ===');
-	const offsets = collectOffsetsFromJs(jsFile, typeInfo.map((t) => t.name));
+	const offsets = collectOffsetsFromJs(jsFile, typeInfo);
 
 	console.log('=== Step 4: 写出 metadata ===');
 	const metadataPath = writeMetadata(jsFile, typeInfo, offsets);
@@ -68,7 +74,12 @@ function main() {
 	console.log('\n✅ ts_to_metadata 完成');
 }
 
-main();
+try {
+	main();
+} catch (error) {
+	console.error(`❌ ${error.message}`);
+	process.exit(1);
+}
 
 // ---- helpers ----
 
@@ -78,15 +89,32 @@ function collectTypesFromTs(tsFile) {
 	const namedTypeNodes = collectNamedTypeNodes(sf);
 	const ctx = { namedTypeNodes };
 	const results = [];
+	const nameCounts = new Map();
 
-	sf.forEachChild((node) => {
-		if (ts.isFunctionDeclaration(node) && node.name) {
-			const name = node.name.text;
-			const params = node.parameters.map((p) => mapTsType(p.type, ctx));
-			const ret = mapTsType(node.type, ctx);
-			results.push({ name, params, ret });
+	function appendFunction(name, funcLikeNode) {
+		const params = funcLikeNode.parameters.map((p) => mapTsType(p.type, ctx));
+		const ret = mapTsType(funcLikeNode.type, ctx);
+		const occurrence = nameCounts.get(name) || 0;
+		nameCounts.set(name, occurrence + 1);
+		results.push({ name, occurrence, params, ret });
+	}
+
+	function visit(node) {
+		if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+			appendFunction(node.name.text, node);
 		}
-	});
+
+		if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+			const init = node.initializer;
+			if (ts.isFunctionExpression(init) || ts.isArrowFunction(init)) {
+				appendFunction(node.name.text, init);
+			}
+		}
+
+		ts.forEachChild(node, visit);
+	}
+
+	visit(sf);
 
 	if (results.length === 0) {
 		console.warn('⚠️ 未找到函数声明');
@@ -170,7 +198,7 @@ function mapTsType(typeNode, ctx = {}, stack = new Set()) {
 	}
 }
 
-function collectOffsetsFromJs(jsFile, names) {
+function collectOffsetsFromJs(jsFile, typeInfo) {
 	const d8Path = process.env.D8_PATH || path.join('out.gn', 'x64.debug', 'd8');
 	if (!existsSync(d8Path)) {
 		console.error(`❌ 未找到 d8: ${d8Path}`);
@@ -183,35 +211,77 @@ function collectOffsetsFromJs(jsFile, names) {
 		'function assertUnoptimized(){}',
 		'function assertTrue(){}',
 	].join(';');
-	const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'tsmeta-'));
+	const workspaceTmpDir = path.join(process.cwd(), 'tmp');
+	if (!existsSync(workspaceTmpDir)) mkdirSync(workspaceTmpDir, { recursive: true });
+	const tmpDir = mkdtempSync(path.join(workspaceTmpDir, 'tsmeta-'));
 	const harness = path.join(tmpDir, 'harness.js');
-	writeFileSync(harness, `${stubPrelude}; load('${jsFile}');`);
-	const cmd = `${d8Path} --allow-natives-syntax --print-ast ${harness}`;
-	const output = execSync(cmd, { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 });
-	const offsets = new Map();
-	const wanted = new Set(names);
-	const lines = output.split(/\r?\n/);
-	for (let i = 0; i < lines.length; i++) {
-		const m = lines[i].match(/FUNC(?: LITERAL)? at (\d+)/);
-		if (m) {
-			let funcName = null;
-			for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
-				const nm = lines[j].match(/NAME "([^"]+)"/);
-				if (nm) {
-					funcName = nm[1];
-					break;
+
+	try {
+		const jsFileLiteral = JSON.stringify(jsFile);
+		writeFileSync(harness, `${stubPrelude}; load(${jsFileLiteral});`);
+
+		const output = execFileSync(
+			d8Path,
+			['--allow-natives-syntax', '--print-ast', harness],
+			{ encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 }
+		);
+
+		const lines = output.split(/\r?\n/);
+		const nameToPositions = new Map();
+		let pendingPos = null;
+		let pendingName = null;
+
+		function flushPending() {
+			if (pendingPos === null || pendingName === null) return;
+			if (!nameToPositions.has(pendingName)) nameToPositions.set(pendingName, []);
+			nameToPositions.get(pendingName).push(pendingPos);
+		}
+
+		for (const line of lines) {
+			const funcMatch = line.match(/FUNC(?: LITERAL)? at (\d+)/);
+			if (funcMatch) {
+				flushPending();
+				pendingPos = Number(funcMatch[1]);
+				pendingName = null;
+				continue;
+			}
+
+			if (pendingPos !== null && pendingName === null) {
+				const nameMatch = line.match(/NAME "([^"]+)"/);
+				if (nameMatch) {
+					pendingName = nameMatch[1];
 				}
 			}
-			if (funcName && wanted.has(funcName) && !offsets.has(funcName)) {
-				offsets.set(funcName, Number(m[1]));
-			}
 		}
+		flushPending();
+
+		const offsets = new Map();
+		const missing = [];
+		for (const info of typeInfo) {
+			const positions = nameToPositions.get(info.name) || [];
+			const pos = positions[info.occurrence];
+			const key = makeFunctionKey(info.name, info.occurrence);
+			if (pos === undefined) {
+				missing.push(`${info.name}#${info.occurrence}`);
+				continue;
+			}
+			offsets.set(key, pos);
+		}
+
+		if (missing.length > 0) {
+			throw new Error(
+				`AST 偏移匹配失败，缺失 ${missing.length} 个函数: ${missing.join(', ')}`
+			);
+		}
+
+		return offsets;
+	} finally {
+		rmSync(tmpDir, { recursive: true, force: true });
 	}
-	// 确保全部命中
-	for (const n of wanted) {
-		if (!offsets.has(n)) console.warn(`⚠️ 未在 AST 中找到函数: ${n}`);
-	}
-	return offsets;
+}
+
+function makeFunctionKey(name, occurrence) {
+	return `${name}#${occurrence}`;
 }
 
 function writeMetadata(jsFile, typeInfo, offsets) {
@@ -225,8 +295,9 @@ function writeMetadata(jsFile, typeInfo, offsets) {
 	lines.push(`# JS SHA256: ${hash}`);
 	lines.push('');
 
-	typeInfo.forEach(({ name, params, ret }) => {
-		const pos = offsets.get(name);
+	typeInfo.forEach(({ name, occurrence, params, ret }) => {
+		const key = makeFunctionKey(name, occurrence);
+		const pos = offsets.get(key);
 		if (pos === undefined) return; // skip if missing
 		const paramsStr = ['any', ...params].join(' ');
 		lines.push(`${pos} @params ${paramsStr} @ret ${ret}  # ${name}`);
