@@ -1,0 +1,5 @@
+{
+  "typeinjector-primitive.js": {
+    "perf_events": "cycles,instructions"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "d8": "out.gn/x64.release/d8",
+  "bench_dir": "scripts/bench/benchmarks",
+  "metadata_dir": "scripts/bench/metadata",
+  "require_metadata": true,
+  "warmup": 5000,
+  "iterations": 8000,
+  "inner_loop": 80,
+  "repeats": 40,
+  "drop_first": 8,
+  "mad_z": 3.0,
+  "sleep_ms": 25,
+  "cpu_core": 2,
+  "nice": 0,
+  "stability_cv_threshold": 0.03,
+  "force_gc_before_measure": true,
+  "perf_events": "cycles",
+  "trace_opt": true,
+  "print_opt_code": false,
+  "allow_natives_syntax": true,
+  "extra_flags": [
+    "--no-always-turbofan",
+    "--no-concurrent-recompilation",
+    "--expose-gc"
+  ]
+}
