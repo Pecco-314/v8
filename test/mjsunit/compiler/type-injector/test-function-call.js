@@ -35,3 +35,4 @@ assertEquals('hello', result1);
 assertEquals('worldhello', result2);
 assertOptimized(getStr);
 assertOptimized(process);
+//# sourceMappingURL=test-function-call.js.map

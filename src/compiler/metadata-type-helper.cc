@@ -132,9 +132,20 @@ std::optional<int> MetadataTypeHelper::TryGetConstantIndex(Node* node) {
 }
 
 std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
+  if (node == nullptr) {
+    return std::nullopt;
+  }
+
   if (const TypeAST* cached = GetNodeType(node)) {
     return *cached;
   }
+
+  auto cache_and_return = [&](const TypeAST& ast) -> std::optional<TypeAST> {
+    const TypeAST* stored = StoreOwnedTypeAST(ast);
+    SetNodeType(node, stored);
+    return *stored;
+  };
+
   if (node->opcode() == IrOpcode::kParameter) {
     int param_index = ParameterIndexOf(node->op());
     auto& param_types = context_.param_types();
@@ -143,6 +154,51 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
       SetNodeType(node, &param_types[param_index]);
       return param_types[param_index];
     }
+  } else if (node->opcode() == IrOpcode::kInt32Constant ||
+             node->opcode() == IrOpcode::kInt64Constant ||
+             node->opcode() == IrOpcode::kFloat32Constant ||
+             node->opcode() == IrOpcode::kFloat64Constant ||
+             node->opcode() == IrOpcode::kNumberConstant) {
+    return cache_and_return(TypeAST{TypeAST::Num});
+  } else if (node->opcode() == IrOpcode::kHeapConstant) {
+    Type constant_type = NodeProperties::GetType(node);
+    if (constant_type.Is(Type::String())) {
+      return cache_and_return(TypeAST{TypeAST::Str});
+    }
+    if (constant_type.Is(Type::Boolean())) {
+      return cache_and_return(TypeAST{TypeAST::Bool});
+    }
+    if (constant_type.Is(Type::Symbol())) {
+      return cache_and_return(TypeAST{TypeAST::Symbol});
+    }
+    if (constant_type.Is(Type::BigInt())) {
+      return cache_and_return(TypeAST{TypeAST::BigInt});
+    }
+    return cache_and_return(TypeAST{TypeAST::Any});
+  } else if (node->opcode() == IrOpcode::kTypeGuard ||
+             node->opcode() == IrOpcode::kMapGuard ||
+             node->opcode() == IrOpcode::kCheckHeapObject ||
+             node->opcode() == IrOpcode::kCheckMaps ||
+             node->opcode() == IrOpcode::kCheckInternalizedString ||
+             node->opcode() == IrOpcode::kCheckNotTaggedHole ||
+             node->opcode() == IrOpcode::kCheckNumber ||
+             node->opcode() == IrOpcode::kCheckReceiver ||
+             node->opcode() == IrOpcode::kCheckReceiverOrNullOrUndefined ||
+             node->opcode() == IrOpcode::kCheckSmi ||
+             node->opcode() == IrOpcode::kCheckString ||
+             node->opcode() == IrOpcode::kCheckStringOrStringWrapper ||
+             node->opcode() == IrOpcode::kCheckSymbol ||
+             node->opcode() == IrOpcode::kCheckBigInt ||
+             node->opcode() == IrOpcode::kCheckedTaggedToTaggedPointer ||
+             node->opcode() == IrOpcode::kConvertTaggedHoleToUndefined) {
+    if (node->op()->ValueInputCount() == 0) {
+      return std::nullopt;
+    }
+    auto input_type_opt = GetNodeTypeAST(NodeProperties::GetValueInput(node, 0));
+    if (!input_type_opt.has_value()) {
+      return std::nullopt;
+    }
+    return cache_and_return(input_type_opt.value());
   } else if (node->opcode() == IrOpcode::kLoadField) {
     Node* object_node = node->InputAt(0);
     auto object_type_opt = GetNodeTypeAST(object_node);
@@ -165,7 +221,11 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
     if (FIRST_STRING_TYPE <= type && type <= LAST_STRING_TYPE) {
       DirectHandle<String> str = Cast<String>(name_handle);
       std::string field_name = str->ToCString().get();
-      return FindFieldInObj(object_type, field_name);
+      auto field_type_opt = FindFieldInObj(object_type, field_name);
+      if (!field_type_opt.has_value()) {
+        return std::nullopt;
+      }
+      return cache_and_return(field_type_opt.value());
     }
   } else if (node->opcode() == IrOpcode::kLoadElement) {
     Node* array_node = node->InputAt(0);
@@ -176,12 +236,21 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
 
     const TypeAST& array_type = array_type_opt.value();
     if (array_type.kind == TypeAST::Arr) {
-      return GetElementTypeInArray(array_type);
+      auto element_type_opt = GetElementTypeInArray(array_type);
+      if (!element_type_opt.has_value()) {
+        return std::nullopt;
+      }
+      return cache_and_return(element_type_opt.value());
     } else if (array_type.kind == TypeAST::Tuple) {
       Node* index_node = node->InputAt(1);
       auto index_opt = TryGetConstantIndex(index_node);
       if (index_opt.has_value()) {
-        return GetElementTypeInTuple(array_type, index_opt.value());
+        auto element_type_opt =
+            GetElementTypeInTuple(array_type, index_opt.value());
+        if (!element_type_opt.has_value()) {
+          return std::nullopt;
+        }
+        return cache_and_return(element_type_opt.value());
       }
     }
   }

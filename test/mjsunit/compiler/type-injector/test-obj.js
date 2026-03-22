@@ -38,3 +38,4 @@ warmupAndOptimize(concat_nested, new Wrapper({ x: 'foo', y: 'foo' }, 'extra'));
 const result2 = concat_nested(new Wrapper({ x: 'foo', y: 'bar' }, 'baz'));
 assertEquals('foobar', result2);
 assertOptimized(concat_nested);
+//# sourceMappingURL=test-obj.js.map

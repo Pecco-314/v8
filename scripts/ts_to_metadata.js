@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 // Entry: node scripts/ts_to_metadata.js <path/to/test.ts> [--outDir <dir>]
 // 1) 使用 tsc 将 TS 编译为 JS（默认输出到 TS 所在目录）
-// 2) 基于 TS 类型 + d8 AST 提取的字节码偏移生成 metadata 文件
-//    不依赖手写或外部模板，确保由 TS 驱动
+// 2) 基于 TS 类型 + Source Map + JS AST 生成 metadata 文件
+//    通过 source map 做 TS<->JS 位置映射，避免 name+occurrence 脆弱绑定
 
 const ts = require('typescript');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
-const { existsSync, statSync, mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync } = require('fs');
+const { existsSync, statSync, mkdirSync, writeFileSync, readFileSync } = require('fs');
 const path = require('path');
+
+const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const BASE64_MAP = Object.fromEntries([...BASE64_CHARS].map((c, i) => [c, i]));
 
 function usage() {
 	console.error('用法: node scripts/ts_to_metadata.js <ts_file> [--outDir <dir>]');
@@ -52,6 +55,7 @@ function main() {
 		'--module',
 		'none',
 		'--noEmitOnError',
+		'--sourceMap',
 		'--outDir',
 		targetDir,
 	], { stdio: 'inherit' });
@@ -60,12 +64,17 @@ function main() {
 		console.error(`❌ 未找到生成的 JS: ${jsFile}`);
 		process.exit(1);
 	}
+	const mapFile = `${jsFile}.map`;
+	if (!existsSync(mapFile)) {
+		console.error(`❌ 未找到生成的 Source Map: ${mapFile}`);
+		process.exit(1);
+	}
 
 	console.log('=== Step 2: 解析 TS 类型 ===');
 	const typeInfo = collectTypesFromTs(absTs);
 
-	console.log('=== Step 3: 解析 JS 偏移 (d8 --print-ast) ===');
-	const offsets = collectOffsetsFromJs(jsFile, typeInfo);
+	console.log('=== Step 3: 通过 Source Map 对齐 TS/JS 源码位置 ===');
+	const offsets = collectOffsetsFromJs(jsFile, mapFile, absTs, typeInfo);
 
 	console.log('=== Step 4: 写出 metadata ===');
 	const metadataPath = writeMetadata(jsFile, typeInfo, offsets);
@@ -89,14 +98,18 @@ function collectTypesFromTs(tsFile) {
 	const namedTypeNodes = collectNamedTypeNodes(sf);
 	const ctx = { namedTypeNodes };
 	const results = [];
-	const nameCounts = new Map();
 
 	function appendFunction(name, funcLikeNode) {
 		const params = funcLikeNode.parameters.map((p) => mapTsType(p.type, ctx));
 		const ret = mapTsType(funcLikeNode.type, ctx);
-		const occurrence = nameCounts.get(name) || 0;
-		nameCounts.set(name, occurrence + 1);
-		results.push({ name, occurrence, params, ret });
+		results.push({
+			id: results.length,
+			name,
+			params,
+			ret,
+			start: funcLikeNode.getStart(sf),
+			end: funcLikeNode.end,
+		});
 	}
 
 	function visit(node) {
@@ -198,90 +211,214 @@ function mapTsType(typeNode, ctx = {}, stack = new Set()) {
 	}
 }
 
-function collectOffsetsFromJs(jsFile, typeInfo) {
-	const d8Path = process.env.D8_PATH || path.join('out.gn', 'x64.debug', 'd8');
-	if (!existsSync(d8Path)) {
-		console.error(`❌ 未找到 d8: ${d8Path}`);
-		process.exit(1);
+function collectOffsetsFromJs(jsFile, mapFile, tsFile, typeInfo) {
+	const src = readFileSync(jsFile, 'utf8');
+	const sf = ts.createSourceFile(jsFile, src, ts.ScriptTarget.ES2020, true, ts.ScriptKind.JS);
+	const jsLineStarts = computeLineStarts(src);
+
+	const tsSrc = readFileSync(tsFile, 'utf8');
+	const tsLineStarts = computeLineStarts(tsSrc);
+
+	const rawMap = JSON.parse(readFileSync(mapFile, 'utf8'));
+	const mapIndex = buildSourceMapIndex(rawMap);
+	const offsets = new Map();
+
+	function appendFunction(node) {
+		const jsPos = computeFunctionSourcePosition(node, sf, src);
+		const generated = offsetToLineCol(jsLineStarts, jsPos);
+		const original = originalPositionFor(mapIndex, generated.line, generated.column);
+		if (!original) return;
+
+		const tsPos = lineColToOffset(tsLineStarts, original.line, original.column);
+		const best = findBestTypeInfoByOffset(typeInfo, tsPos);
+		if (!best) return;
+
+		if (!offsets.has(best.id)) {
+			offsets.set(best.id, jsPos);
+		}
 	}
-	// Minimal assertion stubs to avoid loading full mjsunit (which produces huge AST output).
-	const stubPrelude = [
-		'function assertEquals(){}',
-		'function assertOptimized(){}',
-		'function assertUnoptimized(){}',
-		'function assertTrue(){}',
-	].join(';');
-	const workspaceTmpDir = path.join(process.cwd(), 'tmp');
-	if (!existsSync(workspaceTmpDir)) mkdirSync(workspaceTmpDir, { recursive: true });
-	const tmpDir = mkdtempSync(path.join(workspaceTmpDir, 'tsmeta-'));
-	const harness = path.join(tmpDir, 'harness.js');
 
-	try {
-		const jsFileLiteral = JSON.stringify(jsFile);
-		writeFileSync(harness, `${stubPrelude}; load(${jsFileLiteral});`);
-
-		const output = execFileSync(
-			d8Path,
-			['--allow-natives-syntax', '--print-ast', harness],
-			{ encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 }
-		);
-
-		const lines = output.split(/\r?\n/);
-		const nameToPositions = new Map();
-		let pendingPos = null;
-		let pendingName = null;
-
-		function flushPending() {
-			if (pendingPos === null || pendingName === null) return;
-			if (!nameToPositions.has(pendingName)) nameToPositions.set(pendingName, []);
-			nameToPositions.get(pendingName).push(pendingPos);
+	function visit(node) {
+		if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+			appendFunction(node);
 		}
 
-		for (const line of lines) {
-			const funcMatch = line.match(/FUNC(?: LITERAL)? at (\d+)/);
-			if (funcMatch) {
-				flushPending();
-				pendingPos = Number(funcMatch[1]);
-				pendingName = null;
-				continue;
+		if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+			const init = node.initializer;
+			if (ts.isFunctionExpression(init) || ts.isArrowFunction(init)) {
+				appendFunction(init);
 			}
+		}
 
-			if (pendingPos !== null && pendingName === null) {
-				const nameMatch = line.match(/NAME "([^"]+)"/);
-				if (nameMatch) {
-					pendingName = nameMatch[1];
+		ts.forEachChild(node, visit);
+	}
+
+	visit(sf);
+
+	const missing = [];
+	for (const info of typeInfo) {
+		if (!offsets.has(info.id)) {
+			missing.push(info.name);
+		}
+	}
+
+	if (missing.length > 0) {
+		throw new Error(`源码位置匹配失败，缺失 ${missing.length} 个函数: ${missing.join(', ')}`);
+	}
+
+	return offsets;
+}
+
+function computeFunctionSourcePosition(node, sf, src) {
+	const start = node.getStart(sf);
+	const bodyPos = node.body ? node.body.pos : node.end;
+	const paren = src.indexOf('(', start);
+
+	if (paren !== -1 && paren < bodyPos) {
+		return paren;
+	}
+
+	if (ts.isArrowFunction(node) && node.parameters.length > 0) {
+		return node.parameters[0].getStart(sf);
+	}
+
+	throw new Error(
+		`无法稳定计算函数源码位置（kind=${ts.SyntaxKind[node.kind]} start=${start}）`
+	);
+}
+
+function findBestTypeInfoByOffset(typeInfo, offset) {
+	let best = null;
+	let bestSpan = Number.POSITIVE_INFINITY;
+	for (const info of typeInfo) {
+		if (info.start <= offset && offset < info.end) {
+			const span = info.end - info.start;
+			if (span < bestSpan) {
+				best = info;
+				bestSpan = span;
+			}
+		}
+	}
+	return best;
+}
+
+function computeLineStarts(text) {
+	const starts = [0];
+	for (let i = 0; i < text.length; i++) {
+		if (text[i] === '\n') starts.push(i + 1);
+	}
+	return starts;
+}
+
+function offsetToLineCol(lineStarts, offset) {
+	let low = 0;
+	let high = lineStarts.length - 1;
+	while (low <= high) {
+		const mid = (low + high) >> 1;
+		if (lineStarts[mid] <= offset) {
+			if (mid === lineStarts.length - 1 || lineStarts[mid + 1] > offset) {
+				return { line: mid + 1, column: offset - lineStarts[mid] };
+			}
+			low = mid + 1;
+		} else {
+			high = mid - 1;
+		}
+	}
+	return { line: 1, column: offset };
+}
+
+function lineColToOffset(lineStarts, line, column) {
+	const lineStart = lineStarts[Math.max(0, line - 1)] || 0;
+	return lineStart + column;
+}
+
+function buildSourceMapIndex(rawMap) {
+	const lines = [];
+	const mappingLines = (rawMap.mappings || '').split(';');
+	let previousSource = 0;
+	let previousOriginalLine = 0;
+	let previousOriginalColumn = 0;
+
+	for (const lineText of mappingLines) {
+		const segments = [];
+		let generatedColumn = 0;
+		if (lineText.length > 0) {
+			for (const rawSegment of lineText.split(',')) {
+				if (!rawSegment) continue;
+				const decoded = decodeVlqSegment(rawSegment);
+				generatedColumn += decoded[0] || 0;
+				if (decoded.length >= 4) {
+					previousSource += decoded[1];
+					previousOriginalLine += decoded[2];
+					previousOriginalColumn += decoded[3];
+					segments.push({
+						generatedColumn,
+						source: previousSource,
+						originalLine: previousOriginalLine + 1,
+						originalColumn: previousOriginalColumn,
+					});
 				}
 			}
 		}
-		flushPending();
-
-		const offsets = new Map();
-		const missing = [];
-		for (const info of typeInfo) {
-			const positions = nameToPositions.get(info.name) || [];
-			const pos = positions[info.occurrence];
-			const key = makeFunctionKey(info.name, info.occurrence);
-			if (pos === undefined) {
-				missing.push(`${info.name}#${info.occurrence}`);
-				continue;
-			}
-			offsets.set(key, pos);
-		}
-
-		if (missing.length > 0) {
-			throw new Error(
-				`AST 偏移匹配失败，缺失 ${missing.length} 个函数: ${missing.join(', ')}`
-			);
-		}
-
-		return offsets;
-	} finally {
-		rmSync(tmpDir, { recursive: true, force: true });
+		lines.push(segments);
 	}
+
+	return {
+		lines,
+		sources: rawMap.sources || [],
+		sourceRoot: rawMap.sourceRoot || '',
+	};
 }
 
-function makeFunctionKey(name, occurrence) {
-	return `${name}#${occurrence}`;
+function originalPositionFor(index, generatedLine, generatedColumn) {
+	const lineSegments = index.lines[generatedLine - 1];
+	if (!lineSegments || lineSegments.length === 0) return null;
+
+	let best = null;
+	for (const segment of lineSegments) {
+		if (segment.generatedColumn <= generatedColumn) {
+			best = segment;
+		} else {
+			break;
+		}
+	}
+
+	if (!best) return null;
+	return {
+		source: index.sources[best.source] || null,
+		line: best.originalLine,
+		column: best.originalColumn,
+	};
+}
+
+function decodeVlqSegment(segment) {
+	const values = [];
+	let value = 0;
+	let shift = 0;
+
+	for (let i = 0; i < segment.length; i++) {
+		const digit = BASE64_MAP[segment[i]];
+		if (digit === undefined) break;
+
+		const continuation = (digit & 32) !== 0;
+		const chunk = digit & 31;
+		value += chunk << shift;
+
+		if (continuation) {
+			shift += 5;
+			continue;
+		}
+
+		const isNegative = (value & 1) === 1;
+		let decoded = value >> 1;
+		if (isNegative) decoded = -decoded;
+		values.push(decoded);
+
+		value = 0;
+		shift = 0;
+	}
+
+	return values;
 }
 
 function writeMetadata(jsFile, typeInfo, offsets) {
@@ -295,9 +432,8 @@ function writeMetadata(jsFile, typeInfo, offsets) {
 	lines.push(`# JS SHA256: ${hash}`);
 	lines.push('');
 
-	typeInfo.forEach(({ name, occurrence, params, ret }) => {
-		const key = makeFunctionKey(name, occurrence);
-		const pos = offsets.get(key);
+	typeInfo.forEach(({ id, name, params, ret }) => {
+		const pos = offsets.get(id);
 		if (pos === undefined) return; // skip if missing
 		const paramsStr = ['any', ...params].join(' ');
 		lines.push(`${pos} @params ${paramsStr} @ret ${ret}  # ${name}`);

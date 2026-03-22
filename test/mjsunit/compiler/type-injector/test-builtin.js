@@ -69,3 +69,4 @@ warmupAndOptimize(testRepeat, 'ab', 3);
 const result4 = testRepeat('ab', 3);
 assertEquals(6, result4);
 assertOptimized(testRepeat);
+//# sourceMappingURL=test-builtin.js.map

@@ -54,3 +54,4 @@ warmupAndOptimize(concat_loop, ['x', 'y', 'z', '0']);
 const r3 = concat_loop(['v8', '-', 'tf', '-ok']);
 assertEquals('v8-tf-ok', r3);
 assertOptimized(concat_loop);
+//# sourceMappingURL=test-array.js.map

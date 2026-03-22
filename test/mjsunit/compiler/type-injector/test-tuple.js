@@ -46,3 +46,4 @@ optimize(process);
 const r3 = process(['hello', 42]);
 assertEquals('hello42', r3);
 assertOptimized(process);
+//# sourceMappingURL=test-tuple.js.map

@@ -80,6 +80,20 @@ assertEquals(200, resultMixed3);
 assertOptimized(twice_mixed);
 
 // ===================================
+// 测试 2.3: Number[] 间接引用参数
+// ===================================
+function sum_first_two_indirect(arr: number[]): number {
+  if (arr.length < 2) return 0;
+  const alias = arr;
+  return alias[0] + alias[1];
+}
+
+warmupAndOptimize(sum_first_two_indirect, [1, 2]);
+const resultIndirect = sum_first_two_indirect([3, 4]);
+assertEquals(7, resultIndirect);
+assertOptimized(sum_first_two_indirect);
+
+// ===================================
 // 测试 3: Boolean 类型
 // ===================================
 function cal(f1: boolean, f2: boolean): boolean {
