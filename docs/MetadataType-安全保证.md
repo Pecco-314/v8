@@ -53,7 +53,48 @@
 
 ---
 
-## 3. 关键实现位置
+## 3. 不安全行为默认保守策略（AST 识别版）
+
+### 3.1 识别范围（当前）
+
+当前仅识别两类不安全行为：
+
+- `as` / `<Type>expr` 类型断言
+- `@ts-ignore` 注释
+
+### 3.2 默认行为（保守）
+
+一旦在任意函数中识别到上述不安全行为，默认策略为：
+
+- **不做局部保守化**（避免类型系统信任被局部污染）
+- **整份文件不注入任何函数 metadata**（`Entries-Selected` 变为 `0/N`）
+
+这样可以确保该文件不会因部分“看似安全”的条目而继续传播不可信类型信息。
+
+### 3.3 强制开启（仅专家使用）
+
+如确需在含不安全行为的文件上继续注入 metadata，可显式使用：
+
+```bash
+node scripts/ts_to_metadata.js <ts_file> --forceUnsafeMetadata
+```
+
+即使强制开启，脚本仍会打印明显警告，提醒用户该行为会降低类型可信性。
+
+### 3.4 metadata 头部新增策略字段
+
+- `Unsafe-Policy`: 当前策略（`conservative-default`）
+- `Unsafe-Detection`: 当前识别范围（`as-expression,ts-ignore`）
+- `Unsafe-Detected-Count`: 检测到不安全函数数量
+- `Unsafe-Forced`: 是否强制开启（`true/false`）
+- `Unsafe-Functions`: 命中的函数名列表
+- `Unsafe-As-Functions`: 含 `as` 的函数名列表
+- `Unsafe-TsIgnore-Functions`: 含 `@ts-ignore` 的函数名列表
+- `Entries-Selected`: 最终写入条目数 / 函数总数
+
+---
+
+## 4. 关键实现位置
 
 - 生成端：`scripts/ts_to_metadata.js`
 - 存储与校验：`src/compiler/type-storage.{h,cc}`
@@ -61,15 +102,16 @@
 
 ---
 
-## 4. 使用建议
+## 5. 使用建议
 
 1. 在 CI 中统一使用 `scripts/ts_to_metadata.js` 生成 metadata。
 2. 禁止手改 `metadata/*.metadata`，改动应来自 TS 源再生成。
 3. 回归时优先检查：`Entries SHA256` / `Provenance-Stamp` 失败次数。
+4. 默认不要使用 `--forceUnsafeMetadata`；仅在明确知晓风险时启用。
 
 ---
 
-## 5. 当前边界
+## 6. 当前边界
 
 当前“来源可证明”是**强一致性证明**（字段与内容自洽、来源链可追踪），不是基于私钥的不可伪造签名。
 

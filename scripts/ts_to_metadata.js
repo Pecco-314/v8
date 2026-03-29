@@ -14,7 +14,7 @@ const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 const BASE64_MAP = Object.fromEntries([...BASE64_CHARS].map((c, i) => [c, i]));
 
 function usage() {
-	console.error('用法: node scripts/ts_to_metadata.js <ts_file> [--outDir <dir>]');
+	console.error('用法: node scripts/ts_to_metadata.js <ts_file> [--outDir <dir>] [--forceUnsafeMetadata]');
 	process.exit(1);
 }
 
@@ -24,10 +24,13 @@ function main() {
 
 	let tsFile = args[0];
 	let outDir = null;
+	let forceUnsafeMetadata = false;
 	for (let i = 1; i < args.length; i++) {
 		if (args[i] === '--outDir' && i + 1 < args.length) {
 			outDir = args[i + 1];
 			i++;
+		} else if (args[i] === '--forceUnsafeMetadata') {
+			forceUnsafeMetadata = true;
 		}
 	}
 
@@ -73,12 +76,31 @@ function main() {
 
 	console.log('=== Step 2: 解析 TS 类型 ===');
 	const typeInfo = collectTypesFromTs(absTs);
+	const unsafeSummary = summarizeUnsafeFunctions(typeInfo);
+	if (unsafeSummary.total > 0 && !forceUnsafeMetadata) {
+		console.warn(
+			`⚠️ 检测到不安全行为（${unsafeSummary.total} 个函数），默认保守处理：不注入任何函数 metadata。使用 --forceUnsafeMetadata 可强制开启。`
+		);
+	}
+	if (unsafeSummary.total > 0 && forceUnsafeMetadata) {
+		console.warn(
+			`⚠️ 已强制开启不安全 metadata（--forceUnsafeMetadata）：${unsafeSummary.total} 个函数含 as 或 @ts-ignore，请确认你理解风险。`
+		);
+	}
 
 	console.log('=== Step 3: 通过 Source Map 对齐 TS/JS 源码位置 ===');
 	const offsets = collectOffsetsFromJs(jsFile, mapFile, absTs, typeInfo);
 
 	console.log('=== Step 4: 写出 metadata ===');
-	const metadataPath = writeMetadata(absTs, jsFile, typeInfo, offsets, tscVersion);
+	const metadataPath = writeMetadata(
+		absTs,
+		jsFile,
+		typeInfo,
+		offsets,
+		tscVersion,
+		forceUnsafeMetadata,
+		unsafeSummary
+	);
 	console.log(`✅ metadata 已写入: ${metadataPath}`);
 
 	console.log('\n✅ ts_to_metadata 完成');
@@ -110,16 +132,23 @@ function collectTypesFromTs(tsFile) {
 	const sf = ts.createSourceFile(tsFile, src, ts.ScriptTarget.ES2020, true);
 	const namedTypeNodes = collectNamedTypeNodes(sf);
 	const ctx = { namedTypeNodes };
+	const lineStarts = computeLineStarts(src);
+	const tsIgnoreLines = collectTsIgnoreLines(src);
 	const results = [];
 
 	function appendFunction(name, funcLikeNode) {
 		const params = funcLikeNode.parameters.map((p) => mapTsType(p.type, ctx));
 		const ret = mapTsType(funcLikeNode.type, ctx);
+		const hasTsIgnore = hasTsIgnoreInFunctionRange(funcLikeNode, sf, lineStarts, tsIgnoreLines);
+		const hasAs = functionContainsAsAssertion(funcLikeNode);
 		results.push({
 			id: results.length,
 			name,
 			params,
 			ret,
+			hasTsIgnore,
+			hasAs,
+			unsafe: hasTsIgnore || hasAs,
 			start: funcLikeNode.getStart(sf),
 			end: funcLikeNode.end,
 		});
@@ -146,6 +175,54 @@ function collectTypesFromTs(tsFile) {
 		console.warn('⚠️ 未找到函数声明');
 	}
 	return results;
+}
+
+function collectTsIgnoreLines(sourceText) {
+	const lines = new Set();
+	const regex = /@ts-ignore/g;
+	let match;
+	const lineStarts = computeLineStarts(sourceText);
+	while ((match = regex.exec(sourceText)) !== null) {
+		const info = offsetToLineCol(lineStarts, match.index);
+		lines.add(info.line);
+	}
+	return lines;
+}
+
+function functionContainsAsAssertion(funcLikeNode) {
+	let found = false;
+	function visit(node) {
+		if (found) return;
+		if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)) {
+			found = true;
+			return;
+		}
+		ts.forEachChild(node, visit);
+	}
+	visit(funcLikeNode);
+	return found;
+}
+
+function hasTsIgnoreInFunctionRange(funcLikeNode, sf, lineStarts, tsIgnoreLines) {
+	if (tsIgnoreLines.size === 0) return false;
+	const startLine = offsetToLineCol(lineStarts, funcLikeNode.getStart(sf)).line;
+	const endLine = offsetToLineCol(lineStarts, funcLikeNode.end).line;
+	for (let line = startLine; line <= endLine; line++) {
+		if (tsIgnoreLines.has(line)) return true;
+	}
+	return false;
+}
+
+function summarizeUnsafeFunctions(typeInfo) {
+	const withAs = typeInfo.filter((info) => info.hasAs).map((info) => info.name);
+	const withTsIgnore = typeInfo.filter((info) => info.hasTsIgnore).map((info) => info.name);
+	const unsafeNames = typeInfo.filter((info) => info.unsafe).map((info) => info.name);
+	return {
+		total: unsafeNames.length,
+		withAs,
+		withTsIgnore,
+		unsafeNames,
+	};
 }
 
 function collectNamedTypeNodes(sf) {
@@ -438,7 +515,15 @@ function sha256HexFromText(text) {
 	return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-function writeMetadata(tsFile, jsFile, typeInfo, offsets, tscVersion) {
+function writeMetadata(
+	tsFile,
+	jsFile,
+	typeInfo,
+	offsets,
+	tscVersion,
+	forceUnsafeMetadata,
+	unsafeSummary
+) {
 	const generatorName = 'ts_to_metadata.js';
 	const generatorPath = path.join(process.cwd(), 'scripts', generatorName);
 	const toolContent = readFileSync(generatorPath);
@@ -460,17 +545,29 @@ function writeMetadata(tsFile, jsFile, typeInfo, offsets, tscVersion) {
 	lines.push(`# Provenance-TS-SHA256: ${tsHash}`);
 	lines.push(`# Provenance-TSC-Version: ${tscVersion}`);
 	lines.push(`# Provenance-Generated-At: ${generatedAt}`);
+	lines.push(`# Unsafe-Policy: conservative-default`);
+	lines.push(`# Unsafe-Detection: as-expression,ts-ignore`);
+	lines.push(`# Unsafe-Detected-Count: ${unsafeSummary.total}`);
+	lines.push(`# Unsafe-Forced: ${forceUnsafeMetadata ? 'true' : 'false'}`);
+	lines.push(`# Unsafe-Functions: ${unsafeSummary.unsafeNames.join(',')}`);
+	lines.push(`# Unsafe-As-Functions: ${unsafeSummary.withAs.join(',')}`);
+	lines.push(`# Unsafe-TsIgnore-Functions: ${unsafeSummary.withTsIgnore.join(',')}`);
 	lines.push(`# Source: ${jsRel}`);
 	lines.push(`# JS SHA256: ${hash}`);
 
 	const entryLines = [];
+	let selectedCount = 0;
+	const shouldDropAllUnsafe = unsafeSummary.total > 0 && !forceUnsafeMetadata;
 
 	typeInfo.forEach(({ id, name, params, ret }) => {
 		const pos = offsets.get(id);
 		if (pos === undefined) return;
+		if (shouldDropAllUnsafe) return;
 		const paramsStr = ['any', ...params].join(' ');
 		entryLines.push(`${pos} @params ${paramsStr} @ret ${ret}  # ${name}`);
+		selectedCount++;
 	});
+	lines.push(`# Entries-Selected: ${selectedCount}/${typeInfo.length}`);
 	const entriesSha = sha256HexFromText(entryLines.join('\n'));
 	const provenanceStampInput = [
 		'v1',
