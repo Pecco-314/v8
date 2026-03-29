@@ -1,19 +1,51 @@
 #include "src/compiler/type-storage.h"
 
+#include <algorithm>
+#include <array>
+#include <cctype>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <map>
 #include <sstream>
-#include <vector>
-#include <string>
 #include <vector>
 
 #include "src/base/lazy-instance.h"
 #include "src/compiler/type-cache.h"
 #include "src/flags/flags.h"
+#include "src/utils/hex-format.h"
+#include "src/utils/sha-256.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+namespace {
+
+std::string Trim(const std::string& s) {
+  size_t begin = s.find_first_not_of(" \t\r\n");
+  if (begin == std::string::npos) return "";
+  size_t end = s.find_last_not_of(" \t\r\n");
+  return s.substr(begin, end - begin + 1);
+}
+
+std::string Sha256Hex(const std::string& input) {
+  uint8_t hash[kSizeOfSha256Digest];
+  SHA256_hash(input.data(), input.size(), hash);
+  char formatted_hash[kSizeOfFormattedSha256Digest];
+  FormatBytesToHex(formatted_hash, kSizeOfFormattedSha256Digest, hash,
+                   kSizeOfSha256Digest);
+  formatted_hash[kSizeOfSha256Digest * 2] = '\0';
+  return std::string(formatted_hash);
+}
+
+std::string ToLower(std::string value) {
+  std::transform(value.begin(), value.end(), value.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return value;
+}
+
+}  // namespace
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(TypeStorage, TypeStorage::Get)
 
@@ -158,26 +190,50 @@ void TypeStorage::ReadFile(std::string hash) {
 
   auto& st = storage_[hash];
   std::string line;
+  std::map<std::string, std::string> headers;
+  std::vector<std::string> entry_lines;
   
   // 新文件格式解析: [BytecodeOffset] @params [param1 param2 ...] @ret [return_type]
   // 例如: 280 @params any str @ret str
   //      308 @params any @ret str
   while (std::getline(ifs, line)) {
-    if (line.empty() || line[0] == '#') continue;  // 跳过空行和注释
-    
-    std::istringstream iss(line);
+    std::string trimmed = Trim(line);
+    if (trimmed.empty()) continue;
+
+    if (trimmed[0] == '#') {
+      // Header: # Key: Value
+      const std::string body = Trim(trimmed.substr(1));
+      size_t colon = body.find(':');
+      if (colon != std::string::npos) {
+        std::string key = Trim(body.substr(0, colon));
+        std::string value = Trim(body.substr(colon + 1));
+        headers[key] = value;
+      }
+      continue;
+    }
+
+    entry_lines.push_back(trimmed);
+
+    std::string parse_line = trimmed;
+    size_t comment_pos = parse_line.find('#');
+    if (comment_pos != std::string::npos) {
+      parse_line = Trim(parse_line.substr(0, comment_pos));
+    }
+    if (parse_line.empty()) continue;
+
+    std::istringstream iss(parse_line);
     int pos;
     std::string token;
-    
+
     if (!(iss >> pos)) continue;  // 读取 bytecode offset
-    
+
     std::vector<TypeAST> type_list;
     TypeAST return_type;
     return_type.kind = TypeAST::Any;  // 默认返回值为 Any
-    
+
     bool in_params = false;
     bool in_ret = false;
-    
+
     while (iss >> token) {
       if (token == "@params") {
         in_params = true;
@@ -197,12 +253,75 @@ void TypeStorage::ReadFile(std::string hash) {
         break;  // 返回值只有一个
       }
     }
-    
+
     // 将返回值类型追加到参数列表末尾
     // 这样可以通过索引 param_types_.size() - 1 访问返回值类型
     type_list.push_back(return_type);
-    
+
     st[pos] = type_list;
+  }
+
+  const bool require_v2_provenance =
+      headers.find("Metadata-Version") != headers.end() &&
+      headers["Metadata-Version"] == "2";
+  if (!require_v2_provenance) {
+    return;
+  }
+
+  const std::array<const char*, 10> required_headers = {
+      "Provenance-Generator",       "Provenance-Generator-SHA256",
+      "Provenance-TS-Source",       "Provenance-TS-SHA256",
+      "Provenance-TSC-Version",     "Source",
+      "JS SHA256",                  "Entries SHA256",
+      "Provenance-Stamp",           "Provenance-Generated-At",
+  };
+
+  for (const char* key : required_headers) {
+    auto it = headers.find(key);
+    if (it == headers.end() || it->second.empty()) {
+      storage_.erase(hash);
+      return;
+    }
+  }
+
+  if (headers["Provenance-Generator"] != "ts_to_metadata.js") {
+    storage_.erase(hash);
+    return;
+  }
+
+  if (ToLower(headers["JS SHA256"]) != ToLower(hash)) {
+    storage_.erase(hash);
+    return;
+  }
+
+  const std::string computed_entries_sha = Sha256Hex([&entry_lines]() {
+    std::ostringstream os;
+    for (size_t i = 0; i < entry_lines.size(); ++i) {
+      os << entry_lines[i];
+      if (i + 1 < entry_lines.size()) os << "\n";
+    }
+    return os.str();
+  }());
+
+  if (ToLower(headers["Entries SHA256"]) != ToLower(computed_entries_sha)) {
+    storage_.erase(hash);
+    return;
+  }
+
+  std::ostringstream stamp_input;
+  stamp_input << "v1\n" << headers["Provenance-Generator"] << "\n"
+              << headers["Provenance-Generator-SHA256"] << "\n"
+              << headers["Provenance-TS-Source"] << "\n"
+              << headers["Provenance-TS-SHA256"] << "\n"
+              << headers["Source"] << "\n"
+              << headers["JS SHA256"] << "\n"
+              << headers["Provenance-TSC-Version"] << "\n"
+              << headers["Entries SHA256"];
+  const std::string computed_stamp = Sha256Hex(stamp_input.str());
+
+  if (ToLower(headers["Provenance-Stamp"]) != ToLower(computed_stamp)) {
+    storage_.erase(hash);
+    return;
   }
 }
 
