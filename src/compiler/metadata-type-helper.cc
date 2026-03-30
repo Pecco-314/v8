@@ -146,6 +146,12 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
     return *stored;
   };
 
+  auto make_primitive_ast = [](TypeAST::TypeKind kind) {
+    TypeAST ast;
+    ast.kind = kind;
+    return ast;
+  };
+
   if (node->opcode() == IrOpcode::kParameter) {
     int param_index = ParameterIndexOf(node->op());
     auto& param_types = context_.param_types();
@@ -159,22 +165,22 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
              node->opcode() == IrOpcode::kFloat32Constant ||
              node->opcode() == IrOpcode::kFloat64Constant ||
              node->opcode() == IrOpcode::kNumberConstant) {
-    return cache_and_return(TypeAST{TypeAST::Num});
+    return cache_and_return(make_primitive_ast(TypeAST::Num));
   } else if (node->opcode() == IrOpcode::kHeapConstant) {
     Type constant_type = NodeProperties::GetType(node);
     if (constant_type.Is(Type::String())) {
-      return cache_and_return(TypeAST{TypeAST::Str});
+      return cache_and_return(make_primitive_ast(TypeAST::Str));
     }
     if (constant_type.Is(Type::Boolean())) {
-      return cache_and_return(TypeAST{TypeAST::Bool});
+      return cache_and_return(make_primitive_ast(TypeAST::Bool));
     }
     if (constant_type.Is(Type::Symbol())) {
-      return cache_and_return(TypeAST{TypeAST::Symbol});
+      return cache_and_return(make_primitive_ast(TypeAST::Symbol));
     }
     if (constant_type.Is(Type::BigInt())) {
-      return cache_and_return(TypeAST{TypeAST::BigInt});
+      return cache_and_return(make_primitive_ast(TypeAST::BigInt));
     }
-    return cache_and_return(TypeAST{TypeAST::Any});
+    return cache_and_return(make_primitive_ast(TypeAST::Any));
   } else if (node->opcode() == IrOpcode::kTypeGuard ||
              node->opcode() == IrOpcode::kMapGuard ||
              node->opcode() == IrOpcode::kCheckHeapObject ||

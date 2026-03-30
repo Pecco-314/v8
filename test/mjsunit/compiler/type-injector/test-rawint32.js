@@ -135,30 +135,22 @@ function divRawInt32Trunc(a, b) {
 }
 warmupAndOptimize(divRawInt32Trunc, 15, 4);
 const result14 = divRawInt32Trunc(15, 4);
-// 有 metadata 时返回 3 (int 除法截断)，无 metadata 时返回 3.75 (float 除法)
 if (result14 === 3) {
-    // 走了 RawInt32 路径，应该已优化
     assertOptimized(divRawInt32Trunc);
 }
 else {
-    // 无 metadata，fallback 到普通 JS 除法
     assertEquals(3.75, result14);
-    print('divRawInt32Trunc fallback to normal JS division: ' + result14);
 }
 function divRawInt32Overflow(a, b) {
     return a / b;
 }
 warmupAndOptimize(divRawInt32Overflow, -100, -1);
 const result15 = divRawInt32Overflow(-2147483648, -1);
-// 有 metadata 时走 RawInt32 路径返回 INT_MIN (-2147483648)，无 metadata 时返回 2147483648 (普通 JS 语义)
 if (result15 === -2147483648) {
-    // 走了 RawInt32 路径，应该已优化
     assertOptimized(divRawInt32Overflow);
 }
 else {
-    // 无 metadata，fallback 到普通 JS 除法
     assertEquals(2147483648, result15);
-    print('divRawInt32Overflow fallback to normal JS division: ' + result15);
 }
 function divRawInt32ByZero(a, b) {
     return a / b;
@@ -166,21 +158,9 @@ function divRawInt32ByZero(a, b) {
 warmupAndOptimize(divRawInt32ByZero, 64, 8);
 const result16 = divRawInt32ByZero(64, 8);
 assertEquals(8, result16);
-// 有 metadata 时应该已优化
-if (result16 === 8) {
-    assertOptimized(divRawInt32ByZero);
-}
-const result16Zero = divRawInt32ByZero(123, 0);
-if (result16Zero === 0) {
-    // 走了 RawInt32 路径，除以零返回 0
-    assertOptimized(divRawInt32ByZero);
-}
-else {
-    // 无 metadata，fallback 到普通 JS 除法，返回 Infinity
-    assertEquals(Infinity, result16Zero);
-    print('divRawInt32ByZero fallback to normal JS division: ' + result16Zero);
-}
-print('Div by zero result: ' + result16Zero);
+assertOptimized(divRawInt32ByZero);
+assertThrows(() => divRawInt32ByZero(123, 0), RangeError);
+print('Div by zero throws RangeError');
 // ===================================
 // 取模测试
 // ===================================
@@ -218,15 +198,119 @@ const result19 = modRawInt32ByZero(64, 8);
 assertEquals(0, result19);
 // 有 metadata 时应走 RawInt32 模运算
 assertOptimized(modRawInt32ByZero);
-const result19Zero = modRawInt32ByZero(123, 0);
-if (result19Zero === 0) {
-    // RawInt32 路径，除以零返回 0
-    assertOptimized(modRawInt32ByZero);
+assertThrows(() => modRawInt32ByZero(123, 0), RangeError);
+print('Mod by zero throws RangeError');
+// ===================================
+// 字面量常量参与运算（验证常量兼容）
+// ===================================
+function addRawInt32Const(a) {
+    return a + 5;
+}
+warmupAndOptimize(addRawInt32Const, 1234);
+const result20 = addRawInt32Const(1234);
+assertEquals(1239, result20);
+assertOptimized(addRawInt32Const);
+function subRawInt32Const(a) {
+    return a - 7;
+}
+warmupAndOptimize(subRawInt32Const, 1234);
+const result21 = subRawInt32Const(1234);
+assertEquals(1227, result21);
+assertOptimized(subRawInt32Const);
+function divRawInt32Const(a) {
+    return a / 10;
+}
+warmupAndOptimize(divRawInt32Const, 1234);
+const result22 = divRawInt32Const(1234);
+assertEquals(123, result22);
+assertOptimized(divRawInt32Const);
+function modRawInt32Const(a) {
+    return a % 8;
+}
+warmupAndOptimize(modRawInt32Const, 1234);
+const result23 = modRawInt32Const(1234);
+assertEquals(2, result23);
+if (result23 === 2) {
+    assertOptimized(modRawInt32Const);
+}
+function mulRawInt32Const(a) {
+    return a * 3;
+}
+warmupAndOptimize(mulRawInt32Const, 1234);
+const result24 = mulRawInt32Const(1234);
+assertEquals(3702, result24);
+assertOptimized(mulRawInt32Const);
+function addRawUint32Const(a) {
+    return a + 5;
+}
+warmupAndOptimize(addRawUint32Const, 1234);
+const result25 = addRawUint32Const(1234);
+assertEquals(1239, result25);
+assertOptimized(addRawUint32Const);
+function subRawUint32Const(a) {
+    return a - 7;
+}
+warmupAndOptimize(subRawUint32Const, 1234);
+const result26 = subRawUint32Const(1234);
+assertEquals(1227, result26);
+assertOptimized(subRawUint32Const);
+function mulRawUint32Const(a) {
+    return a * 3;
+}
+warmupAndOptimize(mulRawUint32Const, 1234);
+const result27 = mulRawUint32Const(1234);
+assertEquals(3702, result27);
+assertOptimized(mulRawUint32Const);
+function divRawUint32Const(a) {
+    return a / 10;
+}
+warmupAndOptimize(divRawUint32Const, 1234);
+const result28 = divRawUint32Const(1234);
+assertEquals(123, result28);
+assertOptimized(divRawUint32Const);
+function modRawUint32Const(a) {
+    return a % 8;
+}
+warmupAndOptimize(modRawUint32Const, 1234);
+const result29 = modRawUint32Const(1234);
+assertEquals(2, result29);
+if (result29 === 2) {
+    assertOptimized(modRawUint32Const);
+}
+function divRawInt64Const(a) {
+    return a / 10n;
+}
+warmupAndOptimize(divRawInt64Const, 1234n);
+const result30 = divRawInt64Const(1234n);
+if (result30 === 123n) {
+    assertOptimized(divRawInt64Const);
 }
 else {
-    // 无 metadata，普通 JS 语义返回 NaN
-    assertTrue(Number.isNaN(result19Zero));
-    print('modRawInt32ByZero fallback to normal JS modulus: ' + result19Zero);
+    assertEquals(123n, result30);
+    print('divRawInt64Const fallback to normal JS division: ' + result30);
 }
-print('Mod by zero result: ' + result19Zero);
+function modRawInt64Const(a) {
+    return a % 8n;
+}
+warmupAndOptimize(modRawInt64Const, 1234n);
+const result31 = modRawInt64Const(1234n);
+assertEquals(2n, result31);
+function divRawUint64Const(a) {
+    return a / 10n;
+}
+warmupAndOptimize(divRawUint64Const, 1234n);
+const result32 = divRawUint64Const(1234n);
+if (result32 === 123n) {
+    assertOptimized(divRawUint64Const);
+}
+else {
+    assertEquals(123n, result32);
+    print('divRawUint64Const fallback to normal JS division: ' + result32);
+}
+function modRawUint64Const(a) {
+    return a % 8n;
+}
+warmupAndOptimize(modRawUint64Const, 1234n);
+const result33 = modRawUint64Const(1234n);
+assertEquals(2n, result33);
 //# sourceMappingURL=test-rawint32.js.map

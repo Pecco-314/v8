@@ -1065,7 +1065,7 @@ struct MetadataBasedGraphOptimizationPhase {
     USE(temp_zone);
     MetadataBasedGraphOptimizer optimizer(
         data->info(), data->graph(), data->common(), data->broker(),
-        data->simplified());
+        data->simplified(), data->javascript(), data->jsgraph());
     optimizer.Run();
   }
 };
@@ -1077,7 +1077,7 @@ struct RawInt32StrengthReductionPhase {
     USE(temp_zone);
     RawInt32StrengthReduction reducer(data->info(), data->graph(),
                                       data->common(), data->broker(),
-                                      data->simplified());
+                                      data->simplified(), data->machine());
     reducer.Run();
   }
 };

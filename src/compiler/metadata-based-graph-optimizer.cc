@@ -3,9 +3,12 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turbofan-graph.h"
+#include "src/common/message-template.h"
 #include "src/objects/js-array.h"
+#include "src/runtime/runtime.h"
 
 namespace v8::internal::compiler {
 
@@ -25,6 +28,112 @@ void MetadataBasedGraphOptimizer::Run() {
   for (Node* node : all.reachable) {
     ProcessCheckMapsNode(node);
   }
+}
+
+bool MetadataBasedGraphOptimizer::IsRawInt32Like(
+    const std::optional<TypeAST>& type_opt) const {
+  if (!type_opt.has_value()) return false;
+  return type_opt->kind == TypeAST::RawInt32 ||
+         type_opt->kind == TypeAST::RawUint32;
+}
+
+bool MetadataBasedGraphOptimizer::IsRawInt32Node(Node* node) {
+  while (node != nullptr) {
+    switch (node->opcode()) {
+      case IrOpcode::kJSToNumber:
+      case IrOpcode::kJSToNumeric:
+      case IrOpcode::kTypeGuard:
+      case IrOpcode::kCheckNumber:
+      case IrOpcode::kCheckedTaggedToFloat64:
+      case IrOpcode::kChangeTaggedToFloat64:
+      case IrOpcode::kCheckedTaggedSignedToInt32:
+      case IrOpcode::kCheckedTaggedToInt32:
+      case IrOpcode::kChangeFloat64ToInt32:
+      case IrOpcode::kChangeFloat64ToUint32:
+      case IrOpcode::kChangeInt32ToFloat64:
+      case IrOpcode::kChangeUint32ToFloat64:
+      case IrOpcode::kChangeFloat64ToTagged:
+        if (node->InputCount() == 0) break;
+        node = node->InputAt(0);
+        continue;
+      default:
+        break;
+    }
+    break;
+  }
+  if (node == nullptr) return false;
+  return IsRawInt32Like(GetNodeTypeAST(node));
+}
+
+bool MetadataBasedGraphOptimizer::IsNumericConstant(Node* node) const {
+  switch (node->opcode()) {
+    case IrOpcode::kInt32Constant:
+    case IrOpcode::kInt64Constant:
+    case IrOpcode::kNumberConstant:
+    case IrOpcode::kFloat64Constant:
+      return true;
+    default:
+      return false;
+  }
+}
+
+void MetadataBasedGraphOptimizer::OptimizeRawIntDivModZeroGuard(Node* node) {
+  if (node->opcode() != IrOpcode::kJSDivide &&
+      node->opcode() != IrOpcode::kJSModulus &&
+      node->opcode() != IrOpcode::kSpeculativeNumberDivide &&
+      node->opcode() != IrOpcode::kSpeculativeNumberModulus) {
+    return;
+  }
+
+  auto return_type_opt = GetFunctionReturnType(context_.current_start_pos());
+  if (!IsRawInt32Like(return_type_opt)) return;
+
+  Node* left = NodeProperties::GetValueInput(node, 0);
+  Node* right = NodeProperties::GetValueInput(node, 1);
+  bool both_rawint = IsRawInt32Node(left) && IsRawInt32Node(right);
+  bool rhs_constant = IsNumericConstant(right);
+  if (!both_rawint && !rhs_constant) return;
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* frame_state = OperatorProperties::HasFrameStateInput(node->op())
+                          ? NodeProperties::GetFrameStateInput(node)
+                          : NodeProperties::FindFrameStateBefore(node, nullptr);
+  if (frame_state == nullptr || frame_state->opcode() != IrOpcode::kFrameState) {
+    return;
+  }
+
+  Node* context = OperatorProperties::HasContextInput(node->op())
+                      ? NodeProperties::GetContextInput(node)
+                      : FrameState(frame_state).context();
+  if (context == nullptr) return;
+
+  Node* zero = jsgraph_->SmiConstant(0);
+  Node* is_zero = graph_->NewNode(simplified_->ReferenceEqual(), right, zero);
+  Node* branch =
+      graph_->NewNode(common_->Branch(BranchHint::kFalse), is_zero, control);
+  Node* if_zero = graph_->NewNode(common_->IfTrue(), branch);
+  Node* if_nonzero = graph_->NewNode(common_->IfFalse(), branch);
+
+  Node* message =
+      jsgraph_->SmiConstant(static_cast<int>(MessageTemplate::kBigIntDivZero));
+    Node* effect_zero = effect;
+    Node* control_zero = if_zero;
+    Node* throw_call = effect_zero = control_zero = graph_->NewNode(
+      javascript_->CallRuntime(Runtime::kThrowRangeError, 1), message, context,
+      frame_state, effect_zero, control_zero);
+
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    NodeProperties::ReplaceControlInput(on_exception, throw_call);
+    NodeProperties::ReplaceEffectInput(on_exception, effect_zero);
+    control_zero = graph_->NewNode(common_->IfSuccess(), throw_call);
+    }
+
+    Node* throw_node = graph_->NewNode(common_->Throw(), effect_zero, control_zero);
+    NodeProperties::MergeControlToEnd(graph_, common_, throw_node);
+
+  NodeProperties::ReplaceControlInput(node, if_nonzero);
 }
 
 void MetadataBasedGraphOptimizer::OptimizeTupleLength(Node* node) {
