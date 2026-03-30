@@ -10,6 +10,8 @@
 #include "src/objects/js-array.h"
 #include "src/runtime/runtime.h"
 
+#include <vector>
+
 namespace v8::internal::compiler {
 
 void MetadataBasedGraphOptimizer::Run() {
@@ -27,6 +29,10 @@ void MetadataBasedGraphOptimizer::Run() {
 
   for (Node* node : all.reachable) {
     ProcessCheckMapsNode(node);
+  }
+
+  for (Node* node : all.reachable) {
+    OptimizeRawIntDivModZeroGuard(node);
   }
 }
 
@@ -85,9 +91,6 @@ void MetadataBasedGraphOptimizer::OptimizeRawIntDivModZeroGuard(Node* node) {
     return;
   }
 
-  auto return_type_opt = GetFunctionReturnType(context_.current_start_pos());
-  if (!IsRawInt32Like(return_type_opt)) return;
-
   Node* left = NodeProperties::GetValueInput(node, 0);
   Node* right = NodeProperties::GetValueInput(node, 1);
   bool both_rawint = IsRawInt32Node(left) && IsRawInt32Node(right);
@@ -117,21 +120,28 @@ void MetadataBasedGraphOptimizer::OptimizeRawIntDivModZeroGuard(Node* node) {
 
   Node* message =
       jsgraph_->SmiConstant(static_cast<int>(MessageTemplate::kBigIntDivZero));
-    Node* effect_zero = effect;
-    Node* control_zero = if_zero;
-    Node* throw_call = effect_zero = control_zero = graph_->NewNode(
+  Node* effect_zero = effect;
+  Node* control_zero = if_zero;
+    effect_zero = control_zero = graph_->NewNode(
       javascript_->CallRuntime(Runtime::kThrowRangeError, 1), message, context,
       frame_state, effect_zero, control_zero);
 
-    Node* on_exception = nullptr;
-    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    NodeProperties::ReplaceControlInput(on_exception, throw_call);
-    NodeProperties::ReplaceEffectInput(on_exception, effect_zero);
-    control_zero = graph_->NewNode(common_->IfSuccess(), throw_call);
-    }
+  Node* throw_node = graph_->NewNode(common_->Throw(), effect_zero, control_zero);
+  NodeProperties::MergeControlToEnd(graph_, common_, throw_node);
 
-    Node* throw_node = graph_->NewNode(common_->Throw(), effect_zero, control_zero);
-    NodeProperties::MergeControlToEnd(graph_, common_, throw_node);
+  std::vector<Node*> effect_users;
+  for (Edge edge : node->use_edges()) {
+    if (NodeProperties::IsEffectEdge(edge)) {
+      effect_users.push_back(edge.from());
+    }
+  }
+
+  for (Node* use : effect_users) {
+    if (use->InputCount() == 0) continue;
+    if (NodeProperties::GetControlInput(use) == control) {
+      NodeProperties::ReplaceControlInput(use, if_nonzero);
+    }
+  }
 
   NodeProperties::ReplaceControlInput(node, if_nonzero);
 }
