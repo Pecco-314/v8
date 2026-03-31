@@ -14,7 +14,9 @@ const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 const BASE64_MAP = Object.fromEntries([...BASE64_CHARS].map((c, i) => [c, i]));
 
 function usage() {
-	console.error('用法: node scripts/ts_to_metadata.js <ts_file> [--outDir <dir>] [--forceUnsafeMetadata]');
+	console.error(
+		'用法: node scripts/ts_to_metadata.js <ts_file> [--outDir <dir>] [--metadataDir <dir>] [--forceUnsafeMetadata]'
+	);
 	process.exit(1);
 }
 
@@ -25,9 +27,13 @@ function main() {
 	let tsFile = args[0];
 	let outDir = null;
 	let forceUnsafeMetadata = false;
+	let metadataDir = null;
 	for (let i = 1; i < args.length; i++) {
 		if (args[i] === '--outDir' && i + 1 < args.length) {
 			outDir = args[i + 1];
+			i++;
+		} else if (args[i] === '--metadataDir' && i + 1 < args.length) {
+			metadataDir = args[i + 1];
 			i++;
 		} else if (args[i] === '--forceUnsafeMetadata') {
 			forceUnsafeMetadata = true;
@@ -99,7 +105,8 @@ function main() {
 		offsets,
 		tscVersion,
 		forceUnsafeMetadata,
-		unsafeSummary
+		unsafeSummary,
+		metadataDir
 	);
 	console.log(`✅ metadata 已写入: ${metadataPath}`);
 
@@ -522,7 +529,8 @@ function writeMetadata(
 	offsets,
 	tscVersion,
 	forceUnsafeMetadata,
-	unsafeSummary
+	unsafeSummary,
+	metadataDir
 ) {
 	const generatorName = 'ts_to_metadata.js';
 	const generatorPath = path.join(process.cwd(), 'scripts', generatorName);
@@ -586,7 +594,9 @@ function writeMetadata(
 	lines.push('');
 	lines.push(...entryLines);
 
-	const outDir = path.join(process.cwd(), 'test/mjsunit/compiler/type-injector/metadata');
+	const outDir = metadataDir
+		? path.resolve(metadataDir)
+		: path.join(process.cwd(), 'test/mjsunit/compiler/type-injector/metadata');
 	if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 	const outPath = path.join(outDir, `${hash}.metadata`);
 	writeFileSync(outPath, lines.join('\n'));

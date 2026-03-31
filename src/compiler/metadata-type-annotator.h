@@ -21,6 +21,7 @@ class MetadataTypeAnnotator : private MetadataTypeHelper {
   void RunTypeAnnotation(AllNodes& all);
   void ProcessLoadFieldNode(Node* node);
   void ProcessLoadElementNode(Node* node);
+  void ProcessJSKeyedPropertyNode(Node* node);
   void ProcessJSCallNode(Node* node);
 };
 

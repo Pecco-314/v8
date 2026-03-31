@@ -53,6 +53,10 @@ void MetadataTypeAnnotator::RunTypeAnnotation(AllNodes& all) {
   }
 
   for (Node* node : all.reachable) {
+    ProcessJSKeyedPropertyNode(node);
+  }
+
+  for (Node* node : all.reachable) {
     ProcessJSCallNode(node);
   }
 }
@@ -147,6 +151,52 @@ void MetadataTypeAnnotator::ProcessLoadElementNode(Node* node) {
     NodeProperties::SetType(node, element_turbofan_type);
     SetNodeType(node, elem_ptr);
   }
+}
+
+void MetadataTypeAnnotator::ProcessJSKeyedPropertyNode(Node* node) {
+  bool is_load = node->opcode() == IrOpcode::kJSLoadProperty;
+  bool is_store = node->opcode() == IrOpcode::kJSSetKeyedProperty;
+  if (!is_load && !is_store) return;
+  if (node->op()->ValueInputCount() < 2) return;
+
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* index = NodeProperties::GetValueInput(node, 1);
+
+  auto receiver_type_opt = GetNodeTypeAST(receiver);
+  if (!receiver_type_opt.has_value()) return;
+
+  const TypeAST& receiver_type = receiver_type_opt.value();
+  std::optional<TypeAST> element_type;
+
+  if (receiver_type.kind == TypeAST::Arr) {
+    element_type = GetElementTypeInArray(receiver_type);
+  } else if (receiver_type.kind == TypeAST::Tuple) {
+    auto index_opt = TryGetConstantIndex(index);
+    if (index_opt.has_value()) {
+      int tuple_length = static_cast<int>(receiver_type.children.size());
+      if (index_opt.value() >= 0 && index_opt.value() < tuple_length) {
+        element_type = GetElementTypeInTuple(receiver_type, index_opt.value());
+      }
+    }
+  } else {
+    return;
+  }
+
+  if (!element_type.has_value()) return;
+
+  const TypeAST* elem_ptr = StoreOwnedTypeAST(element_type.value());
+  Type elem_type = TypeASTToType(*elem_ptr);
+
+  if (is_load) {
+    NodeProperties::SetType(node, elem_type);
+    SetNodeType(node, elem_ptr);
+    return;
+  }
+
+  if (node->op()->ValueInputCount() < 3) return;
+  Node* value = NodeProperties::GetValueInput(node, 2);
+  NodeProperties::SetType(value, elem_type);
+  SetNodeType(value, elem_ptr);
 }
 
 void MetadataTypeAnnotator::ProcessJSCallNode(Node* node) {

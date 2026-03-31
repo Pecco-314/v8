@@ -28,12 +28,71 @@ void MetadataBasedGraphOptimizer::Run() {
   }
 
   for (Node* node : all.reachable) {
+    OptimizeArrayHoleChecks(node);
+  }
+
+  for (Node* node : all.reachable) {
     ProcessCheckMapsNode(node);
   }
 
   for (Node* node : all.reachable) {
     OptimizeRawIntDivModZeroGuard(node);
   }
+}
+
+bool MetadataBasedGraphOptimizer::ElementTypeExcludesHole(
+    const TypeAST& element_type) const {
+  return element_type.kind != TypeAST::Any && element_type.kind != TypeAST::Void;
+}
+
+void MetadataBasedGraphOptimizer::OptimizeArrayHoleChecks(Node* node) {
+  if (node->opcode() != IrOpcode::kCheckFloat64Hole &&
+      node->opcode() != IrOpcode::kCheckNotTaggedHole) {
+    return;
+  }
+  if (node->op()->ValueInputCount() == 0 || node->op()->EffectInputCount() == 0) {
+    return;
+  }
+
+  Node* checked_value = NodeProperties::GetValueInput(node, 0);
+  if (checked_value == nullptr || checked_value->opcode() != IrOpcode::kLoadElement) {
+    return;
+  }
+
+  Node* elements_node = NodeProperties::GetValueInput(checked_value, 0);
+  if (elements_node == nullptr) return;
+
+  Node* container_node = elements_node;
+  if (elements_node->opcode() == IrOpcode::kLoadField &&
+      elements_node->op()->ValueInputCount() > 0) {
+    container_node = NodeProperties::GetValueInput(elements_node, 0);
+  }
+
+  auto container_type_opt = GetNodeTypeAST(container_node);
+  if (!container_type_opt.has_value()) return;
+
+  const TypeAST& container_type = container_type_opt.value();
+  std::optional<TypeAST> element_type_opt;
+
+  if (container_type.kind == TypeAST::Arr) {
+    element_type_opt = GetElementTypeInArray(container_type);
+  } else if (container_type.kind == TypeAST::Tuple) {
+    Node* index_node = NodeProperties::GetValueInput(checked_value, 1);
+    auto index_opt = TryGetConstantIndex(index_node);
+    if (!index_opt.has_value()) return;
+    element_type_opt = GetElementTypeInTuple(container_type, index_opt.value());
+  } else {
+    return;
+  }
+
+  if (!element_type_opt.has_value() ||
+      !ElementTypeExcludesHole(element_type_opt.value())) {
+    return;
+  }
+
+  Node* effect_input = NodeProperties::GetEffectInput(node);
+  NodeProperties::ReplaceUses(node, checked_value, effect_input);
+  node->Kill();
 }
 
 bool MetadataBasedGraphOptimizer::IsRawInt32Like(
@@ -71,18 +130,6 @@ bool MetadataBasedGraphOptimizer::IsRawInt32Node(Node* node) {
   return IsRawInt32Like(GetNodeTypeAST(node));
 }
 
-bool MetadataBasedGraphOptimizer::IsNumericConstant(Node* node) const {
-  switch (node->opcode()) {
-    case IrOpcode::kInt32Constant:
-    case IrOpcode::kInt64Constant:
-    case IrOpcode::kNumberConstant:
-    case IrOpcode::kFloat64Constant:
-      return true;
-    default:
-      return false;
-  }
-}
-
 void MetadataBasedGraphOptimizer::OptimizeRawIntDivModZeroGuard(Node* node) {
   if (node->opcode() != IrOpcode::kJSDivide &&
       node->opcode() != IrOpcode::kJSModulus &&
@@ -94,8 +141,7 @@ void MetadataBasedGraphOptimizer::OptimizeRawIntDivModZeroGuard(Node* node) {
   Node* left = NodeProperties::GetValueInput(node, 0);
   Node* right = NodeProperties::GetValueInput(node, 1);
   bool both_rawint = IsRawInt32Node(left) && IsRawInt32Node(right);
-  bool rhs_constant = IsNumericConstant(right);
-  if (!both_rawint && !rhs_constant) return;
+  if (!both_rawint) return;
 
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -111,8 +157,8 @@ void MetadataBasedGraphOptimizer::OptimizeRawIntDivModZeroGuard(Node* node) {
                       : FrameState(frame_state).context();
   if (context == nullptr) return;
 
-  Node* zero = jsgraph_->SmiConstant(0);
-  Node* is_zero = graph_->NewNode(simplified_->ReferenceEqual(), right, zero);
+  Node* zero = graph_->NewNode(common_->NumberConstant(0));
+  Node* is_zero = graph_->NewNode(simplified_->NumberEqual(), right, zero);
   Node* branch =
       graph_->NewNode(common_->Branch(BranchHint::kFalse), is_zero, control);
   Node* if_zero = graph_->NewNode(common_->IfTrue(), branch);
@@ -138,7 +184,8 @@ void MetadataBasedGraphOptimizer::OptimizeRawIntDivModZeroGuard(Node* node) {
 
   for (Node* use : effect_users) {
     if (use->InputCount() == 0) continue;
-    if (NodeProperties::GetControlInput(use) == control) {
+    if (use->op()->ControlInputCount() > 0 &&
+        NodeProperties::GetControlInput(use) == control) {
       NodeProperties::ReplaceControlInput(use, if_nonzero);
     }
   }

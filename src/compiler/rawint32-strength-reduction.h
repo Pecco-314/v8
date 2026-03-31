@@ -36,6 +36,7 @@ class RawInt32StrengthReduction : private MetadataTypeHelper {
   bool IsRawTyped(Node* node, RawIntKind kind);
   bool IsLiteralCompatible(Node* node, RawIntKind kind);
   bool IsTypeOrLiteralCompatible(Node* node, RawIntKind kind);
+  bool ElementTypeExcludesHole(const TypeAST& element_type) const;
 
   void ReduceCheckedBinop(Node* node, const Operator* replacement_op,
                           RawIntKind kind);
@@ -45,6 +46,7 @@ class RawInt32StrengthReduction : private MetadataTypeHelper {
   void MaybeChangeCheckedDivModOp(Node* node, const Operator* replacement_op,
                                   RawIntKind kind);
   void ReduceRawFloat64DivOrMod(Node* node, bool is_div);
+  void ReduceArrayHoleCheck(Node* node);
 
   MachineOperatorBuilder* machine_;
 };

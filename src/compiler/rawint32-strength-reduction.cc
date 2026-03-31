@@ -98,9 +98,9 @@ Node* BuildUint32DivByConst(TFGraph* graph, MachineOperatorBuilder* machine,
   return quotient;
 }
 
-  Node* BuildInt32VarDivClosed(TFGraph* graph, MachineOperatorBuilder* machine,
-                 CommonOperatorBuilder* common, Node* lhs_i32,
-                 Node* rhs_i32) {
+Node* BuildInt32VarDivClosed(TFGraph* graph, MachineOperatorBuilder* machine,
+                             CommonOperatorBuilder* common, Node* lhs_i32,
+                             Node* rhs_i32, Node* control_input) {
     Node* const zero_i32 = graph->NewNode(common->Int32Constant(0));
     Node* const minus_one_i32 = graph->NewNode(common->Int32Constant(-1));
 
@@ -111,7 +111,7 @@ Node* BuildUint32DivByConst(TFGraph* graph, MachineOperatorBuilder* machine,
     Node* check_zero = graph->NewNode(machine->Word32Equal(), rhs_i32, zero_i32);
     Node* branch_zero = graph->NewNode(
       common->Branch(BranchHint::kFalse, BranchSemantics::kMachine),
-      check_zero, graph->start());
+      check_zero, control_input);
     Node* if_zero = graph->NewNode(common->IfTrue(), branch_zero);
     Node* if_nonzero = graph->NewNode(common->IfFalse(), branch_zero);
 
@@ -134,9 +134,9 @@ Node* BuildUint32DivByConst(TFGraph* graph, MachineOperatorBuilder* machine,
     return graph->NewNode(phi_word32, zero_i32, div_nonzero_word32, merge);
   }
 
-  Node* BuildUint32VarDivClosed(TFGraph* graph, MachineOperatorBuilder* machine,
-                  CommonOperatorBuilder* common, Node* lhs_u32,
-                  Node* rhs_u32) {
+Node* BuildUint32VarDivClosed(TFGraph* graph, MachineOperatorBuilder* machine,
+                              CommonOperatorBuilder* common, Node* lhs_u32,
+                              Node* rhs_u32, Node* control_input) {
     Node* const zero_i32 = graph->NewNode(common->Int32Constant(0));
     const Operator* const merge2 = common->Merge(2);
     const Operator* const phi_word32 =
@@ -145,7 +145,7 @@ Node* BuildUint32DivByConst(TFGraph* graph, MachineOperatorBuilder* machine,
     Node* check_zero = graph->NewNode(machine->Word32Equal(), rhs_u32, zero_i32);
     Node* branch_zero = graph->NewNode(
       common->Branch(BranchHint::kFalse, BranchSemantics::kMachine),
-      check_zero, graph->start());
+      check_zero, control_input);
     Node* if_zero = graph->NewNode(common->IfTrue(), branch_zero);
     Node* if_nonzero = graph->NewNode(common->IfFalse(), branch_zero);
     Node* div_u32 =
@@ -155,9 +155,9 @@ Node* BuildUint32DivByConst(TFGraph* graph, MachineOperatorBuilder* machine,
     return graph->NewNode(phi_word32, zero_i32, div_u32, merge);
   }
 
-  Node* BuildInt32VarModClosed(TFGraph* graph, MachineOperatorBuilder* machine,
-                 CommonOperatorBuilder* common, Node* lhs_i32,
-                 Node* rhs_i32) {
+Node* BuildInt32VarModClosed(TFGraph* graph, MachineOperatorBuilder* machine,
+                             CommonOperatorBuilder* common, Node* lhs_i32,
+                             Node* rhs_i32, Node* control_input) {
     Node* const zero_i32 = graph->NewNode(common->Int32Constant(0));
     const Operator* const merge2 = common->Merge(2);
     const Operator* const phi_word32 =
@@ -166,7 +166,7 @@ Node* BuildUint32DivByConst(TFGraph* graph, MachineOperatorBuilder* machine,
     Node* check_zero = graph->NewNode(machine->Word32Equal(), rhs_i32, zero_i32);
     Node* branch_zero = graph->NewNode(
       common->Branch(BranchHint::kFalse, BranchSemantics::kMachine),
-      check_zero, graph->start());
+      check_zero, control_input);
     Node* if_zero = graph->NewNode(common->IfTrue(), branch_zero);
     Node* if_nonzero = graph->NewNode(common->IfFalse(), branch_zero);
     Node* mod_nonzero =
@@ -176,9 +176,9 @@ Node* BuildUint32DivByConst(TFGraph* graph, MachineOperatorBuilder* machine,
     return graph->NewNode(phi_word32, zero_i32, mod_nonzero, merge);
   }
 
-  Node* BuildUint32VarModClosed(TFGraph* graph, MachineOperatorBuilder* machine,
-                  CommonOperatorBuilder* common, Node* lhs_u32,
-                  Node* rhs_u32) {
+Node* BuildUint32VarModClosed(TFGraph* graph, MachineOperatorBuilder* machine,
+                              CommonOperatorBuilder* common, Node* lhs_u32,
+                              Node* rhs_u32, Node* control_input) {
     Node* const zero_i32 = graph->NewNode(common->Int32Constant(0));
     const Operator* const merge2 = common->Merge(2);
     const Operator* const phi_word32 =
@@ -187,7 +187,7 @@ Node* BuildUint32DivByConst(TFGraph* graph, MachineOperatorBuilder* machine,
     Node* check_zero = graph->NewNode(machine->Word32Equal(), rhs_u32, zero_i32);
     Node* branch_zero = graph->NewNode(
       common->Branch(BranchHint::kFalse, BranchSemantics::kMachine),
-      check_zero, graph->start());
+      check_zero, control_input);
     Node* if_zero = graph->NewNode(common->IfTrue(), branch_zero);
     Node* if_nonzero = graph->NewNode(common->IfFalse(), branch_zero);
     Node* mod_nonzero =
@@ -357,6 +357,60 @@ bool RawInt32StrengthReduction::IsTypeOrLiteralCompatible(Node* node,
   return IsRawTyped(node, kind) || IsLiteralCompatible(node, kind);
 }
 
+bool RawInt32StrengthReduction::ElementTypeExcludesHole(
+    const TypeAST& element_type) const {
+  return element_type.kind != TypeAST::Any && element_type.kind != TypeAST::Void;
+}
+
+void RawInt32StrengthReduction::ReduceArrayHoleCheck(Node* node) {
+  if (node->opcode() != IrOpcode::kCheckFloat64Hole &&
+      node->opcode() != IrOpcode::kCheckNotTaggedHole) {
+    return;
+  }
+  if (node->op()->ValueInputCount() == 0 || node->op()->EffectInputCount() == 0) {
+    return;
+  }
+
+  Node* checked_value = NodeProperties::GetValueInput(node, 0);
+  if (checked_value == nullptr || checked_value->opcode() != IrOpcode::kLoadElement) {
+    return;
+  }
+
+  Node* elements_node = NodeProperties::GetValueInput(checked_value, 0);
+  if (elements_node == nullptr) return;
+
+  Node* container_node = elements_node;
+  if (elements_node->opcode() == IrOpcode::kLoadField &&
+      elements_node->op()->ValueInputCount() > 0) {
+    container_node = NodeProperties::GetValueInput(elements_node, 0);
+  }
+
+  auto container_type_opt = GetNodeTypeAST(container_node);
+  if (!container_type_opt.has_value()) return;
+
+  const TypeAST& container_type = container_type_opt.value();
+  std::optional<TypeAST> element_type_opt;
+  if (container_type.kind == TypeAST::Arr) {
+    element_type_opt = GetElementTypeInArray(container_type);
+  } else if (container_type.kind == TypeAST::Tuple) {
+    Node* index_node = NodeProperties::GetValueInput(checked_value, 1);
+    auto index_opt = TryGetConstantIndex(index_node);
+    if (!index_opt.has_value()) return;
+    element_type_opt = GetElementTypeInTuple(container_type, index_opt.value());
+  } else {
+    return;
+  }
+
+  if (!element_type_opt.has_value() ||
+      !ElementTypeExcludesHole(element_type_opt.value())) {
+    return;
+  }
+
+  Node* effect_input = NodeProperties::GetEffectInput(node);
+  NodeProperties::ReplaceUses(node, checked_value, effect_input);
+  node->Kill();
+}
+
 namespace {
 
 bool IsMachineWord64Like(Node* node) {
@@ -465,13 +519,16 @@ void RawInt32StrengthReduction::ReduceCheckedInt32DivOrModClosed(Node* node,
                                                                   bool is_div) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
+  Node* control = NodeProperties::GetControlInput(node);
   if (!IsTypeOrLiteralCompatible(left, RawIntKind::kInt32) ||
       !IsTypeOrLiteralCompatible(right, RawIntKind::kInt32)) {
     return;
   }
   Node* replacement =
-      is_div ? BuildInt32VarDivClosed(graph_, machine_, common_, left, right)
-             : BuildInt32VarModClosed(graph_, machine_, common_, left, right);
+      is_div ? BuildInt32VarDivClosed(graph_, machine_, common_, left, right,
+                                      control)
+             : BuildInt32VarModClosed(graph_, machine_, common_, left, right,
+                                      control);
   ReplaceCheckedWithValue(graph_, node, replacement);
 }
 
@@ -479,13 +536,16 @@ void RawInt32StrengthReduction::ReduceCheckedUint32DivOrModClosed(Node* node,
                                                                    bool is_div) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
+  Node* control = NodeProperties::GetControlInput(node);
   if (!IsTypeOrLiteralCompatible(left, RawIntKind::kUint32) ||
       !IsTypeOrLiteralCompatible(right, RawIntKind::kUint32)) {
     return;
   }
   Node* replacement =
-      is_div ? BuildUint32VarDivClosed(graph_, machine_, common_, left, right)
-             : BuildUint32VarModClosed(graph_, machine_, common_, left, right);
+      is_div ? BuildUint32VarDivClosed(graph_, machine_, common_, left, right,
+                                       control)
+             : BuildUint32VarModClosed(graph_, machine_, common_, left, right,
+                                       control);
   ReplaceCheckedWithValue(graph_, node, replacement);
 }
 
@@ -644,6 +704,10 @@ void RawInt32StrengthReduction::Run() {
         break;
       case IrOpcode::kCheckedInt64Mod:
         ReduceCheckedInt64DivOrMod(node, false);
+        break;
+      case IrOpcode::kCheckFloat64Hole:
+      case IrOpcode::kCheckNotTaggedHole:
+        ReduceArrayHoleCheck(node);
         break;
       default:
         break;

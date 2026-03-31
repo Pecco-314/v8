@@ -1,0 +1,50 @@
+{
+  "matrix-multiply": {
+    "function": "matmul",
+    "invoke_expr": "matmul(left, right, result)"
+  },
+  "deltablue": {
+    "function": "propagate",
+    "invoke_expr": "propagate()"
+  },
+  "radix-sort": {
+    "function": "bench",
+    "invoke_expr": "bench()"
+  },
+  "n-body": {
+    "function": "step",
+    "invoke_expr": "step()"
+  },
+  "json-parser": {
+    "function": "parseJson",
+    "invoke_expr": "parseJson(jsonText)"
+  },
+  "crypto-sha256": {
+    "function": "sha256",
+    "invoke_expr": "sha256(inputBytes)"
+  },
+  "lz77-compression": {
+    "function": "compress",
+    "invoke_expr": "compress(inputData)"
+  },
+  "base64-codec": {
+    "function": "decodeBase64",
+    "invoke_expr": "decodeBase64(encoded)"
+  },
+  "image-convolution": {
+    "function": "convolve",
+    "invoke_expr": "convolve(input, output)"
+  },
+  "dijkstra-routing": {
+    "function": "dijkstra",
+    "invoke_expr": "dijkstra(0)"
+  },
+  "richards": {
+    "function": "runScheduler",
+    "invoke_expr": "runScheduler(200)"
+  },
+  "splay-tree": {
+    "function": "find",
+    "invoke_expr": "find(keys[0])"
+  }
+}

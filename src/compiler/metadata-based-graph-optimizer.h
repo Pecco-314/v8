@@ -27,14 +27,15 @@ class MetadataBasedGraphOptimizer : private MetadataTypeHelper {
  private:
   void OptimizeTupleLength(Node* node);
   void OptimizeLoadElementBounds(Node* node);
+  void OptimizeArrayHoleChecks(Node* node);
   void RemoveTupleBoundsCheck(Node* load_element_node, Node* check_bounds_node,
                               Node* index_constant);
   void ReplaceTupleLengthWithConstant(Node* load_field_node, int tuple_length);
   void ProcessCheckMapsNode(Node* node);
   void OptimizeRawIntDivModZeroGuard(Node* node);
+  bool ElementTypeExcludesHole(const TypeAST& element_type) const;
   bool IsRawInt32Like(const std::optional<TypeAST>& type_opt) const;
   bool IsRawInt32Node(Node* node);
-  bool IsNumericConstant(Node* node) const;
 
   JSOperatorBuilder* javascript_;
   JSGraph* jsgraph_;

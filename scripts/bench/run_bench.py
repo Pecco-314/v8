@@ -127,6 +127,7 @@ def compute_stats(values: list[float]) -> dict:
             "mean": None,
             "median": None,
             "stdev": None,
+            "cv": None,
             "min": None,
             "max": None,
         }

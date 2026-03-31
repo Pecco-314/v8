@@ -121,10 +121,73 @@ def run_mode(root: Path, bench_file: Path, d8: Path, cfg: dict, with_metadata: b
     return result_path, payload
 
 
+def append_result_log(log_path: Path, record: dict) -> None:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
 def discover_benches(bench_arg: Path | None, bench_dir: Path) -> list[Path]:
     if bench_arg:
         return [bench_arg]
-    return sorted(bench_dir.glob("*.js"))
+    return sorted([*bench_dir.glob("*.js"), *bench_dir.glob("*.ts")])
+
+
+def prepare_bench(
+    root: Path,
+    bench_file: Path,
+    metadata_dir: Path,
+    tmp_dir: Path,
+    use_wrapper_preprocess: bool,
+) -> tuple[Path, bool]:
+    if bench_file.suffix != ".ts":
+        return bench_file, False
+
+    preprocess_script = root / "scripts" / "ts_locals_to_wrappers.js"
+    ts_to_metadata = root / "scripts" / "ts_to_metadata.js"
+    preprocessed_dir = tmp_dir / "preprocessed"
+    tsc_out_dir = tmp_dir / "tsc"
+    preprocessed_dir.mkdir(parents=True, exist_ok=True)
+    tsc_out_dir.mkdir(parents=True, exist_ok=True)
+
+    source_ts_for_metadata = bench_file
+    output_js_stem = bench_file.stem
+    if use_wrapper_preprocess:
+        preprocessed_ts = preprocessed_dir / f"{bench_file.stem}.locals.ts"
+        preprocess_command = [
+            "node",
+            str(preprocess_script),
+            str(bench_file),
+            "--out",
+            str(preprocessed_ts),
+        ]
+        preprocess_result = subprocess.run(preprocess_command, capture_output=True, text=True, cwd=str(root))
+        if preprocess_result.returncode != 0:
+            print(preprocess_result.stdout)
+            print(preprocess_result.stderr, file=sys.stderr)
+            raise RuntimeError(f"ts_locals_to_wrappers failed for {bench_file.name}")
+        source_ts_for_metadata = preprocessed_ts
+        output_js_stem = f"{bench_file.stem}.locals"
+
+    command = [
+        "node",
+        str(ts_to_metadata),
+        str(source_ts_for_metadata),
+        "--outDir",
+        str(tsc_out_dir),
+        "--metadataDir",
+        str(metadata_dir),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, cwd=str(root))
+    if result.returncode != 0:
+        print(result.stdout)
+        print(result.stderr, file=sys.stderr)
+        raise RuntimeError(f"ts_to_metadata failed for {bench_file.name}")
+
+    js_file = tsc_out_dir / f"{output_js_stem}.js"
+    if not js_file.exists():
+        raise RuntimeError(f"compiled JS not found: {js_file}")
+    return js_file, True
 
 
 def main() -> int:
@@ -136,6 +199,11 @@ def main() -> int:
         "--overrides",
         default="scripts/bench/config/overrides.json",
         help="Per-file overrides JSON (optional)",
+    )
+    parser.add_argument(
+        "--no-wrapper-preprocess",
+        action="store_true",
+        help="Disable ts_locals_to_wrappers preprocessing for TS benchmarks",
     )
     args = parser.parse_args()
 
@@ -170,6 +238,7 @@ def main() -> int:
     tmp_dir = root / "tmp" / "bench"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     run_id = time.strftime("%Y%m%d-%H%M%S")
+    result_log = tmp_dir / "bench-results.jsonl"
 
     suite_report = {
         "run_id": run_id,
@@ -181,8 +250,10 @@ def main() -> int:
         per_file_override = overrides.get(bench_file.name, {})
         cfg = merge_config(defaults, per_file_override)
         cfg["metadata_dir"] = str(metadata_dir)
+        use_wrapper_preprocess = bool(cfg.get("preprocess_ts_locals_wrappers", True)) and (not args.no_wrapper_preprocess)
 
-        file_hash = sha256_file(bench_file)
+        bench_js, generated = prepare_bench(root, bench_file, metadata_dir, tmp_dir, use_wrapper_preprocess)
+        file_hash = sha256_file(bench_js)
         metadata_file = metadata_dir / f"{file_hash}.metadata"
         require_metadata = bool(cfg.get("require_metadata", True))
         if require_metadata and not metadata_file.exists():
@@ -191,8 +262,8 @@ def main() -> int:
         print(f"\n== Benchmark: {bench_file.name} ==")
         print(f"Metadata: {metadata_file}")
 
-        without_path, without_data = run_mode(root, bench_file, d8, cfg, with_metadata=False)
-        with_path, with_data = run_mode(root, bench_file, d8, cfg, with_metadata=True)
+        without_path, without_data = run_mode(root, bench_js, d8, cfg, with_metadata=False)
+        with_path, with_data = run_mode(root, bench_js, d8, cfg, with_metadata=True)
 
         events = [e.strip() for e in str(cfg.get("perf_events", "cycles")).split(",") if e.strip()]
         compare = {}
@@ -216,9 +287,24 @@ def main() -> int:
                 f"  {event}: without={base} (cv={base_cv}) with={opt} (cv={opt_cv}) improvement={improvement:.2f}%"
             )
 
+        append_result_log(
+            result_log,
+            {
+                "run_id": run_id,
+                "bench": str(bench_file),
+                "bench_js": str(bench_js),
+                "hash": file_hash,
+                "metadata": str(metadata_file),
+                "comparison": compare,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            },
+        )
+
         suite_report["results"].append(
             {
                 "bench": str(bench_file),
+                "bench_js": str(bench_js),
+                "generated_js": generated,
                 "hash": file_hash,
                 "metadata": str(metadata_file),
                 "without_metadata_result": str(without_path),
