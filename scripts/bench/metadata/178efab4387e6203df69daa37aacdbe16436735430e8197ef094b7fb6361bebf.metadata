@@ -5,7 +5,7 @@
 # Provenance-TS-Source: scripts/bench/benchmarks/splay-tree.ts
 # Provenance-TS-SHA256: b229fe174ddcbb4da94a947f33f5cc2bc45038cbdcb81e94223fdc16ef85f67f
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-03-31T14:51:21.011Z
+# Provenance-Generated-At: 2026-03-31T18:14:25.513Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 2

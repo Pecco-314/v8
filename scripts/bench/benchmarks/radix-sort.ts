@@ -10,7 +10,7 @@ function setup(): void {
   data = new Array(SIZE);
   let value: rawuint32 = 1;
   for (let i = 0; i < SIZE; i++) {
-    value = (value * 1664525 + 1013904223) >>> 0;
+    value = value * 1664525 + 1013904223;
     data[i] = value;
   }
 }
@@ -23,18 +23,18 @@ function radixSort(arr: rawuint32[]): rawuint32[] {
     count.fill(0);
     for (let i = 0; i < arr.length; i++) {
       const bucket: rawuint32 = (arr[i] >>> shift) & 255;
-      count[bucket] = (count[bucket] + 1) >>> 0;
+      count[bucket] = count[bucket] + 1;
     }
     let sum: rawuint32 = 0;
     for (let i = 0; i < 256; i++) {
       const c: rawuint32 = count[i];
       count[i] = sum;
-      sum = (sum + c) >>> 0;
+      sum = sum + c;
     }
     for (let i = 0; i < arr.length; i++) {
       const bucket: rawuint32 = (arr[i] >>> shift) & 255;
       output[count[bucket]] = arr[i];
-      count[bucket] = (count[bucket] + 1) >>> 0;
+      count[bucket] = count[bucket] + 1;
     }
     for (let i = 0; i < arr.length; i++) {
       arr[i] = output[i];
@@ -47,7 +47,7 @@ function radixSort(arr: rawuint32[]): rawuint32[] {
 function bench(): rawuint32 {
   const copy = data.slice();
   const sorted = radixSort(copy);
-  return (sorted[0] ^ sorted[sorted.length - 1]) >>> 0;
+  return sorted[0] ^ sorted[sorted.length - 1];
 }
 
 function teardown(): void {

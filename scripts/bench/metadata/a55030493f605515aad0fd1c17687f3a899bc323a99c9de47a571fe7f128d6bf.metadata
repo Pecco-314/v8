@@ -5,7 +5,7 @@
 # Provenance-TS-Source: scripts/bench/benchmarks/richards.ts
 # Provenance-TS-SHA256: 968a41101929c878f392a76c2b1af02ef12ee0b9a86385be82338334bed93628
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-03-31T14:51:17.405Z
+# Provenance-Generated-At: 2026-03-31T18:14:20.014Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0

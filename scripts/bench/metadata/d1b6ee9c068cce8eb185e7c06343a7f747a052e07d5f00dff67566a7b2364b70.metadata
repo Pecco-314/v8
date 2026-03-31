@@ -5,7 +5,7 @@
 # Provenance-TS-Source: scripts/bench/benchmarks/json-parser.ts
 # Provenance-TS-SHA256: 265db7670aa1bfb258301dbe35ad3ac91bb1723be922cf582f0546e5277d98a5
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-03-31T14:50:58.311Z
+# Provenance-Generated-At: 2026-03-31T18:13:49.454Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 1

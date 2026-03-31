@@ -5,7 +5,7 @@
 # Provenance-TS-Source: scripts/bench/benchmarks/lz77-compression.ts
 # Provenance-TS-SHA256: 4a4fd92fbfd547895109f740dbe7b9faa903e7da56ac23d3e006fb9c55895349
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-03-31T14:51:02.519Z
+# Provenance-Generated-At: 2026-03-31T18:13:55.050Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0
