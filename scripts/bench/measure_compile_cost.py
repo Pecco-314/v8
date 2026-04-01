@@ -271,6 +271,18 @@ def run_single(command: list[str], root: Path, mode: str, pair_id: int, order_in
     }
 
 
+def format_sec(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:.6f}s"
+
+
+def format_percent(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:.3f}%"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Measure compile overhead with/without metadata")
     parser.add_argument("--bench", help="Single benchmark path")
@@ -431,6 +443,19 @@ def main() -> int:
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
         results.append(record)
+        print(
+            " | ".join(
+                [
+                    f"bench={bench_file.name}",
+                    f"without_median={format_sec(without_summary['median_sec'])}",
+                    f"with_median={format_sec(with_summary['median_sec'])}",
+                    f"delta={format_sec(delta_sec)} ({format_percent(delta_percent)})",
+                    f"class={pair_classification.get('label', 'unknown')}",
+                    f"paired_n={pair_summary.get('paired_count', 0)}",
+                    f"status={record['status']}",
+                ]
+            )
+        )
         with jsonl_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
