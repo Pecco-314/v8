@@ -14,6 +14,26 @@ namespace v8::internal::compiler {
 
 namespace {
 
+TypeAST::TypeKind RawIntKindToTypeKind(
+    RawInt32StrengthReduction::RawIntKind kind) {
+  switch (kind) {
+    case RawInt32StrengthReduction::RawIntKind::kInt32:
+      return TypeAST::RawInt32;
+    case RawInt32StrengthReduction::RawIntKind::kUint32:
+      return TypeAST::RawUint32;
+    case RawInt32StrengthReduction::RawIntKind::kInt64:
+      return TypeAST::RawInt64;
+    case RawInt32StrengthReduction::RawIntKind::kUint64:
+      return TypeAST::RawUint64;
+  }
+}
+
+TypeAST MakeRawIntAst(RawInt32StrengthReduction::RawIntKind kind) {
+  TypeAST ast;
+  ast.kind = RawIntKindToTypeKind(kind);
+  return ast;
+}
+
 Node* Int32Add(TFGraph* graph, MachineOperatorBuilder* machine, Node* lhs,
                Node* rhs) {
   return graph->NewNode(machine->Int32Add(), lhs, rhs);
@@ -381,17 +401,18 @@ bool IsMachineWord64Like(Node* node) {
 
 }  // namespace
 
-void RawInt32StrengthReduction::ReduceCheckedBinop(
+bool RawInt32StrengthReduction::ReduceCheckedBinop(
     Node* node, const Operator* replacement_op, RawIntKind kind) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
   if (!IsTypeOrLiteralCompatible(left, kind) ||
       !IsTypeOrLiteralCompatible(right, kind)) {
-    return;
+    return false;
   }
 
   Node* effect_input = NodeProperties::GetEffectInput(node);
   Node* replacement = graph_->NewNode(replacement_op, left, right);
+  AnnotateNode(replacement, MakeRawIntAst(kind));
 
   ZoneVector<std::pair<Node*, int>> value_edges(graph_->zone());
   ZoneVector<std::pair<Node*, int>> effect_edges(graph_->zone());
@@ -414,9 +435,10 @@ void RawInt32StrengthReduction::ReduceCheckedBinop(
   }
 
   node->Kill();
+  return true;
 }
 
-void RawInt32StrengthReduction::ReduceCheckedInt64DivOrMod(Node* node,
+bool RawInt32StrengthReduction::ReduceCheckedInt64DivOrMod(Node* node,
                                                             bool is_div) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
@@ -426,7 +448,8 @@ void RawInt32StrengthReduction::ReduceCheckedInt64DivOrMod(Node* node,
     NodeProperties::ChangeOp(node,
                              is_div ? machine_->Uint64Div()
                                     : machine_->Uint64Mod());
-    return;
+    AnnotateNode(node, MakeRawIntAst(RawIntKind::kUint64));
+    return true;
   }
 
   if (IsTypeOrLiteralCompatible(left, RawIntKind::kInt64) &&
@@ -434,7 +457,11 @@ void RawInt32StrengthReduction::ReduceCheckedInt64DivOrMod(Node* node,
     NodeProperties::ChangeOp(node,
                              is_div ? machine_->Int64Div()
                                     : machine_->Int64Mod());
+    AnnotateNode(node, MakeRawIntAst(RawIntKind::kInt64));
+    return true;
   }
+
+  return false;
 }
 
 void ReplaceCheckedWithValue(TFGraph* graph, Node* node, Node* replacement) {
@@ -461,38 +488,42 @@ void ReplaceCheckedWithValue(TFGraph* graph, Node* node, Node* replacement) {
   node->Kill();
 }
 
-void RawInt32StrengthReduction::ReduceCheckedInt32DivOrModClosed(Node* node,
+bool RawInt32StrengthReduction::ReduceCheckedInt32DivOrModClosed(Node* node,
                                                                   bool is_div) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
   Node* control = NodeProperties::GetControlInput(node);
   if (!IsTypeOrLiteralCompatible(left, RawIntKind::kInt32) ||
       !IsTypeOrLiteralCompatible(right, RawIntKind::kInt32)) {
-    return;
+    return false;
   }
   Node* replacement =
       is_div ? BuildInt32VarDivClosed(graph_, machine_, common_, left, right,
                                       control)
              : BuildInt32VarModClosed(graph_, machine_, common_, left, right,
                                       control);
+  AnnotateNode(replacement, MakeRawIntAst(RawIntKind::kInt32));
   ReplaceCheckedWithValue(graph_, node, replacement);
+  return true;
 }
 
-void RawInt32StrengthReduction::ReduceCheckedUint32DivOrModClosed(Node* node,
+bool RawInt32StrengthReduction::ReduceCheckedUint32DivOrModClosed(Node* node,
                                                                    bool is_div) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
   Node* control = NodeProperties::GetControlInput(node);
   if (!IsTypeOrLiteralCompatible(left, RawIntKind::kUint32) ||
       !IsTypeOrLiteralCompatible(right, RawIntKind::kUint32)) {
-    return;
+    return false;
   }
   Node* replacement =
       is_div ? BuildUint32VarDivClosed(graph_, machine_, common_, left, right,
                                        control)
              : BuildUint32VarModClosed(graph_, machine_, common_, left, right,
                                        control);
+  AnnotateNode(replacement, MakeRawIntAst(RawIntKind::kUint32));
   ReplaceCheckedWithValue(graph_, node, replacement);
+  return true;
 }
 
 void RawInt32StrengthReduction::MaybeChangeCheckedDivModOp(
@@ -506,26 +537,28 @@ void RawInt32StrengthReduction::MaybeChangeCheckedDivModOp(
   NodeProperties::ChangeOp(node, replacement_op);
 }
 
-void RawInt32StrengthReduction::ReduceRawFloat64DivOrMod(Node* node,
-                                                          bool is_div) {
+bool RawInt32StrengthReduction::ReduceRawFloat64DivOrMod(Node* node,
+                                                         bool is_div) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
   Node* left_unwrapped = UnwrapConstantNode(left);
   Node* right_unwrapped = UnwrapConstantNode(right);
-  if (left_unwrapped == nullptr || right_unwrapped == nullptr) return;
+  if (left_unwrapped == nullptr || right_unwrapped == nullptr) return false;
 
   int64_t rhs = 0;
-  if (!TryGetFloat64IntegralConstant(right, &rhs)) return;
+  if (!TryGetFloat64IntegralConstant(right, &rhs)) return false;
 
   if (IsRawTyped(left_unwrapped, RawIntKind::kInt32) &&
       rhs >= std::numeric_limits<int32_t>::min() &&
       rhs <= std::numeric_limits<int32_t>::max()) {
     int32_t rhs_i32_value = static_cast<int32_t>(rhs);
     if (rhs_i32_value == 0) {
-      return;
+      return false;
     }
-    if (is_div && rhs_i32_value == std::numeric_limits<int32_t>::min()) return;
+    if (is_div && rhs_i32_value == std::numeric_limits<int32_t>::min()) {
+      return false;
+    }
 
     Node* lhs_i32 = graph_->NewNode(machine_->ChangeFloat64ToInt32(), left);
     Node* result_i32 = nullptr;
@@ -543,14 +576,14 @@ void RawInt32StrengthReduction::ReduceRawFloat64DivOrMod(Node* node,
     Node* replacement = graph_->NewNode(machine_->ChangeInt32ToFloat64(), result_i32);
 
     ReplaceValueUsesAndKill(graph_, node, replacement);
-    return;
+    return true;
   }
 
   if (IsRawTyped(left_unwrapped, RawIntKind::kUint32) && rhs >= 0 &&
       static_cast<uint64_t>(rhs) <= std::numeric_limits<uint32_t>::max()) {
     uint32_t rhs_u32_value = static_cast<uint32_t>(rhs);
     if (rhs_u32_value == 0) {
-      return;
+      return false;
     }
 
     Node* lhs_u32 = graph_->NewNode(machine_->ChangeFloat64ToUint32(), left);
@@ -570,103 +603,130 @@ void RawInt32StrengthReduction::ReduceRawFloat64DivOrMod(Node* node,
     Node* replacement = graph_->NewNode(machine_->ChangeUint32ToFloat64(), result_u32);
 
     ReplaceValueUsesAndKill(graph_, node, replacement);
+    return true;
   }
+
+  return false;
 }
 
 void RawInt32StrengthReduction::Run() {
   EnsureMetadataLoaded();
 
-  AllNodes all(graph_->zone(), graph_);
-  for (Node* node : all.reachable) {
-    switch (node->opcode()) {
-      case IrOpcode::kCheckedInt32Add:
-        ReduceCheckedBinop(node, machine_->Int32Add(), RawIntKind::kInt32);
-        break;
-      case IrOpcode::kCheckedInt32Sub:
-        ReduceCheckedBinop(node, machine_->Int32Sub(), RawIntKind::kInt32);
-        break;
-      case IrOpcode::kCheckedInt32Mul:
-        ReduceCheckedBinop(node, machine_->Int32Mul(), RawIntKind::kInt32);
-        break;
-      case IrOpcode::kCheckedInt32Div:
-        ReduceCheckedInt32DivOrModClosed(node, true);
-        break;
-      case IrOpcode::kCheckedInt32Mod:
-        ReduceCheckedInt32DivOrModClosed(node, false);
-        break;
-      case IrOpcode::kCheckedUint32Div:
-        ReduceCheckedUint32DivOrModClosed(node, true);
-        break;
-      case IrOpcode::kCheckedUint32Mod:
-        ReduceCheckedUint32DivOrModClosed(node, false);
-        break;
-      case IrOpcode::kCheckedInt64Add:
-        if (IsMachineWord64Like(node->InputAt(0)) &&
-            IsMachineWord64Like(node->InputAt(1)) &&
-            IsTypeOrLiteralCompatible(node->InputAt(0), RawIntKind::kInt64) &&
-            IsTypeOrLiteralCompatible(node->InputAt(1), RawIntKind::kInt64)) {
-          ReduceCheckedBinop(node, machine_->Int64Add(), RawIntKind::kInt64);
-        } else if (IsMachineWord64Like(node->InputAt(0)) &&
-                   IsMachineWord64Like(node->InputAt(1)) &&
-                   IsTypeOrLiteralCompatible(node->InputAt(0),
-                                             RawIntKind::kUint64) &&
-                   IsTypeOrLiteralCompatible(node->InputAt(1),
-                                             RawIntKind::kUint64)) {
-          ReduceCheckedBinop(node, machine_->Int64Add(), RawIntKind::kUint64);
-        }
-        break;
-      case IrOpcode::kCheckedInt64Sub:
-        if (IsMachineWord64Like(node->InputAt(0)) &&
-            IsMachineWord64Like(node->InputAt(1)) &&
-            IsTypeOrLiteralCompatible(node->InputAt(0), RawIntKind::kInt64) &&
-            IsTypeOrLiteralCompatible(node->InputAt(1), RawIntKind::kInt64)) {
-          ReduceCheckedBinop(node, machine_->Int64Sub(), RawIntKind::kInt64);
-        } else if (IsMachineWord64Like(node->InputAt(0)) &&
-                   IsMachineWord64Like(node->InputAt(1)) &&
-                   IsTypeOrLiteralCompatible(node->InputAt(0),
-                                             RawIntKind::kUint64) &&
-                   IsTypeOrLiteralCompatible(node->InputAt(1),
-                                             RawIntKind::kUint64)) {
-          ReduceCheckedBinop(node, machine_->Int64Sub(), RawIntKind::kUint64);
-        }
-        break;
-      case IrOpcode::kCheckedInt64Mul:
-        if (IsMachineWord64Like(node->InputAt(0)) &&
-            IsMachineWord64Like(node->InputAt(1)) &&
-            IsTypeOrLiteralCompatible(node->InputAt(0), RawIntKind::kInt64) &&
-            IsTypeOrLiteralCompatible(node->InputAt(1), RawIntKind::kInt64)) {
-          ReduceCheckedBinop(node, machine_->Int64Mul(), RawIntKind::kInt64);
-        } else if (IsMachineWord64Like(node->InputAt(0)) &&
-                   IsMachineWord64Like(node->InputAt(1)) &&
-                   IsTypeOrLiteralCompatible(node->InputAt(0),
-                                             RawIntKind::kUint64) &&
-                   IsTypeOrLiteralCompatible(node->InputAt(1),
-                                             RawIntKind::kUint64)) {
-          ReduceCheckedBinop(node, machine_->Int64Mul(), RawIntKind::kUint64);
-        }
-        break;
-      case IrOpcode::kCheckedInt64Div:
-        ReduceCheckedInt64DivOrMod(node, true);
-        break;
-      case IrOpcode::kCheckedInt64Mod:
-        ReduceCheckedInt64DivOrMod(node, false);
-        break;
-      default:
-        break;
-    }
-  }
+  // Use multiple rounds because newly reduced machine nodes can unlock
+  // additional checked nodes in the same graph.
+  constexpr int kMaxRounds = 4;
+  for (int round = 0; round < kMaxRounds; ++round) {
+    bool changed = false;
+    AllNodes all(graph_->zone(), graph_);
 
-  for (Node* node : all.reachable) {
-    switch (node->opcode()) {
-      case IrOpcode::kFloat64Div:
-        ReduceRawFloat64DivOrMod(node, true);
-        break;
-      case IrOpcode::kFloat64Mod:
-        ReduceRawFloat64DivOrMod(node, false);
-        break;
-      default:
-        break;
+    for (Node* node : all.reachable) {
+      switch (node->opcode()) {
+        case IrOpcode::kCheckedInt32Add:
+          changed |= ReduceCheckedBinop(node, machine_->Int32Add(),
+                                        RawIntKind::kInt32);
+          break;
+        case IrOpcode::kCheckedInt32Sub:
+          changed |= ReduceCheckedBinop(node, machine_->Int32Sub(),
+                                        RawIntKind::kInt32);
+          break;
+        case IrOpcode::kCheckedInt32Mul:
+          changed |= ReduceCheckedBinop(node, machine_->Int32Mul(),
+                                        RawIntKind::kInt32);
+          break;
+        case IrOpcode::kCheckedInt32Div:
+          changed |= ReduceCheckedInt32DivOrModClosed(node, true);
+          break;
+        case IrOpcode::kCheckedInt32Mod:
+          changed |= ReduceCheckedInt32DivOrModClosed(node, false);
+          break;
+        case IrOpcode::kCheckedUint32Div:
+          changed |= ReduceCheckedUint32DivOrModClosed(node, true);
+          break;
+        case IrOpcode::kCheckedUint32Mod:
+          changed |= ReduceCheckedUint32DivOrModClosed(node, false);
+          break;
+        case IrOpcode::kCheckedInt64Add:
+          if (IsMachineWord64Like(node->InputAt(0)) &&
+              IsMachineWord64Like(node->InputAt(1)) &&
+              IsTypeOrLiteralCompatible(node->InputAt(0),
+                                        RawIntKind::kInt64) &&
+              IsTypeOrLiteralCompatible(node->InputAt(1),
+                                        RawIntKind::kInt64)) {
+            changed |= ReduceCheckedBinop(node, machine_->Int64Add(),
+                                          RawIntKind::kInt64);
+          } else if (IsMachineWord64Like(node->InputAt(0)) &&
+                     IsMachineWord64Like(node->InputAt(1)) &&
+                     IsTypeOrLiteralCompatible(node->InputAt(0),
+                                               RawIntKind::kUint64) &&
+                     IsTypeOrLiteralCompatible(node->InputAt(1),
+                                               RawIntKind::kUint64)) {
+            changed |= ReduceCheckedBinop(node, machine_->Int64Add(),
+                                          RawIntKind::kUint64);
+          }
+          break;
+        case IrOpcode::kCheckedInt64Sub:
+          if (IsMachineWord64Like(node->InputAt(0)) &&
+              IsMachineWord64Like(node->InputAt(1)) &&
+              IsTypeOrLiteralCompatible(node->InputAt(0),
+                                        RawIntKind::kInt64) &&
+              IsTypeOrLiteralCompatible(node->InputAt(1),
+                                        RawIntKind::kInt64)) {
+            changed |= ReduceCheckedBinop(node, machine_->Int64Sub(),
+                                          RawIntKind::kInt64);
+          } else if (IsMachineWord64Like(node->InputAt(0)) &&
+                     IsMachineWord64Like(node->InputAt(1)) &&
+                     IsTypeOrLiteralCompatible(node->InputAt(0),
+                                               RawIntKind::kUint64) &&
+                     IsTypeOrLiteralCompatible(node->InputAt(1),
+                                               RawIntKind::kUint64)) {
+            changed |= ReduceCheckedBinop(node, machine_->Int64Sub(),
+                                          RawIntKind::kUint64);
+          }
+          break;
+        case IrOpcode::kCheckedInt64Mul:
+          if (IsMachineWord64Like(node->InputAt(0)) &&
+              IsMachineWord64Like(node->InputAt(1)) &&
+              IsTypeOrLiteralCompatible(node->InputAt(0),
+                                        RawIntKind::kInt64) &&
+              IsTypeOrLiteralCompatible(node->InputAt(1),
+                                        RawIntKind::kInt64)) {
+            changed |= ReduceCheckedBinop(node, machine_->Int64Mul(),
+                                          RawIntKind::kInt64);
+          } else if (IsMachineWord64Like(node->InputAt(0)) &&
+                     IsMachineWord64Like(node->InputAt(1)) &&
+                     IsTypeOrLiteralCompatible(node->InputAt(0),
+                                               RawIntKind::kUint64) &&
+                     IsTypeOrLiteralCompatible(node->InputAt(1),
+                                               RawIntKind::kUint64)) {
+            changed |= ReduceCheckedBinop(node, machine_->Int64Mul(),
+                                          RawIntKind::kUint64);
+          }
+          break;
+        case IrOpcode::kCheckedInt64Div:
+          changed |= ReduceCheckedInt64DivOrMod(node, true);
+          break;
+        case IrOpcode::kCheckedInt64Mod:
+          changed |= ReduceCheckedInt64DivOrMod(node, false);
+          break;
+        default:
+          break;
+      }
     }
+
+    for (Node* node : all.reachable) {
+      switch (node->opcode()) {
+        case IrOpcode::kFloat64Div:
+          changed |= ReduceRawFloat64DivOrMod(node, true);
+          break;
+        case IrOpcode::kFloat64Mod:
+          changed |= ReduceRawFloat64DivOrMod(node, false);
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (!changed) break;
   }
 }
 

@@ -236,7 +236,17 @@ function collectNamedTypeNodes(sf) {
 	const namedTypeNodes = new Map();
 	sf.forEachChild((node) => {
 		if ((ts.isInterfaceDeclaration(node) || ts.isClassDeclaration(node)) && node.name) {
-			namedTypeNodes.set(node.name.text, node.members);
+			namedTypeNodes.set(node.name.text, {
+				kind: 'members',
+				members: node.members,
+			});
+		}
+
+		if (ts.isTypeAliasDeclaration(node) && node.name) {
+			namedTypeNodes.set(node.name.text, {
+				kind: 'type',
+				typeNode: node.type,
+			});
 		}
 	});
 	return namedTypeNodes;
@@ -287,13 +297,19 @@ function mapTsType(typeNode, ctx = {}, stack = new Set()) {
 			if (lower === 'rawuint32') return 'rawuint32';
 			if (lower === 'rawint64') return 'rawint64';
 			if (lower === 'rawuint64') return 'rawuint64';
-			const members = ctx.namedTypeNodes?.get(name);
-			if (members) {
+			const namedType = ctx.namedTypeNodes?.get(name);
+			if (namedType) {
 				if (stack.has(name)) return 'any'; // 防止递归引用死循环
 				stack.add(name);
-				const parts = mapObjectMembers(members, ctx, stack);
+				let resolved = 'any';
+				if (namedType.kind === 'members') {
+					const parts = mapObjectMembers(namedType.members, ctx, stack);
+					if (parts.length > 0) resolved = `obj{${parts.join(',')}}`;
+				} else if (namedType.kind === 'type') {
+					resolved = mapTsType(namedType.typeNode, ctx, stack);
+				}
 				stack.delete(name);
-				if (parts.length > 0) return `obj{${parts.join(',')}}`;
+				return resolved;
 			}
 			return 'any';
 		}

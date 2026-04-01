@@ -37,14 +37,14 @@ class RawInt32StrengthReduction : private MetadataTypeHelper {
   bool IsLiteralCompatible(Node* node, RawIntKind kind);
   bool IsTypeOrLiteralCompatible(Node* node, RawIntKind kind);
 
-  void ReduceCheckedBinop(Node* node, const Operator* replacement_op,
+  bool ReduceCheckedBinop(Node* node, const Operator* replacement_op,
                           RawIntKind kind);
-  void ReduceCheckedInt32DivOrModClosed(Node* node, bool is_div);
-  void ReduceCheckedUint32DivOrModClosed(Node* node, bool is_div);
-  void ReduceCheckedInt64DivOrMod(Node* node, bool is_div);
+  bool ReduceCheckedInt32DivOrModClosed(Node* node, bool is_div);
+  bool ReduceCheckedUint32DivOrModClosed(Node* node, bool is_div);
+  bool ReduceCheckedInt64DivOrMod(Node* node, bool is_div);
   void MaybeChangeCheckedDivModOp(Node* node, const Operator* replacement_op,
                                   RawIntKind kind);
-  void ReduceRawFloat64DivOrMod(Node* node, bool is_div);
+  bool ReduceRawFloat64DivOrMod(Node* node, bool is_div);
 
   MachineOperatorBuilder* machine_;
 };

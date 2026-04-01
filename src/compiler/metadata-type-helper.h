@@ -29,6 +29,10 @@ class MetadataTypeHelper {
   const TypeAST* StoreOwnedTypeAST(const TypeAST& ast);
   void SetNodeType(Node* node, const TypeAST* type_ast);
   const TypeAST* GetNodeType(Node* node) const;
+  bool IsRawProofType(const TypeAST& ast) const;
+  bool ShouldSetTurboFanType(const TypeAST& ast) const;
+  void AnnotateNode(Node* node, const TypeAST* type_ast);
+  void AnnotateNode(Node* node, const TypeAST& ast);
 
   Type TypeASTToType(const TypeAST& ast);
   std::optional<TypeAST> FindFieldInObj(const TypeAST& obj_ast,

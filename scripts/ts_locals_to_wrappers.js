@@ -103,6 +103,7 @@ function transformFile(sourceFile, checker) {
 	let wrapperCounter = 0;
 	let transformedCount = 0;
 	const transformedLocals = [];
+	const fileLevelHelpers = [];
 
 	const transformer = (context) => {
 		const factory = context.factory;
@@ -118,7 +119,6 @@ function transformFile(sourceFile, checker) {
 						continue;
 					}
 
-					const helperDecls = [];
 					let changed = false;
 					const newDecls = statement.declarationList.declarations.map((decl) => {
 						if (!ts.isIdentifier(decl.name) || !decl.initializer) {
@@ -152,7 +152,7 @@ function transformFile(sourceFile, checker) {
 							wrapper: wrapperName,
 						});
 
-						helperDecls.push(
+						fileLevelHelpers.push(
 							factory.createFunctionDeclaration(
 								undefined,
 								undefined,
@@ -170,7 +170,16 @@ function transformFile(sourceFile, checker) {
 								],
 								returnTypeNode,
 								factory.createBlock(
-									[factory.createReturnStatement(factory.createIdentifier('__value'))],
+									[
+										factory.createTryStatement(
+											factory.createBlock(
+												[factory.createReturnStatement(factory.createIdentifier('__value'))],
+												true
+											),
+											undefined,
+											factory.createBlock([], true)
+										),
+									],
 									true
 								)
 							)
@@ -197,7 +206,7 @@ function transformFile(sourceFile, checker) {
 
 					const newDeclList = factory.updateVariableDeclarationList(statement.declarationList, newDecls);
 					const newVarStmt = factory.updateVariableStatement(statement, statement.modifiers, newDeclList);
-					newStatements.push(...helperDecls, newVarStmt);
+					newStatements.push(newVarStmt);
 				}
 				return factory.updateBlock(node, newStatements);
 			}
@@ -205,7 +214,16 @@ function transformFile(sourceFile, checker) {
 			return ts.visitEachChild(node, (child) => visit(child, childInFunctionBody), context);
 		}
 
-		return (node) => visit(node, false);
+		return (node) => {
+			const visited = visit(node, false);
+			if (ts.isSourceFile(visited) && fileLevelHelpers.length > 0) {
+				return factory.updateSourceFile(visited, [
+					...fileLevelHelpers,
+					...visited.statements,
+				]);
+			}
+			return visited;
+		};
 	};
 
 	const result = ts.transform(sourceFile, [transformer]);

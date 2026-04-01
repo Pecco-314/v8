@@ -40,6 +40,28 @@ const TypeAST* MetadataTypeHelper::GetNodeType(Node* node) const {
   return context_.GetNodeType(node);
 }
 
+bool MetadataTypeHelper::IsRawProofType(const TypeAST& ast) const {
+  return ast.kind == TypeAST::RawInt32 || ast.kind == TypeAST::RawUint32 ||
+         ast.kind == TypeAST::RawInt64 || ast.kind == TypeAST::RawUint64;
+}
+
+bool MetadataTypeHelper::ShouldSetTurboFanType(const TypeAST& ast) const {
+  return !IsRawProofType(ast);
+}
+
+void MetadataTypeHelper::AnnotateNode(Node* node, const TypeAST* type_ast) {
+  if (node == nullptr || type_ast == nullptr) return;
+  SetNodeType(node, type_ast);
+  if (ShouldSetTurboFanType(*type_ast)) {
+    NodeProperties::SetType(node, TypeASTToType(*type_ast));
+  }
+}
+
+void MetadataTypeHelper::AnnotateNode(Node* node, const TypeAST& ast) {
+  const TypeAST* stored = StoreOwnedTypeAST(ast);
+  AnnotateNode(node, stored);
+}
+
 Type MetadataTypeHelper::TypeASTToType(const TypeAST& ast) {
   switch (ast.kind) {
     case TypeAST::Num:
@@ -53,11 +75,11 @@ Type MetadataTypeHelper::TypeASTToType(const TypeAST& ast) {
     case TypeAST::RawInt32:
       return Type::Any();
     case TypeAST::RawUint32:
-      return Type::Unsigned32();
+      return Type::Any();
     case TypeAST::RawInt64:
-      return Type::SignedBigInt64();
+      return Type::Any();
     case TypeAST::RawUint64:
-      return Type::UnsignedBigInt64();
+      return Type::Any();
     case TypeAST::BigInt:
       return Type::BigInt();
     case TypeAST::Arr:

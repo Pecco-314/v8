@@ -11,6 +11,77 @@ import re
 from pathlib import Path
 
 
+NON_FUNCTION_KEYWORDS = {
+    'if', 'else', 'for', 'while', 'switch', 'case', 'default',
+    'return', 'throw', 'try', 'catch', 'finally', 'do', 'break', 'continue'
+}
+
+
+def extract_declared_function_names(source_text):
+    """提取源码中声明的业务函数名（支持多种写法）"""
+    names = set()
+
+    patterns = [
+        r'(?:^|\n)\s*function\s+([A-Za-z_$][\w$]*)\s*\(',
+        r'(?:^|\n)\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*function\b',
+        r'(?:^|\n)\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?\([^\)]*\)\s*=>',
+        r'(?:^|\n)\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*=>',
+    ]
+
+    for pattern in patterns:
+        for match in re.finditer(pattern, source_text, re.MULTILINE):
+            name = match.group(1)
+            if name:
+                names.add(name)
+
+    class_method_pattern = r'^[ \t]*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^\)]*\)\s*\{'
+    class_block_pattern = r'class\s+[A-Za-z_$][\w$]*\s*\{([\s\S]*?)\n\}'
+    for class_block in re.finditer(class_block_pattern, source_text, re.MULTILINE):
+        body = class_block.group(1)
+        for method in re.finditer(class_method_pattern, body, re.MULTILINE):
+            method_name = method.group(1)
+            if method_name and method_name not in {'constructor'} and method_name not in NON_FUNCTION_KEYWORDS:
+                names.add(method_name)
+
+    return names
+
+
+def extract_function_positions_from_source(source_text):
+    """从源码文本直接提取函数位置，作为 d8 AST 解析失败时的回退。"""
+    positions = []
+
+    patterns = [
+        r'function\s+([A-Za-z_$][\w$]*)\s*\(',
+        r'(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*function\b',
+        r'(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?\([^\)]*\)\s*=>',
+        r'(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*=>',
+    ]
+
+    for pattern in patterns:
+        for match in re.finditer(pattern, source_text, re.MULTILINE):
+            name = match.group(1)
+            if name:
+                positions.append((name, match.start(1)))
+
+    class_block_pattern = r'class\s+[A-Za-z_$][\w$]*\s*\{([\s\S]*?)\n\}'
+    class_method_pattern = r'^[ \t]*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^\)]*\)\s*\{'
+    for class_block in re.finditer(class_block_pattern, source_text, re.MULTILINE):
+        body = class_block.group(1)
+        body_offset = class_block.start(1)
+        for method in re.finditer(class_method_pattern, body, re.MULTILINE):
+            method_name = method.group(1)
+            if method_name and method_name not in {'constructor'} and method_name not in NON_FUNCTION_KEYWORDS:
+                positions.append((method_name, body_offset + method.start(1)))
+
+    seen = set()
+    deduped = []
+    for item in sorted(positions, key=lambda x: x[1]):
+        if item not in seen:
+            seen.add(item)
+            deduped.append(item)
+    return deduped
+
+
 def get_file_hash(file_path):
     """计算文件的 SHA256 哈希"""
     result = subprocess.run(['sha256sum', file_path], capture_output=True, text=True)
@@ -47,15 +118,7 @@ def get_function_positions(file_path, d8_path="out.gn/x64.debug/d8"):
         with open(abs_test_path, 'r') as f:
             test_content = f.read()
         
-        # 使用正则提取测试文件中声明的所有函数名
-        import re
-        # 匹配 function name(...) 或 const/let/var name = function(...)
-        func_pattern = r'(?:^|\n)\s*(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*function)'
-        test_functions = set()
-        for match in re.finditer(func_pattern, test_content, re.MULTILINE):
-            func_name = match.group(1) or match.group(2)
-            if func_name:
-                test_functions.add(func_name)
+        test_functions = extract_declared_function_names(test_content)
         
         # 构建 harness
         with open(harness_path, 'w') as f:
@@ -102,14 +165,22 @@ def get_function_positions(file_path, d8_path="out.gn/x64.debug/d8"):
                     func_name = name_match.group(1)
                     break
             
-            if func_name and func_name:  # 忽略空名称
+            if func_name:  # 忽略空名称
                 # 只保留在测试文件中实际声明的函数
                 if func_name in test_functions:
                     functions.append((func_name, position))
         
         i += 1
     
-    return functions
+    parsed = sorted(set(functions), key=lambda item: item[1])
+    if parsed:
+        return parsed
+
+    # d8 AST 在不同版本上格式可能差异较大；回退到源码解析避免误报“未找到函数”。
+    with open(file_path, 'r') as f:
+        source_text = f.read()
+    fallback = extract_function_positions_from_source(source_text)
+    return fallback
 
 
 def main():

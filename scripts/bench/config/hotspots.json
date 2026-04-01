@@ -37,7 +37,12 @@
   },
   "dijkstra-routing": {
     "function": "dijkstra",
-    "invoke_expr": "dijkstra(0)"
+    "invoke_expr": "dijkstra(0)",
+    "warmup_calls": 8,
+    "prewarm_exprs": [
+      "dijkstra(0)",
+      "dijkstra(1)"
+    ]
   },
   "richards": {
     "function": "runScheduler",

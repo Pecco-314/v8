@@ -3,9 +3,9 @@
 # Provenance-Generator: ts_to_metadata.js
 # Provenance-Generator-SHA256: b08a287a1319bc1e8ad7935882ce7229395b725f064fbc3128322bbf4b36695e
 # Provenance-TS-Source: tmp/bench/preprocessed/splay-tree.locals.ts
-# Provenance-TS-SHA256: 1a8878f25934c163ef8ace6d55fcc13f333670177f2dca70647e1594cee13de3
+# Provenance-TS-SHA256: 9fc5d426a923993db297d5009550c1f4bca916731cd74381a3dc82689dfb8d9c
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-04-01T08:26:52.668Z
+# Provenance-Generated-At: 2026-04-01T14:43:11.084Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 2
@@ -14,7 +14,7 @@
 # Unsafe-As-Functions: rotateRight,rotateLeft
 # Unsafe-TsIgnore-Functions: 
 # Source: tmp/bench/tsc/splay-tree.locals.js
-# JS SHA256: 9a46947787c94e3ee1c8c22c9190ff45e59cbb784668ed915c1b7a4d0da6bd4f
+# JS SHA256: 3d4c9df882d6369aa0c00a168d186176a2fe96d3b0fc29f31d37ef4b40f906e5
 # Entries-Selected: 0/14
 # Entries SHA256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-# Provenance-Stamp: f1aedb86e471acc05b4ddcc13d2269ca0506a333285dfeecd381821423269b74
+# Provenance-Stamp: cbf3e29921fc3820f0d932b72adb2684241b7b95a36106ba607f42bfd3be79e3

@@ -259,6 +259,8 @@ def main() -> int:
             str(root / "scripts" / "bench" / "generate_bench_assembly.py"),
             "--bench",
             str(bench),
+            "--stats-scope",
+            "all-business",
         ]
         hotspot = hotspots.get(bench_stem, {})
         if hotspot.get("function"):
@@ -276,12 +278,16 @@ def main() -> int:
         if comparison_path.exists():
             cmp_json = load_json(comparison_path)
             diff = cmp_json.get("diff", {})
+            optimized = cmp_json.get("optimized_business_functions", {})
             asm_metrics = {
                 "line_delta": diff.get("line_delta"),
                 "instruction_size_delta": diff.get("instruction_size_delta"),
                 "changed_lines": diff.get("changed_lines"),
                 "without_instruction_size": ((cmp_json.get("without_metadata") or {}).get("instruction_size")),
                 "with_instruction_size": ((cmp_json.get("with_metadata") or {}).get("instruction_size")),
+                "optimized_without_count": optimized.get("without_count"),
+                "optimized_with_count": optimized.get("with_count"),
+                "optimized_paired_count": optimized.get("paired_count"),
             }
 
         asm_record = {

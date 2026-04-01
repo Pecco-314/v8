@@ -38,8 +38,7 @@ void MetadataTypeAnnotator::RunTypeAnnotation(AllNodes& all) {
       int index = ParameterIndexOf(node->op());
       if (index >= 0 && index < static_cast<int>(param_types.size()) - 1) {
         const TypeAST& ast = param_types[index];
-        SetNodeType(node, &ast);
-        NodeProperties::SetType(node, TypeASTToType(ast));
+        AnnotateNode(node, &ast);
       }
     }
   }
@@ -106,9 +105,7 @@ void MetadataTypeAnnotator::ProcessLoadFieldNode(Node* node) {
   auto field_type = FindFieldInObj(object_type, field_name);
   if (field_type.has_value()) {
     const TypeAST* field_ptr = StoreOwnedTypeAST(field_type.value());
-    Type field_turbofan_type = TypeASTToType(*field_ptr);
-    NodeProperties::SetType(node, field_turbofan_type);
-    SetNodeType(node, field_ptr);
+    AnnotateNode(node, field_ptr);
   }
 }
 
@@ -147,9 +144,7 @@ void MetadataTypeAnnotator::ProcessLoadElementNode(Node* node) {
 
   if (element_type.has_value()) {
     const TypeAST* elem_ptr = StoreOwnedTypeAST(element_type.value());
-    Type element_turbofan_type = TypeASTToType(*elem_ptr);
-    NodeProperties::SetType(node, element_turbofan_type);
-    SetNodeType(node, elem_ptr);
+    AnnotateNode(node, elem_ptr);
   }
 }
 
@@ -185,18 +180,15 @@ void MetadataTypeAnnotator::ProcessJSKeyedPropertyNode(Node* node) {
   if (!element_type.has_value()) return;
 
   const TypeAST* elem_ptr = StoreOwnedTypeAST(element_type.value());
-  Type elem_type = TypeASTToType(*elem_ptr);
 
   if (is_load) {
-    NodeProperties::SetType(node, elem_type);
-    SetNodeType(node, elem_ptr);
+    AnnotateNode(node, elem_ptr);
     return;
   }
 
   if (node->op()->ValueInputCount() < 3) return;
   Node* value = NodeProperties::GetValueInput(node, 2);
-  NodeProperties::SetType(value, elem_type);
-  SetNodeType(value, elem_ptr);
+  AnnotateNode(value, elem_ptr);
 }
 
 void MetadataTypeAnnotator::ProcessJSCallNode(Node* node) {
@@ -230,24 +222,21 @@ void MetadataTypeAnnotator::ProcessJSCallNode(Node* node) {
     auto signature = storage_->GetBuiltinSignature(builtin_id);
 
     if (signature.has_value()) {
-      Type return_turbofan_type = TypeASTToType(signature->return_type);
-      NodeProperties::SetType(node, return_turbofan_type);
+      AnnotateNode(node, signature->return_type);
 
       JSCallNode call_node(node);
       Node* receiver = call_node.receiver();
 
       const auto& param_types = signature->param_types;
       if (!param_types.empty() && receiver != nullptr) {
-        Type receiver_type = TypeASTToType(param_types[0]);
-        NodeProperties::SetType(receiver, receiver_type);
+        AnnotateNode(receiver, param_types[0]);
       }
 
       size_t arg_count = call_node.ArgumentCount();
       for (size_t i = 0; i < arg_count && i + 1 < param_types.size(); ++i) {
         Node* arg = NodeProperties::GetValueInput(node, static_cast<int>(2 + i));
         if (arg != nullptr) {
-          Type arg_type = TypeASTToType(param_types[i + 1]);
-          NodeProperties::SetType(arg, arg_type);
+          AnnotateNode(arg, param_types[i + 1]);
         }
       }
 
@@ -263,10 +252,7 @@ void MetadataTypeAnnotator::ProcessJSCallNode(Node* node) {
 
   const TypeAST& return_type_ast = return_type_opt.value();
   const TypeAST* ret_ptr = StoreOwnedTypeAST(return_type_ast);
-  Type return_type = TypeASTToType(*ret_ptr);
-
-  NodeProperties::SetType(node, return_type);
-  SetNodeType(node, ret_ptr);
+  AnnotateNode(node, ret_ptr);
 }
 
 }  // namespace v8::internal::compiler

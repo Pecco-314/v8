@@ -7,7 +7,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 
 @dataclass
@@ -83,6 +83,59 @@ def extract_assembly(output_text: str, function_name: str) -> Tuple[Optional[str
     return None, None
 
 
+def extract_function_name_from_block(code_block: str) -> Optional[str]:
+    match = re.search(r"^name\s*=\s*([^\n]+)$", code_block, flags=re.MULTILINE)
+    if not match:
+        return None
+    return match.group(1).strip()
+
+
+def extract_all_assemblies(
+    output_text: str,
+    allowed_names: Optional[Set[str]] = None,
+) -> Dict[str, Tuple[str, Optional[int]]]:
+    assemblies: Dict[str, Tuple[str, Optional[int]]] = {}
+    for block in extract_code_blocks(output_text):
+        function_name = extract_function_name_from_block(block)
+        if not function_name:
+            continue
+        if allowed_names is not None and function_name not in allowed_names:
+            continue
+        instructions = re.search(
+            r"Instructions \(size = \d+\)(.*?)(?=\n--- End code ---)",
+            block,
+            flags=re.DOTALL,
+        )
+        if not instructions:
+            continue
+        asm_text = instructions.group(1).strip()
+        assemblies[function_name] = (asm_text, parse_instruction_size(block))
+    return assemblies
+
+
+def discover_business_functions(bench_js: Path) -> Set[str]:
+    source = bench_js.read_text(encoding="utf-8")
+    names: Set[str] = set()
+
+    for match in re.finditer(r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\(", source):
+        names.add(match.group(1))
+
+    for match in re.finditer(r"\b(class|interface)\s+([A-Za-z_$][\w$]*)\b", source):
+        names.add(match.group(2))
+
+    for match in re.finditer(r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:function\s*\(|\([^)]*\)\s*=>)", source):
+        names.add(match.group(1))
+
+    filtered = {
+        name
+        for name in names
+        if not name.startswith("__ti_local_wrap_")
+        and not name.startswith("__")
+        and name not in {"exports", "module", "require"}
+    }
+    return filtered
+
+
 def write_harness(
     tmp_dir: Path,
     bench_js: Path,
@@ -90,6 +143,8 @@ def write_harness(
     setup_name: str,
     teardown_name: str,
     invoke_expr: Optional[str],
+    prewarm_exprs: Optional[Sequence[str]] = None,
+    warmup_calls: int = 2,
 ) -> Path:
     harness_path = tmp_dir / f"harness-asm-{bench_js.stem}-{function_name}.js"
     bench_literal = json.dumps(str(bench_js))
@@ -97,6 +152,9 @@ def write_harness(
     setup_literal = json.dumps(setup_name)
     teardown_literal = json.dumps(teardown_name)
     invoke_expr_literal = invoke_expr if invoke_expr else "benchFn()"
+    prewarm_exprs = list(prewarm_exprs or [])
+    prewarm_block = "\n".join(f"  ({expr});" for expr in prewarm_exprs)
+    warmup_calls = max(1, int(warmup_calls))
     harness = f"""
 load({bench_literal});
 
@@ -114,9 +172,16 @@ function __invokeTarget() {{
     return ({invoke_expr_literal});
 }}
 
+function __runPrewarm() {{
+{prewarm_block}
+}}
+
+__runPrewarm();
+
 %PrepareFunctionForOptimization(benchFn);
-__invokeTarget();
-__invokeTarget();
+for (let i = 0; i < {warmup_calls}; i++) {{
+    __invokeTarget();
+}}
 %OptimizeFunctionOnNextCall(benchFn);
 __invokeTarget();
 
@@ -182,8 +247,10 @@ def prepare_ts_bench(root: Path, bench_file: Path, metadata_dir: Path, tmp_dir: 
     return js_file
 
 
-def build_d8_flags(defaults: Dict, function_name: str, trace_ir: bool) -> List[str]:
-    flags: List[str] = ["--turbofan", "--print-opt-code", f"--print-opt-code-filter={function_name}"]
+def build_d8_flags(defaults: Dict, function_name: str, trace_ir: bool, use_filter: bool = True) -> List[str]:
+    flags: List[str] = ["--turbofan", "--print-opt-code"]
+    if use_filter:
+        flags.append(f"--print-opt-code-filter={function_name}")
 
     if defaults.get("allow_natives_syntax", True):
         flags.append("--allow-natives-syntax")
@@ -322,7 +389,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--targets-config",
         default="scripts/bench/config/hotspots.json",
-        help="Per-benchmark target function config (function/invoke_expr/setup/teardown)",
+        help="Per-benchmark target function config (function/invoke_expr/setup/teardown/prewarm_exprs/warmup_calls)",
     )
     parser.add_argument("--out-dir", default="docs/assembly/benchmarks", help="Assembly output root")
     parser.add_argument(
@@ -339,11 +406,23 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--setup", default=None, help="Override setup function name for all benchmarks")
     parser.add_argument("--teardown", default=None, help="Override teardown function name for all benchmarks")
+    parser.add_argument(
+        "--warmup-calls",
+        type=int,
+        default=None,
+        help="Override warmup invoke count before OptimizeFunctionOnNextCall",
+    )
     parser.add_argument("--trace-ir", action="store_true", help="Enable TurboFan IR trace and save with/without logs")
     parser.add_argument(
         "--no-wrapper-preprocess",
         action="store_true",
         help="Disable ts_locals_to_wrappers preprocessing for TS benchmarks",
+    )
+    parser.add_argument(
+        "--stats-scope",
+        choices=["target", "all-business"],
+        default="target",
+        help="target: 只统计目标函数；all-business: 统计所有已优化编译的业务函数（排除库函数）",
     )
     return parser.parse_args()
 
@@ -423,10 +502,29 @@ def main() -> int:
         target_setup = args.setup or target.get("setup") or "setup"
         target_teardown = args.teardown or target.get("teardown") or "teardown"
         target_invoke_expr = args.invoke_expr or target.get("invoke_expr") or f"{target_function}()"
-        base_flags = build_d8_flags(defaults, target_function, trace_ir=args.trace_ir)
+        target_warmup_calls = args.warmup_calls if args.warmup_calls is not None else int(target.get("warmup_calls", 2))
+        raw_prewarm_exprs = target.get("prewarm_exprs", [])
+        if isinstance(raw_prewarm_exprs, str):
+            target_prewarm_exprs = [raw_prewarm_exprs]
+        elif isinstance(raw_prewarm_exprs, list):
+            target_prewarm_exprs = [expr for expr in raw_prewarm_exprs if isinstance(expr, str)]
+        else:
+            target_prewarm_exprs = []
+        use_filter = args.stats_scope != "all-business"
+        base_flags = build_d8_flags(defaults, target_function, trace_ir=args.trace_ir, use_filter=use_filter)
+        target_extra_flags = target.get("extra_flags", [])
+        if isinstance(target_extra_flags, list):
+            for flag in target_extra_flags:
+                if isinstance(flag, str) and flag and flag not in base_flags:
+                    base_flags.append(flag)
 
         print(f"target function: {target_function}")
         print(f"invoke expr: {target_invoke_expr}")
+        print(f"warmup calls: {target_warmup_calls}")
+        if target_prewarm_exprs:
+            print(f"prewarm expr count: {len(target_prewarm_exprs)}")
+        if isinstance(target_extra_flags, list) and target_extra_flags:
+            print(f"target extra flags: {target_extra_flags}")
 
         harness = write_harness(
             tmp_dir=tmp_dir,
@@ -435,11 +533,21 @@ def main() -> int:
             setup_name=target_setup,
             teardown_name=target_teardown,
             invoke_expr=target_invoke_expr,
+            prewarm_exprs=target_prewarm_exprs,
+            warmup_calls=target_warmup_calls,
         )
+
+        business_functions = discover_business_functions(bench_js)
 
         cmd_without = [str(d8_path)] + base_flags + [str(harness)]
         rc_without, stdout_without, stderr_without = run_d8(d8_path, harness, base_flags)
+        asm_without_map = extract_all_assemblies(
+            stdout_without or "",
+            allowed_names=business_functions if args.stats_scope == "all-business" else None,
+        )
         asm_without, size_without = extract_assembly(stdout_without or "", target_function)
+        if args.stats_scope == "all-business" and target_function in asm_without_map:
+            asm_without, size_without = asm_without_map[target_function]
         without_result = AssemblyRunResult(
             mode="without",
             returncode=rc_without,
@@ -456,7 +564,13 @@ def main() -> int:
                 metadata_flags.append(f"--turbo_metadata_path={metadata_dir}")
             cmd_with = [str(d8_path)] + (base_flags + metadata_flags) + [str(harness)]
             rc_with, stdout_with, stderr_with = run_d8(d8_path, harness, base_flags + metadata_flags)
+            asm_with_map = extract_all_assemblies(
+                stdout_with or "",
+                allowed_names=business_functions if args.stats_scope == "all-business" else None,
+            )
             asm_with, size_with = extract_assembly(stdout_with or "", target_function)
+            if args.stats_scope == "all-business" and target_function in asm_with_map:
+                asm_with, size_with = asm_with_map[target_function]
             with_result = AssemblyRunResult(
                 mode="with",
                 returncode=rc_with,
@@ -468,6 +582,7 @@ def main() -> int:
             )
         else:
             cmd_with = []
+            asm_with_map = {}
             with_result = AssemblyRunResult(
                 mode="with",
                 returncode=0,
@@ -478,10 +593,16 @@ def main() -> int:
                 normalized_lines=[],
             )
 
-        if without_result.asm:
-            (case_dir / f"{target_function}_without.asm").write_text(without_result.asm + "\n", encoding="utf-8")
-        if with_result.asm:
-            (case_dir / f"{target_function}_with.asm").write_text(with_result.asm + "\n", encoding="utf-8")
+        if args.stats_scope == "all-business":
+            for function_name, (asm_text, _) in sorted(asm_without_map.items()):
+                (case_dir / f"{function_name}_without.asm").write_text(asm_text + "\n", encoding="utf-8")
+            for function_name, (asm_text, _) in sorted(asm_with_map.items()):
+                (case_dir / f"{function_name}_with.asm").write_text(asm_text + "\n", encoding="utf-8")
+        else:
+            if without_result.asm:
+                (case_dir / f"{target_function}_without.asm").write_text(without_result.asm + "\n", encoding="utf-8")
+            if with_result.asm:
+                (case_dir / f"{target_function}_with.asm").write_text(with_result.asm + "\n", encoding="utf-8")
 
         report_md = generate_markdown_report(
             bench_name=bench_file.stem,
@@ -501,6 +622,58 @@ def main() -> int:
             without_result=without_result,
             with_result=with_result,
         )
+
+        if args.stats_scope == "all-business":
+            paired_functions = sorted(set(asm_without_map.keys()) & set(asm_with_map.keys()))
+            only_without = sorted(set(asm_without_map.keys()) - set(asm_with_map.keys()))
+            only_with = sorted(set(asm_with_map.keys()) - set(asm_without_map.keys()))
+            aggregate_line_delta = 0
+            aggregate_changed_lines = 0
+            aggregate_instruction_delta = 0
+            per_function = []
+
+            for function_name in paired_functions:
+                asm_wout, size_wout = asm_without_map[function_name]
+                asm_w, size_w = asm_with_map[function_name]
+                lines_wout = normalize_lines(asm_wout)
+                lines_w = normalize_lines(asm_w)
+                line_delta = len(lines_w) - len(lines_wout)
+                changed_lines = diff_line_count(lines_wout, lines_w)
+                if size_wout is not None and size_w is not None:
+                    instruction_delta = size_w - size_wout
+                else:
+                    instruction_delta = 0
+
+                aggregate_line_delta += line_delta
+                aggregate_changed_lines += changed_lines
+                aggregate_instruction_delta += instruction_delta
+                per_function.append(
+                    {
+                        "function": function_name,
+                        "without_instruction_lines": len(lines_wout),
+                        "with_instruction_lines": len(lines_w),
+                        "line_delta": line_delta,
+                        "changed_lines": changed_lines,
+                        "without_instruction_size": size_wout,
+                        "with_instruction_size": size_w,
+                        "instruction_size_delta": instruction_delta,
+                    }
+                )
+
+            report_json["stats_scope"] = "all-business"
+            report_json["optimized_business_functions"] = {
+                "without_count": len(asm_without_map),
+                "with_count": len(asm_with_map),
+                "paired_count": len(paired_functions),
+                "only_without": only_without,
+                "only_with": only_with,
+                "paired": per_function,
+            }
+            report_json["diff"] = {
+                "line_delta": aggregate_line_delta,
+                "changed_lines": aggregate_changed_lines,
+                "instruction_size_delta": aggregate_instruction_delta,
+            }
         (case_dir / "comparison.json").write_text(
             json.dumps(report_json, ensure_ascii=False, indent=2),
             encoding="utf-8",
