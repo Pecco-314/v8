@@ -5,6 +5,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 
+#include "src/base/logging.h"
 #include "src/base/division-by-constant.h"
 
 #include <cmath>
@@ -12,7 +13,64 @@
 
 namespace v8::internal::compiler {
 
+#if V8_COMPILER_TYPE_INJECTOR_DEBUG
+#define RAWINT32_SR_DEBUG(...)                                      \
+  do {                                                              \
+    PrintF("[RawInt32StrengthReduction] " __VA_ARGS__);            \
+    PrintF("\n");                                                  \
+  } while (false)
+#else
+#define RAWINT32_SR_DEBUG(...) ((void)0)
+#endif
+
 namespace {
+
+[[maybe_unused]] const char* RawIntKindName(
+  RawInt32StrengthReduction::RawIntKind kind) {
+  switch (kind) {
+    case RawInt32StrengthReduction::RawIntKind::kInt32:
+      return "rawint32";
+    case RawInt32StrengthReduction::RawIntKind::kUint32:
+      return "rawuint32";
+    case RawInt32StrengthReduction::RawIntKind::kInt64:
+      return "rawint64";
+    case RawInt32StrengthReduction::RawIntKind::kUint64:
+      return "rawuint64";
+  }
+}
+
+[[maybe_unused]] const char* TypeKindName(TypeAST::TypeKind kind) {
+  switch (kind) {
+    case TypeAST::Any:
+      return "any";
+    case TypeAST::Num:
+      return "num";
+    case TypeAST::Str:
+      return "str";
+    case TypeAST::Bool:
+      return "bool";
+    case TypeAST::Symbol:
+      return "symbol";
+    case TypeAST::RawInt32:
+      return "rawint32";
+    case TypeAST::RawUint32:
+      return "rawuint32";
+    case TypeAST::RawInt64:
+      return "rawint64";
+    case TypeAST::RawUint64:
+      return "rawuint64";
+    case TypeAST::BigInt:
+      return "bigint";
+    case TypeAST::Arr:
+      return "arr";
+    case TypeAST::Tuple:
+      return "tuple";
+    case TypeAST::Obj:
+      return "obj";
+    case TypeAST::Void:
+      return "void";
+  }
+}
 
 TypeAST::TypeKind RawIntKindToTypeKind(
     RawInt32StrengthReduction::RawIntKind kind) {
@@ -377,6 +435,100 @@ bool RawInt32StrengthReduction::IsTypeOrLiteralCompatible(Node* node,
   return IsRawTyped(node, kind) || IsLiteralCompatible(node, kind);
 }
 
+bool RawInt32StrengthReduction::CurrentFunctionHasRawProofAnnotation() {
+  auto& param_types = context_.param_types();
+  for (const auto& ast : param_types) {
+    if (ast.kind == TypeAST::RawInt32 || ast.kind == TypeAST::RawUint32 ||
+        ast.kind == TypeAST::RawInt64 || ast.kind == TypeAST::RawUint64) {
+      return true;
+    }
+  }
+
+  auto return_type_opt = GetFunctionReturnType(context_.current_start_pos());
+  if (!return_type_opt.has_value()) return false;
+  TypeAST::TypeKind kind = return_type_opt->kind;
+  return kind == TypeAST::RawInt32 || kind == TypeAST::RawUint32 ||
+         kind == TypeAST::RawInt64 || kind == TypeAST::RawUint64;
+}
+
+bool RawInt32StrengthReduction::IsInt32SemanticNode(Node* node, int depth) {
+  if (node == nullptr) return false;
+  if (depth > 8) return false;
+
+  if (IsTypeOrLiteralCompatible(node, RawIntKind::kInt32)) {
+    return true;
+  }
+
+  switch (node->opcode()) {
+    case IrOpcode::kInt32Constant:
+      return true;
+    case IrOpcode::kCheckedTaggedSignedToInt32:
+    case IrOpcode::kCheckedTaggedToInt32:
+    case IrOpcode::kChangeFloat64ToInt32:
+      return true;
+    case IrOpcode::kChangeInt32ToTagged:
+    case IrOpcode::kChangeInt31ToTaggedSigned:
+    case IrOpcode::kChangeUint32ToTagged:
+    case IrOpcode::kCheckedUint32Bounds:
+    case IrOpcode::kCheckedUint64Bounds:
+    case IrOpcode::kCheckBounds:
+    case IrOpcode::kChangeInt32ToInt64:
+    case IrOpcode::kChangeUint32ToUint64:
+      if (node->InputCount() == 0) return false;
+      return IsInt32SemanticNode(node->InputAt(0), depth + 1);
+    case IrOpcode::kInt32Add:
+    case IrOpcode::kInt32Sub:
+    case IrOpcode::kInt32Mul:
+    case IrOpcode::kCheckedInt32Add:
+    case IrOpcode::kCheckedInt32Sub:
+    case IrOpcode::kCheckedInt32Mul:
+      if (node->op()->ValueInputCount() < 2) return false;
+      {
+        Node* lhs = NodeProperties::GetValueInput(node, 0);
+        Node* rhs = NodeProperties::GetValueInput(node, 1);
+        int64_t lhs_literal = 0;
+        int64_t rhs_literal = 0;
+        bool lhs_is_literal = TryGetInt64Literal(lhs, &lhs_literal);
+        bool rhs_is_literal = TryGetInt64Literal(rhs, &rhs_literal);
+
+        if (lhs_is_literal &&
+            (IsInt32SemanticNode(rhs, depth + 1) || rhs->opcode() == IrOpcode::kPhi ||
+             rhs->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 ||
+             rhs->opcode() == IrOpcode::kCheckedTaggedToInt32)) {
+          return true;
+        }
+        if (rhs_is_literal &&
+            (IsInt32SemanticNode(lhs, depth + 1) || lhs->opcode() == IrOpcode::kPhi ||
+             lhs->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 ||
+             lhs->opcode() == IrOpcode::kCheckedTaggedToInt32)) {
+          return true;
+        }
+
+        return IsInt32SemanticNode(lhs, depth + 1) &&
+               IsInt32SemanticNode(rhs, depth + 1);
+      }
+    case IrOpcode::kPhi: {
+      int value_input_count = node->op()->ValueInputCount();
+      if (value_input_count <= 0) return false;
+      bool seen_int32_like = false;
+      for (int i = 0; i < value_input_count; ++i) {
+        Node* input = NodeProperties::GetValueInput(node, i);
+        int64_t literal_value = 0;
+        if (TryGetInt64Literal(input, &literal_value)) {
+          continue;
+        }
+        if (!IsInt32SemanticNode(input, depth + 1)) {
+          return false;
+        }
+        seen_int32_like = true;
+      }
+      return seen_int32_like;
+    }
+    default:
+      return false;
+  }
+}
+
 namespace {
 
 bool IsMachineWord64Like(Node* node) {
@@ -405,8 +557,30 @@ bool RawInt32StrengthReduction::ReduceCheckedBinop(
     Node* node, const Operator* replacement_op, RawIntKind kind) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-  if (!IsTypeOrLiteralCompatible(left, kind) ||
-      !IsTypeOrLiteralCompatible(right, kind)) {
+  bool left_ok = IsTypeOrLiteralCompatible(left, kind);
+  bool right_ok = IsTypeOrLiteralCompatible(right, kind);
+
+  if ((!left_ok || !right_ok) && kind == RawIntKind::kInt32 &&
+      CurrentFunctionHasRawProofAnnotation() &&
+      IsInt32SemanticNode(left) && IsInt32SemanticNode(right)) {
+    left_ok = true;
+    right_ok = true;
+    RAWINT32_SR_DEBUG(
+        "fallback-accept %s#%d by int32-semantics in raw-annotated function",
+        IrOpcode::Mnemonic(node->opcode()), node->id());
+  }
+
+  if (!left_ok || !right_ok) {
+    auto left_type = GetNodeTypeAST(left);
+    auto right_type = GetNodeTypeAST(right);
+    RAWINT32_SR_DEBUG(
+        "skip %s#%d kind=%s left#%d(%s,ok=%d) right#%d(%s,ok=%d)",
+        IrOpcode::Mnemonic(node->opcode()), node->id(), RawIntKindName(kind),
+        left != nullptr ? left->id() : -1,
+        left_type.has_value() ? TypeKindName(left_type->kind) : "<none>",
+        left_ok ? 1 : 0, right != nullptr ? right->id() : -1,
+        right_type.has_value() ? TypeKindName(right_type->kind) : "<none>",
+        right_ok ? 1 : 0);
     return false;
   }
 
@@ -434,6 +608,10 @@ bool RawInt32StrengthReduction::ReduceCheckedBinop(
     pair.first->ReplaceInput(pair.second, effect_input);
   }
 
+  RAWINT32_SR_DEBUG("replace %s#%d -> %s (kind=%s)",
+                    IrOpcode::Mnemonic(node->opcode()), node->id(),
+                    replacement_op->mnemonic(), RawIntKindName(kind));
+
   node->Kill();
   return true;
 }
@@ -449,6 +627,9 @@ bool RawInt32StrengthReduction::ReduceCheckedInt64DivOrMod(Node* node,
                              is_div ? machine_->Uint64Div()
                                     : machine_->Uint64Mod());
     AnnotateNode(node, MakeRawIntAst(RawIntKind::kUint64));
+    RAWINT32_SR_DEBUG("replace %s#%d -> %s (kind=rawuint64)",
+                      IrOpcode::Mnemonic(node->opcode()), node->id(),
+                      is_div ? "Uint64Div" : "Uint64Mod");
     return true;
   }
 
@@ -458,8 +639,21 @@ bool RawInt32StrengthReduction::ReduceCheckedInt64DivOrMod(Node* node,
                              is_div ? machine_->Int64Div()
                                     : machine_->Int64Mod());
     AnnotateNode(node, MakeRawIntAst(RawIntKind::kInt64));
+    RAWINT32_SR_DEBUG("replace %s#%d -> %s (kind=rawint64)",
+                      IrOpcode::Mnemonic(node->opcode()), node->id(),
+                      is_div ? "Int64Div" : "Int64Mod");
     return true;
   }
+
+  auto left_type = GetNodeTypeAST(left);
+  auto right_type = GetNodeTypeAST(right);
+  RAWINT32_SR_DEBUG(
+      "skip %s#%d (int64/uint64 mismatch) left#%d(%s) right#%d(%s)",
+      IrOpcode::Mnemonic(node->opcode()), node->id(),
+      left != nullptr ? left->id() : -1,
+      left_type.has_value() ? TypeKindName(left_type->kind) : "<none>",
+      right != nullptr ? right->id() : -1,
+      right_type.has_value() ? TypeKindName(right_type->kind) : "<none>");
 
   return false;
 }
@@ -493,8 +687,19 @@ bool RawInt32StrengthReduction::ReduceCheckedInt32DivOrModClosed(Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
   Node* control = NodeProperties::GetControlInput(node);
-  if (!IsTypeOrLiteralCompatible(left, RawIntKind::kInt32) ||
-      !IsTypeOrLiteralCompatible(right, RawIntKind::kInt32)) {
+  bool left_ok = IsTypeOrLiteralCompatible(left, RawIntKind::kInt32);
+  bool right_ok = IsTypeOrLiteralCompatible(right, RawIntKind::kInt32);
+  if (!left_ok || !right_ok) {
+    auto left_type = GetNodeTypeAST(left);
+    auto right_type = GetNodeTypeAST(right);
+    RAWINT32_SR_DEBUG(
+        "skip %s#%d kind=rawint32 left#%d(%s,ok=%d) right#%d(%s,ok=%d)",
+        IrOpcode::Mnemonic(node->opcode()), node->id(),
+        left != nullptr ? left->id() : -1,
+        left_type.has_value() ? TypeKindName(left_type->kind) : "<none>",
+        left_ok ? 1 : 0, right != nullptr ? right->id() : -1,
+        right_type.has_value() ? TypeKindName(right_type->kind) : "<none>",
+        right_ok ? 1 : 0);
     return false;
   }
   Node* replacement =
@@ -504,6 +709,9 @@ bool RawInt32StrengthReduction::ReduceCheckedInt32DivOrModClosed(Node* node,
                                       control);
   AnnotateNode(replacement, MakeRawIntAst(RawIntKind::kInt32));
   ReplaceCheckedWithValue(graph_, node, replacement);
+  RAWINT32_SR_DEBUG("replace %s#%d -> %s (closed semantics)",
+                    IrOpcode::Mnemonic(node->opcode()), node->id(),
+                    is_div ? "Int32DivClosed" : "Int32ModClosed");
   return true;
 }
 
@@ -512,8 +720,19 @@ bool RawInt32StrengthReduction::ReduceCheckedUint32DivOrModClosed(Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
   Node* control = NodeProperties::GetControlInput(node);
-  if (!IsTypeOrLiteralCompatible(left, RawIntKind::kUint32) ||
-      !IsTypeOrLiteralCompatible(right, RawIntKind::kUint32)) {
+  bool left_ok = IsTypeOrLiteralCompatible(left, RawIntKind::kUint32);
+  bool right_ok = IsTypeOrLiteralCompatible(right, RawIntKind::kUint32);
+  if (!left_ok || !right_ok) {
+    auto left_type = GetNodeTypeAST(left);
+    auto right_type = GetNodeTypeAST(right);
+    RAWINT32_SR_DEBUG(
+        "skip %s#%d kind=rawuint32 left#%d(%s,ok=%d) right#%d(%s,ok=%d)",
+        IrOpcode::Mnemonic(node->opcode()), node->id(),
+        left != nullptr ? left->id() : -1,
+        left_type.has_value() ? TypeKindName(left_type->kind) : "<none>",
+        left_ok ? 1 : 0, right != nullptr ? right->id() : -1,
+        right_type.has_value() ? TypeKindName(right_type->kind) : "<none>",
+        right_ok ? 1 : 0);
     return false;
   }
   Node* replacement =
@@ -523,6 +742,9 @@ bool RawInt32StrengthReduction::ReduceCheckedUint32DivOrModClosed(Node* node,
                                        control);
   AnnotateNode(replacement, MakeRawIntAst(RawIntKind::kUint32));
   ReplaceCheckedWithValue(graph_, node, replacement);
+  RAWINT32_SR_DEBUG("replace %s#%d -> %s (closed semantics)",
+                    IrOpcode::Mnemonic(node->opcode()), node->id(),
+                    is_div ? "Uint32DivClosed" : "Uint32ModClosed");
   return true;
 }
 
@@ -617,21 +839,39 @@ void RawInt32StrengthReduction::Run() {
   constexpr int kMaxRounds = 4;
   for (int round = 0; round < kMaxRounds; ++round) {
     bool changed = false;
+    [[maybe_unused]] int checked_i32_add_seen = 0;
+    [[maybe_unused]] int checked_i32_add_replaced = 0;
+    [[maybe_unused]] int checked_i32_sub_seen = 0;
+    [[maybe_unused]] int checked_i32_sub_replaced = 0;
+    [[maybe_unused]] int checked_i32_mul_seen = 0;
+    [[maybe_unused]] int checked_i32_mul_replaced = 0;
     AllNodes all(graph_->zone(), graph_);
 
     for (Node* node : all.reachable) {
       switch (node->opcode()) {
         case IrOpcode::kCheckedInt32Add:
-          changed |= ReduceCheckedBinop(node, machine_->Int32Add(),
-                                        RawIntKind::kInt32);
+          checked_i32_add_seen++;
+          if (ReduceCheckedBinop(node, machine_->Int32Add(),
+                                 RawIntKind::kInt32)) {
+            checked_i32_add_replaced++;
+            changed = true;
+          }
           break;
         case IrOpcode::kCheckedInt32Sub:
-          changed |= ReduceCheckedBinop(node, machine_->Int32Sub(),
-                                        RawIntKind::kInt32);
+          checked_i32_sub_seen++;
+          if (ReduceCheckedBinop(node, machine_->Int32Sub(),
+                                 RawIntKind::kInt32)) {
+            checked_i32_sub_replaced++;
+            changed = true;
+          }
           break;
         case IrOpcode::kCheckedInt32Mul:
-          changed |= ReduceCheckedBinop(node, machine_->Int32Mul(),
-                                        RawIntKind::kInt32);
+          checked_i32_mul_seen++;
+          if (ReduceCheckedBinop(node, machine_->Int32Mul(),
+                                 RawIntKind::kInt32)) {
+            checked_i32_mul_replaced++;
+            changed = true;
+          }
           break;
         case IrOpcode::kCheckedInt32Div:
           changed |= ReduceCheckedInt32DivOrModClosed(node, true);
@@ -725,6 +965,12 @@ void RawInt32StrengthReduction::Run() {
           break;
       }
     }
+
+    RAWINT32_SR_DEBUG(
+        "round=%d checked-int32 add %d/%d sub %d/%d mul %d/%d changed=%d",
+        round, checked_i32_add_replaced, checked_i32_add_seen,
+        checked_i32_sub_replaced, checked_i32_sub_seen,
+        checked_i32_mul_replaced, checked_i32_mul_seen, changed ? 1 : 0);
 
     if (!changed) break;
   }

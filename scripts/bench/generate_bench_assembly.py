@@ -418,6 +418,197 @@ def split_ir_logs_by_function(ir_text: str, allowed_names: Optional[Set[str]] = 
     return {name: "\n".join(lines).strip() + "\n" for name, lines in chunks.items() if lines}
 
 
+def clean_directory(path: Path) -> None:
+    if not path.exists():
+        return
+    for child in path.iterdir():
+        try:
+            if child.is_file() or child.is_symlink():
+                child.unlink()
+            elif child.is_dir():
+                clean_directory(child)
+                child.rmdir()
+        except OSError:
+            continue
+
+
+def parse_turbo_graph_function_name(graph: Dict) -> Optional[str]:
+    function_info = graph.get("function") if isinstance(graph, dict) else None
+    if not isinstance(function_info, dict):
+        return None
+    function_name = function_info.get("functionName")
+    if isinstance(function_name, str) and function_name.strip():
+        return function_name.strip()
+    return None
+
+
+def find_early_optimization_phase(graph: Dict) -> Optional[Dict]:
+    return find_phase_by_name(graph, "V8.TFEarlyOptimization")
+
+
+def find_phase_by_name(graph: Dict, phase_name: str) -> Optional[Dict]:
+    phases = graph.get("phases") if isinstance(graph, dict) else None
+    if not isinstance(phases, list):
+        return None
+    for phase in phases:
+        if not isinstance(phase, dict):
+            continue
+        if phase.get("name") == phase_name:
+            return phase
+    return None
+
+
+def extract_phase_opcode_counts(
+    trace_dir: Optional[Path],
+    phase_name: str,
+    opcodes: Sequence[str],
+    allowed_names: Optional[Set[str]] = None,
+) -> Dict[str, object]:
+    if trace_dir is None or not trace_dir.exists():
+        return {
+            "trace_dir": str(trace_dir) if trace_dir else None,
+            "phase_name": phase_name,
+            "raw_graph_file_count": 0,
+            "analyzed_functions": [],
+            "per_function": [],
+            "totals": {opcode: 0 for opcode in opcodes},
+        }
+
+    raw_files = sorted(trace_dir.glob("turbo-*.json"))
+    latest_by_function: Dict[str, Tuple[int, Path]] = {}
+
+    for file_path in raw_files:
+        match = re.match(r"^turbo-(.+)-(\d+)\.json$", file_path.name)
+        if not match:
+            continue
+        fallback_name = match.group(1)
+        index = int(match.group(2))
+
+        try:
+            graph = json.loads(file_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        function_name = parse_turbo_graph_function_name(graph) or fallback_name
+        if allowed_names is not None and function_name not in allowed_names:
+            continue
+
+        if function_name not in latest_by_function or index > latest_by_function[function_name][0]:
+            latest_by_function[function_name] = (index, file_path)
+
+    opcode_set = set(opcodes)
+    per_function: List[Dict[str, object]] = []
+    totals = {opcode: 0 for opcode in opcodes}
+    analyzed: List[str] = []
+
+    for function_name, (_, file_path) in sorted(latest_by_function.items()):
+        try:
+            graph = json.loads(file_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        phase = find_phase_by_name(graph, phase_name)
+        if not isinstance(phase, dict):
+            continue
+        data = phase.get("data") if isinstance(phase.get("data"), dict) else {}
+        nodes = data.get("nodes") if isinstance(data.get("nodes"), list) else []
+        counts = {opcode: 0 for opcode in opcodes}
+
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            if not node.get("live", True):
+                continue
+            opcode = node.get("opcode")
+            if opcode in opcode_set:
+                counts[opcode] += 1
+
+        for opcode in opcodes:
+            totals[opcode] += counts[opcode]
+
+        per_function.append(
+            {
+                "function": function_name,
+                "counts": counts,
+            }
+        )
+        analyzed.append(function_name)
+
+    return {
+        "trace_dir": str(trace_dir),
+        "phase_name": phase_name,
+        "raw_graph_file_count": len(raw_files),
+        "analyzed_functions": sorted(analyzed),
+        "per_function": per_function,
+        "totals": totals,
+    }
+
+
+def extract_early_graphs(
+    trace_dir: Optional[Path],
+    output_dir: Path,
+    mode: str,
+    allowed_names: Optional[Set[str]] = None,
+) -> Dict[str, object]:
+    if trace_dir is None or not trace_dir.exists():
+        return {
+            "trace_dir": str(trace_dir) if trace_dir else None,
+            "raw_graph_file_count": 0,
+            "early_graph_files": [],
+            "analyzed_functions": [],
+        }
+
+    raw_files = sorted(trace_dir.glob("turbo-*.json"))
+    latest_by_function: Dict[str, Tuple[int, Path]] = {}
+
+    for file_path in raw_files:
+        match = re.match(r"^turbo-(.+)-(\d+)\.json$", file_path.name)
+        if not match:
+            continue
+        fallback_name = match.group(1)
+        index = int(match.group(2))
+
+        try:
+            graph = json.loads(file_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        function_name = parse_turbo_graph_function_name(graph) or fallback_name
+        if allowed_names is not None and function_name not in allowed_names:
+            continue
+
+        if function_name not in latest_by_function or index > latest_by_function[function_name][0]:
+            latest_by_function[function_name] = (index, file_path)
+
+    analyzed: List[str] = []
+    written_files: List[str] = []
+
+    for function_name, (_, file_path) in sorted(latest_by_function.items()):
+        try:
+            graph = json.loads(file_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        early_phase = find_early_optimization_phase(graph)
+        if not isinstance(early_phase, dict):
+            continue
+
+        payload = {
+            "function": graph.get("function"),
+            "phase": early_phase,
+        }
+        out_file = output_dir / f"{function_name}_{mode}.early-graph.json"
+        out_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        analyzed.append(function_name)
+        written_files.append(str(out_file))
+
+    return {
+        "trace_dir": str(trace_dir),
+        "raw_graph_file_count": len(raw_files),
+        "early_graph_files": written_files,
+        "analyzed_functions": sorted(analyzed),
+    }
+
+
 def normalize_lines(asm: Optional[str]) -> List[str]:
     if not asm:
         return []
@@ -454,6 +645,8 @@ def generate_markdown_report(
     stats_scope: str = "target",
     optimized_business_functions: Optional[Dict] = None,
     aggregate_diff: Optional[Dict] = None,
+    rawint32_strength_reduction: Optional[Dict] = None,
+    verification: Optional[Dict] = None,
 ) -> str:
     lines = [f"# {bench_name} 二进制代码对比", ""]
     lines.append(f"- Source: `{source_file}`")
@@ -507,6 +700,46 @@ def generate_markdown_report(
                 w = item.get("with_instruction_size")
                 d = item.get("instruction_size_delta")
                 lines.append(f"  - {fn}: {wout} -> {w} ({d:+d})")
+
+    early_graph = optimized_business_functions.get("early_optimization_graph") if isinstance(optimized_business_functions, dict) else None
+    if isinstance(early_graph, dict) and early_graph.get("enabled"):
+        lines.append("")
+        lines.append("## EarlyOptimization 图覆盖")
+        lines.append("")
+        expected = early_graph.get("expected_functions", [])
+        without_info = ensure_dict(early_graph.get("without"))
+        with_info = ensure_dict(early_graph.get("with"))
+        lines.append(f"- 期望函数数: {len(expected)}")
+        lines.append(
+            f"- without: 分析到 {len(without_info.get('analyzed_functions', []))}，缺失 {len(without_info.get('missing_functions', []))}"
+        )
+        if isinstance(early_graph.get("with"), dict):
+            lines.append(
+                f"- with: 分析到 {len(with_info.get('analyzed_functions', []))}，缺失 {len(with_info.get('missing_functions', []))}"
+            )
+
+    if isinstance(rawint32_strength_reduction, dict) and rawint32_strength_reduction.get("enabled"):
+        lines.append("")
+        lines.append("## RawInt32StrengthReduction")
+        lines.append("")
+        totals_without = ensure_dict(rawint32_strength_reduction.get("without", {})).get("totals", {})
+        totals_with = ensure_dict(rawint32_strength_reduction.get("with", {})).get("totals", {})
+        wout_checked = totals_without.get("CheckedInt32Add", 0)
+        with_checked = totals_with.get("CheckedInt32Add", 0)
+        wout_int32 = totals_without.get("Int32Add", 0)
+        with_int32 = totals_with.get("Int32Add", 0)
+        lines.append(f"- CheckedInt32Add: {wout_checked} -> {with_checked} ({with_checked - wout_checked:+d})")
+        lines.append(f"- Int32Add: {wout_int32} -> {with_int32} ({with_int32 - wout_int32:+d})")
+
+    if isinstance(verification, dict):
+        raw_verify = ensure_dict(verification.get("rawint32_add_reduction"))
+        if raw_verify.get("enabled"):
+            lines.append("")
+            lines.append("## 校验")
+            lines.append("")
+            lines.append(f"- rawint32 add 替换: {raw_verify.get('status')}")
+            if raw_verify.get("status") == "failed":
+                lines.append(f"- 失败条目数: {raw_verify.get('regression_count', 0)}")
 
     return "\n".join(lines) + "\n"
 
@@ -621,6 +854,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="禁用 TurboFan inlining，减少干扰项。",
     )
+    parser.add_argument(
+        "--verify-rawint32-add-reduction",
+        action="store_true",
+        help="校验 `V8.TFRawInt32StrengthReduction` 中 CheckedInt32Add 在 with metadata 下是否减少。",
+    )
     return parser.parse_args()
 
 
@@ -694,11 +932,19 @@ def main() -> int:
 
         case_dir = out_dir / bench_file.stem
         case_dir.mkdir(parents=True, exist_ok=True)
-        for stale_file in list(case_dir.glob("*.asm")) + list(case_dir.glob("*.ir.log")):
+        for stale_file in list(case_dir.glob("*.asm")) + list(case_dir.glob("*.ir.log")) + list(case_dir.glob("*.early-graph.json")):
             try:
                 stale_file.unlink()
             except OSError:
                 pass
+        trace_graph_root = case_dir / "trace-graphs"
+        trace_graph_without_dir = trace_graph_root / "without"
+        trace_graph_with_dir = trace_graph_root / "with"
+        if args.trace_ir:
+            trace_graph_root.mkdir(parents=True, exist_ok=True)
+            for trace_dir in [trace_graph_without_dir, trace_graph_with_dir]:
+                trace_dir.mkdir(parents=True, exist_ok=True)
+                clean_directory(trace_dir)
         target = ensure_dict(targets_cfg.get(bench_file.stem, {}))
         target_function = args.function or target.get("function") or "bench"
         target_setup = args.setup or target.get("setup") or "setup"
@@ -775,7 +1021,26 @@ def main() -> int:
                     f"(() => {{ const __fn = globalThis[{json.dumps(fn_name)}]; "
                     "if (typeof __fn !== 'function') return 0; "
                     "const __argc = Math.max(0, (__fn.length | 0)); "
-                    "const __args = new Array(__argc).fill(undefined); "
+                    "if (__argc === 0) return __fn(); "
+                    "const __args = new Array(__argc); "
+                    "const __pref = ['inputData','data','arr','array','buffer','bytes','input','source']; "
+                    "let __pool = []; "
+                    "for (let __i = 0; __i < __pref.length; __i++) { "
+                    "  const __k = __pref[__i]; "
+                    "  try { "
+                    "    const __v = globalThis[__k]; "
+                    "    if (Array.isArray(__v) || ArrayBuffer.isView(__v)) __pool.push(__v); "
+                    "  } catch (e) {} "
+                    "} "
+                    "for (const __k in globalThis) { "
+                    "  try { "
+                    "    const __v = globalThis[__k]; "
+                    "    if (Array.isArray(__v) || ArrayBuffer.isView(__v)) __pool.push(__v); "
+                    "  } catch (e) {} "
+                    "} "
+                    "for (let __i = 0; __i < __argc; __i++) { "
+                    "  __args[__i] = (__i < __pool.length) ? __pool[__i] : 0; "
+                    "} "
                     "return __fn.apply(undefined, __args); })()"
                 )
                 coverage_targets.append({"function": fn_name, "invoke_expr": safe_invoke_expr})
@@ -794,8 +1059,15 @@ def main() -> int:
             warmup_calls=target_warmup_calls,
         )
 
-        cmd_without = [str(d8_path)] + base_flags + [str(harness)]
-        rc_without, stdout_without, stderr_without = run_d8(d8_path, harness, base_flags)
+        run_without_flags = list(base_flags)
+        if args.trace_ir:
+            run_without_flags.extend([
+                "--trace-turbo-graph",
+                f"--trace-turbo-path={trace_graph_without_dir}",
+            ])
+
+        cmd_without = [str(d8_path)] + run_without_flags + [str(harness)]
+        rc_without, stdout_without, stderr_without = run_d8(d8_path, harness, run_without_flags)
         asm_without_map = extract_all_assemblies(
             stdout_without or "",
             allowed_names=business_functions if args.stats_scope == "all-business" else None,
@@ -817,8 +1089,14 @@ def main() -> int:
             metadata_flags: List[str] = []
             if metadata_dir:
                 metadata_flags.append(f"--turbo_metadata_path={metadata_dir}")
-            cmd_with = [str(d8_path)] + (base_flags + metadata_flags) + [str(harness)]
-            rc_with, stdout_with, stderr_with = run_d8(d8_path, harness, base_flags + metadata_flags)
+            run_with_flags = list(base_flags + metadata_flags)
+            if args.trace_ir:
+                run_with_flags.extend([
+                    "--trace-turbo-graph",
+                    f"--trace-turbo-path={trace_graph_with_dir}",
+                ])
+            cmd_with = [str(d8_path)] + run_with_flags + [str(harness)]
+            rc_with, stdout_with, stderr_with = run_d8(d8_path, harness, run_with_flags)
             asm_with_map = extract_all_assemblies(
                 stdout_with or "",
                 allowed_names=business_functions if args.stats_scope == "all-business" else None,
@@ -884,6 +1162,11 @@ def main() -> int:
             )
 
             coverage_without_flags = list(base_flags)
+            if args.trace_ir:
+                coverage_without_flags.extend([
+                    "--trace-turbo-graph",
+                    f"--trace-turbo-path={trace_graph_without_dir}",
+                ])
             rc_cov_without, out_cov_without, err_cov_without = run_d8(d8_path, coverage_harness, coverage_without_flags)
             cov_without_text = (out_cov_without or "") + "\n" + (err_cov_without or "")
             compiled_without = parse_compiled_methods(cov_without_text)
@@ -896,6 +1179,11 @@ def main() -> int:
                 coverage_with_flags = list(base_flags)
                 if metadata_dir:
                     coverage_with_flags.append(f"--turbo_metadata_path={metadata_dir}")
+                if args.trace_ir:
+                    coverage_with_flags.extend([
+                        "--trace-turbo-graph",
+                        f"--trace-turbo-path={trace_graph_with_dir}",
+                    ])
                 rc_cov_with, out_cov_with, err_cov_with = run_d8(d8_path, coverage_harness, coverage_with_flags)
                 cov_with_text = (out_cov_with or "") + "\n" + (err_cov_with or "")
                 compiled_with = parse_compiled_methods(cov_with_text)
@@ -960,6 +1248,166 @@ def main() -> int:
                 else None,
                 "per_target": per_target,
             }
+
+        expected_early_functions: Set[str] = set()
+        if args.trace_ir:
+            if args.compile_coverage and args.coverage_all_business_functions:
+                expected_early_functions.update(business_functions)
+            elif args.compile_coverage:
+                expected_early_functions.update(item["function"] for item in coverage_targets)
+            elif args.stats_scope == "all-business":
+                expected_early_functions.update(business_functions)
+            else:
+                expected_early_functions.add(target_function)
+
+            allowed_early_names = expected_early_functions if expected_early_functions else None
+            early_without = extract_early_graphs(
+                trace_dir=trace_graph_without_dir,
+                output_dir=case_dir,
+                mode="without",
+                allowed_names=allowed_early_names,
+            )
+            early_with = extract_early_graphs(
+                trace_dir=trace_graph_with_dir,
+                output_dir=case_dir,
+                mode="with",
+                allowed_names=allowed_early_names,
+            ) if args.metadata_mode == "strict" else None
+
+            expected_sorted = sorted(expected_early_functions)
+            without_analyzed = set(early_without.get("analyzed_functions", []))
+            without_missing = sorted(set(expected_sorted) - without_analyzed)
+            early_without["expected_functions"] = expected_sorted
+            early_without["missing_functions"] = without_missing
+
+            if isinstance(early_with, dict):
+                with_analyzed = set(early_with.get("analyzed_functions", []))
+                with_missing = sorted(set(expected_sorted) - with_analyzed)
+                early_with["expected_functions"] = expected_sorted
+                early_with["missing_functions"] = with_missing
+
+            report_json["early_optimization_graph"] = {
+                "enabled": True,
+                "expected_functions": expected_sorted,
+                "without": early_without,
+                "with": early_with,
+            }
+
+            raw_without = extract_phase_opcode_counts(
+                trace_dir=trace_graph_without_dir,
+                phase_name="V8.TFRawInt32StrengthReduction",
+                opcodes=["CheckedInt32Add", "Int32Add"],
+                allowed_names=allowed_early_names,
+            )
+            raw_with = extract_phase_opcode_counts(
+                trace_dir=trace_graph_with_dir,
+                phase_name="V8.TFRawInt32StrengthReduction",
+                opcodes=["CheckedInt32Add", "Int32Add"],
+                allowed_names=allowed_early_names,
+            ) if args.metadata_mode == "strict" else None
+
+            without_analyzed = set(raw_without.get("analyzed_functions", []))
+            raw_without["expected_functions"] = expected_sorted
+            raw_without["missing_functions"] = sorted(set(expected_sorted) - without_analyzed)
+
+            if isinstance(raw_with, dict):
+                with_analyzed = set(raw_with.get("analyzed_functions", []))
+                raw_with["expected_functions"] = expected_sorted
+                raw_with["missing_functions"] = sorted(set(expected_sorted) - with_analyzed)
+
+            per_function_compare = []
+            without_map = {
+                item.get("function"): item
+                for item in raw_without.get("per_function", [])
+                if isinstance(item, dict) and isinstance(item.get("function"), str)
+            }
+            with_map = {
+                item.get("function"): item
+                for item in (raw_with or {}).get("per_function", [])
+                if isinstance(item, dict) and isinstance(item.get("function"), str)
+            }
+
+            for fn_name in sorted(set(without_map.keys()) | set(with_map.keys())):
+                wout_counts = ensure_dict(without_map.get(fn_name, {})).get("counts", {})
+                with_counts = ensure_dict(with_map.get(fn_name, {})).get("counts", {})
+                per_function_compare.append(
+                    {
+                        "function": fn_name,
+                        "without": {
+                            "CheckedInt32Add": ensure_dict(wout_counts).get("CheckedInt32Add", 0),
+                            "Int32Add": ensure_dict(wout_counts).get("Int32Add", 0),
+                        },
+                        "with": {
+                            "CheckedInt32Add": ensure_dict(with_counts).get("CheckedInt32Add", 0),
+                            "Int32Add": ensure_dict(with_counts).get("Int32Add", 0),
+                        },
+                    }
+                )
+
+            report_json["rawint32_strength_reduction"] = {
+                "enabled": True,
+                "phase_name": "V8.TFRawInt32StrengthReduction",
+                "without": raw_without,
+                "with": raw_with,
+                "per_function_compare": per_function_compare,
+            }
+
+            if args.verify_rawint32_add_reduction:
+                verification_status = "passed"
+                regression_items = []
+                comparable_count = 0
+
+                if not isinstance(raw_with, dict):
+                    verification_status = "failed"
+                    regression_items.append({
+                        "function": "<global>",
+                        "reason": "with metadata 的 raw phase 统计缺失",
+                    })
+                else:
+                    for item in per_function_compare:
+                        fn_name = item["function"]
+                        wout_checked = ensure_dict(item.get("without", {})).get("CheckedInt32Add", 0)
+                        with_checked = ensure_dict(item.get("with", {})).get("CheckedInt32Add", 0)
+                        wout_int32 = ensure_dict(item.get("without", {})).get("Int32Add", 0)
+                        with_int32 = ensure_dict(item.get("with", {})).get("Int32Add", 0)
+
+                        if wout_checked <= 0:
+                            continue
+                        comparable_count += 1
+                        if with_checked >= wout_checked:
+                            regression_items.append(
+                                {
+                                    "function": fn_name,
+                                    "reason": "CheckedInt32Add 未减少",
+                                    "without_checked": wout_checked,
+                                    "with_checked": with_checked,
+                                }
+                            )
+                        if with_int32 < wout_int32:
+                            regression_items.append(
+                                {
+                                    "function": fn_name,
+                                    "reason": "Int32Add 计数回退",
+                                    "without_int32": wout_int32,
+                                    "with_int32": with_int32,
+                                }
+                            )
+
+                if regression_items:
+                    verification_status = "failed"
+
+                verification_payload = {
+                    "enabled": True,
+                    "status": verification_status,
+                    "comparable_function_count": comparable_count,
+                    "regression_count": len(regression_items),
+                    "regressions": regression_items,
+                }
+                report_json.setdefault("verification", {})["rawint32_add_reduction"] = verification_payload
+
+                if verification_status == "failed":
+                    print("rawint32 add reduction verification failed")
+                    failures += 1
 
         if args.stats_scope == "all-business":
             paired_functions = sorted(set(asm_without_map.keys()) & set(asm_with_map.keys()))
@@ -1046,8 +1494,13 @@ def main() -> int:
             without_result=without_result,
             with_result=with_result,
             stats_scope=str(report_json.get("stats_scope", "target")),
-            optimized_business_functions=report_json.get("optimized_business_functions"),
+            optimized_business_functions={
+                **(report_json.get("optimized_business_functions") or {}),
+                "early_optimization_graph": report_json.get("early_optimization_graph"),
+            },
             aggregate_diff=report_json.get("diff"),
+            rawint32_strength_reduction=report_json.get("rawint32_strength_reduction"),
+            verification=report_json.get("verification"),
         )
         (case_dir / "comparison.md").write_text(report_md, encoding="utf-8")
 

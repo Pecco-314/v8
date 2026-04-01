@@ -36,6 +36,8 @@ class RawInt32StrengthReduction : private MetadataTypeHelper {
   bool IsRawTyped(Node* node, RawIntKind kind);
   bool IsLiteralCompatible(Node* node, RawIntKind kind);
   bool IsTypeOrLiteralCompatible(Node* node, RawIntKind kind);
+  bool CurrentFunctionHasRawProofAnnotation();
+  bool IsInt32SemanticNode(Node* node, int depth = 0);
 
   bool ReduceCheckedBinop(Node* node, const Operator* replacement_op,
                           RawIntKind kind);

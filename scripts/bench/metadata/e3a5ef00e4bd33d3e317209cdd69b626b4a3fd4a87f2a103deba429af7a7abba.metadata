@@ -3,9 +3,9 @@
 # Provenance-Generator: ts_to_metadata.js
 # Provenance-Generator-SHA256: b08a287a1319bc1e8ad7935882ce7229395b725f064fbc3128322bbf4b36695e
 # Provenance-TS-Source: tmp/bench/preprocessed/base64-codec.locals.ts
-# Provenance-TS-SHA256: a391e924e7e3e692a358b7aaab7401bec42a3314f16d37b014510176e6303c97
+# Provenance-TS-SHA256: cae979fe9118571054621c5c892097b056f708f21c0995056ab6c8e0c3655c0b
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-04-01T14:42:23.357Z
+# Provenance-Generated-At: 2026-04-01T21:48:32.936Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0
@@ -16,21 +16,21 @@
 # Source: tmp/bench/tsc/base64-codec.locals.js
 # JS SHA256: e3a5ef00e4bd33d3e317209cdd69b626b4a3fd4a87f2a103deba429af7a7abba
 # Entries-Selected: 20/20
-# Entries SHA256: 9a257bcc1668ec7b0a53af079f920b5a12a434aa81f3a236df3b8172b7c41fa7
-# Provenance-Stamp: 7542b1cb9b2641690826726acde2a7879d1d29adac4a7371f784c7e83bb0c036
+# Entries SHA256: 1dfbaaf6321784b3cc37950c136fe66994c512918defca8281afeb7e76f761f3
+# Provenance-Stamp: b1816d7387342a8a3836684a8caf2a5002f30268c68955f8a5dd80175402ce8b
 
 26 @params any arr<rawint32> @ret arr<rawint32>  # __ti_local_wrap_1
 126 @params any str @ret str  # __ti_local_wrap_2
-226 @params any num @ret num  # __ti_local_wrap_3
-326 @params any num @ret num  # __ti_local_wrap_4
-426 @params any num @ret num  # __ti_local_wrap_5
-526 @params any num @ret num  # __ti_local_wrap_6
+226 @params any rawint32 @ret rawint32  # __ti_local_wrap_3
+326 @params any rawint32 @ret rawint32  # __ti_local_wrap_4
+426 @params any rawint32 @ret rawint32  # __ti_local_wrap_5
+526 @params any rawint32 @ret rawint32  # __ti_local_wrap_6
 626 @params any arr<rawint32> @ret arr<rawint32>  # __ti_local_wrap_7
-726 @params any num @ret num  # __ti_local_wrap_8
-826 @params any num @ret num  # __ti_local_wrap_9
-927 @params any num @ret num  # __ti_local_wrap_10
-1028 @params any num @ret num  # __ti_local_wrap_11
-1129 @params any num @ret num  # __ti_local_wrap_12
+726 @params any rawint32 @ret rawint32  # __ti_local_wrap_8
+826 @params any rawint32 @ret rawint32  # __ti_local_wrap_9
+927 @params any rawint32 @ret rawint32  # __ti_local_wrap_10
+1028 @params any rawint32 @ret rawint32  # __ti_local_wrap_11
+1129 @params any rawint32 @ret rawint32  # __ti_local_wrap_12
 1230 @params any str @ret str  # __ti_local_wrap_13
 1331 @params any arr<num> @ret arr<num>  # __ti_local_wrap_14
 1432 @params any rawint32 @ret rawint32  # __ti_local_wrap_15

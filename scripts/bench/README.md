@@ -50,6 +50,7 @@ python3 scripts/bench/run_nightly.py
 - `--compile-coverage`
 - `--coverage-all-business-functions`
 - `--no-inline`
+- `--verify-rawint32-add-reduction`
 
 即：保持预热、尽可能覆盖并编译业务函数、禁用内联，统计 **所有已编译业务函数** 的总字节数。
 
@@ -202,6 +203,7 @@ python3 scripts/bench/generate_bench_assembly.py \
 - `--invoke-expr`：指定优化调用表达式（适用于目标函数需要参数）
 - `--metadata-mode strict|off`：`strict` 对比 with/without metadata，`off` 仅生成无 metadata 版本
 - `--trace-ir`：输出 TurboFan IR trace 日志
+- `--verify-rawint32-add-reduction`：校验 `V8.TFRawInt32StrengthReduction` 中 `CheckedInt32Add` 在 with metadata 下是否减少
 - `--no-wrapper-preprocess`：关闭 `ts_locals_to_wrappers.js` 预处理
 - `--out-dir`：自定义输出目录（默认 `docs/assembly/benchmarks`）
 
@@ -222,7 +224,7 @@ python3 scripts/bench/measure_codegen_size.py
 
 - `*_without.asm` / `*_with.asm`
 - `comparison.md`（自动统计变化）
-- `comparison.json`（结构化统计，便于脚本消费）
+- `comparison.json`（结构化统计，便于脚本消费，包含 `rawint32_strength_reduction` 与 `verification.rawint32_add_reduction`）
 
 失败日志输出到：`tmp/bench/bench-asm-logs/<run_id>/`
 

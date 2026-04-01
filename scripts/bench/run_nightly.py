@@ -207,6 +207,8 @@ def collect_binary_codegen(
         asm_cmd += ["--invoke-expr", str(hotspot["invoke_expr"])]
     if args.trace_ir:
         asm_cmd.append("--trace-ir")
+    if args.codegen_verify_rawint32_add_reduction:
+        asm_cmd.append("--verify-rawint32-add-reduction")
 
     if args.codegen_compile_coverage:
         asm_cmd.append("--compile-coverage")
@@ -236,6 +238,13 @@ def collect_binary_codegen(
         coverage = cmp_json.get("compile_coverage", {}) if isinstance(cmp_json.get("compile_coverage"), dict) else {}
         coverage_without = coverage.get("without", {}) if isinstance(coverage.get("without"), dict) else {}
         coverage_with = coverage.get("with", {}) if isinstance(coverage.get("with"), dict) else {}
+        raw_phase = cmp_json.get("rawint32_strength_reduction", {}) if isinstance(cmp_json.get("rawint32_strength_reduction"), dict) else {}
+        raw_without = raw_phase.get("without", {}) if isinstance(raw_phase.get("without"), dict) else {}
+        raw_with = raw_phase.get("with", {}) if isinstance(raw_phase.get("with"), dict) else {}
+        raw_without_totals = raw_without.get("totals", {}) if isinstance(raw_without.get("totals"), dict) else {}
+        raw_with_totals = raw_with.get("totals", {}) if isinstance(raw_with.get("totals"), dict) else {}
+        verify = cmp_json.get("verification", {}) if isinstance(cmp_json.get("verification"), dict) else {}
+        verify_raw = verify.get("rawint32_add_reduction", {}) if isinstance(verify.get("rawint32_add_reduction"), dict) else {}
 
         without_instruction_size = totals.get("without_instruction_size")
         with_instruction_size = totals.get("with_instruction_size")
@@ -258,6 +267,13 @@ def collect_binary_codegen(
             "coverage_target_count": len(coverage.get("targets", [])) if isinstance(coverage.get("targets"), list) else None,
             "coverage_without_compiled_target_count": coverage_without.get("compiled_target_count"),
             "coverage_with_compiled_target_count": coverage_with.get("compiled_target_count"),
+            "raw_phase_enabled": raw_phase.get("enabled"),
+            "raw_without_checked_int32_add": raw_without_totals.get("CheckedInt32Add"),
+            "raw_with_checked_int32_add": raw_with_totals.get("CheckedInt32Add"),
+            "raw_without_int32_add": raw_without_totals.get("Int32Add"),
+            "raw_with_int32_add": raw_with_totals.get("Int32Add"),
+            "verify_rawint32_add_status": verify_raw.get("status"),
+            "verify_rawint32_add_regression_count": verify_raw.get("regression_count"),
         }
 
     record = {
@@ -309,6 +325,11 @@ def parse_args() -> argparse.Namespace:
         help="Disable auto coverage for all business functions (default enabled)",
     )
     parser.add_argument(
+        "--codegen-no-verify-rawint32-add-reduction",
+        action="store_true",
+        help="Disable rawint32 CheckedInt32Add->Int32Add regression verification in binary_codegen",
+    )
+    parser.add_argument(
         "--codegen-allow-inline",
         action="store_true",
         help="Allow inlining in binary_codegen (default is no-inline)",
@@ -345,6 +366,7 @@ def main() -> int:
     args.codegen_compile_coverage = not args.codegen_no_compile_coverage
     args.codegen_coverage_all_business = not args.codegen_no_all_business_coverage
     args.codegen_no_inline = not args.codegen_allow_inline
+    args.codegen_verify_rawint32_add_reduction = not args.codegen_no_verify_rawint32_add_reduction
 
     bench_dir = (root / args.bench_dir).resolve()
     if not bench_dir.exists():

@@ -9,6 +9,8 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/name.h"
 
+#include <unordered_set>
+
 namespace v8::internal::compiler {
 
 MetadataTypeHelper::MetadataTypeHelper(OptimizedCompilationInfo* compilation_info,
@@ -158,6 +160,22 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
     return std::nullopt;
   }
 
+  static thread_local std::unordered_set<Node*>* visiting_nodes =
+      new std::unordered_set<Node*>();
+  if (visiting_nodes->find(node) != visiting_nodes->end()) {
+    return std::nullopt;
+  }
+  struct VisitingGuard {
+    explicit VisitingGuard(std::unordered_set<Node*>* set, Node* current)
+        : set_ref(set), current_node(current) {
+      set_ref->insert(current_node);
+    }
+    ~VisitingGuard() { set_ref->erase(current_node); }
+
+    std::unordered_set<Node*>* set_ref;
+    Node* current_node;
+  } guard(visiting_nodes, node);
+
   if (const TypeAST* cached = GetNodeType(node)) {
     return *cached;
   }
@@ -172,6 +190,11 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
     TypeAST ast;
     ast.kind = kind;
     return ast;
+  };
+
+  auto is_raw_kind = [](TypeAST::TypeKind kind) {
+    return kind == TypeAST::RawInt32 || kind == TypeAST::RawUint32 ||
+           kind == TypeAST::RawInt64 || kind == TypeAST::RawUint64;
   };
 
   if (node->opcode() == IrOpcode::kParameter) {
@@ -227,6 +250,92 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
       return std::nullopt;
     }
     return cache_and_return(input_type_opt.value());
+  } else if (node->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 ||
+             node->opcode() == IrOpcode::kCheckedTaggedToInt32 ||
+             node->opcode() == IrOpcode::kChangeInt32ToTagged ||
+             node->opcode() == IrOpcode::kChangeUint32ToTagged ||
+             node->opcode() == IrOpcode::kChangeInt31ToTaggedSigned) {
+    if (node->op()->ValueInputCount() == 0) {
+      return std::nullopt;
+    }
+    auto input_type_opt = GetNodeTypeAST(NodeProperties::GetValueInput(node, 0));
+    if (!input_type_opt.has_value()) {
+      return std::nullopt;
+    }
+    if (!is_raw_kind(input_type_opt->kind)) {
+      return std::nullopt;
+    }
+    return cache_and_return(input_type_opt.value());
+  } else if (node->opcode() == IrOpcode::kInt32Add ||
+             node->opcode() == IrOpcode::kInt32Sub ||
+             node->opcode() == IrOpcode::kInt32Mul ||
+             node->opcode() == IrOpcode::kCheckedInt32Add ||
+             node->opcode() == IrOpcode::kCheckedInt32Sub ||
+             node->opcode() == IrOpcode::kCheckedInt32Mul) {
+    if (node->op()->ValueInputCount() < 2) {
+      return std::nullopt;
+    }
+
+    Node* left = NodeProperties::GetValueInput(node, 0);
+    Node* right = NodeProperties::GetValueInput(node, 1);
+    auto left_type_opt = GetNodeTypeAST(left);
+    auto right_type_opt = GetNodeTypeAST(right);
+
+    auto left_is_raw = left_type_opt.has_value() && is_raw_kind(left_type_opt->kind);
+    auto right_is_raw = right_type_opt.has_value() && is_raw_kind(right_type_opt->kind);
+
+    if (left_is_raw && right_is_raw && left_type_opt->kind == right_type_opt->kind) {
+      return cache_and_return(left_type_opt.value());
+    }
+
+    bool right_is_const = TryGetConstantIndex(right).has_value();
+    bool left_is_const = TryGetConstantIndex(left).has_value();
+    if (left_is_raw && right_is_const) {
+      return cache_and_return(left_type_opt.value());
+    }
+    if (right_is_raw && left_is_const) {
+      return cache_and_return(right_type_opt.value());
+    }
+
+    return std::nullopt;
+  } else if (node->opcode() == IrOpcode::kPhi) {
+    int value_input_count = node->op()->ValueInputCount();
+    if (value_input_count <= 0) {
+      return std::nullopt;
+    }
+
+    std::optional<TypeAST::TypeKind> candidate_raw_kind;
+    for (int i = 0; i < value_input_count; ++i) {
+      Node* input = NodeProperties::GetValueInput(node, i);
+      auto input_type_opt = GetNodeTypeAST(input);
+      if (!input_type_opt.has_value()) continue;
+
+      TypeAST::TypeKind input_kind = input_type_opt->kind;
+      if (is_raw_kind(input_kind)) {
+        if (!candidate_raw_kind.has_value()) {
+          candidate_raw_kind = input_kind;
+          continue;
+        }
+        if (candidate_raw_kind.value() != input_kind) {
+          return std::nullopt;
+        }
+        continue;
+      }
+
+      if (input_kind == TypeAST::Num && TryGetConstantIndex(input).has_value()) {
+        continue;
+      }
+
+      return std::nullopt;
+    }
+
+    if (!candidate_raw_kind.has_value()) {
+      return std::nullopt;
+    }
+
+    TypeAST phi_type;
+    phi_type.kind = candidate_raw_kind.value();
+    return cache_and_return(phi_type);
   } else if (node->opcode() == IrOpcode::kLoadField) {
     Node* object_node = node->InputAt(0);
     auto object_type_opt = GetNodeTypeAST(object_node);
