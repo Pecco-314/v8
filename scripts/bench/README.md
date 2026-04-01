@@ -5,6 +5,7 @@
 - 把 benchmark 文件放到 `scripts/bench/benchmarks/`（推荐 `.ts`）
 - `run_pipeline.py` 默认先执行 `ts_locals_to_wrappers.js` 预处理，再编译 TS → JS 并生成 metadata
 - pipeline 自动对比 **without metadata** 和 **with metadata**
+- nightly 统一由 `run_nightly.py` 编排三类指标：运行时间、编译时延、二进制字节数
 
 ## 目录约定
 
@@ -31,11 +32,40 @@
 python3 scripts/bench/run_pipeline.py
 ```
 
+### 1.1) 跑 nightly 统一任务（推荐）
+
+```bash
+python3 scripts/bench/run_nightly.py
+```
+
+默认会执行三个维度：
+
+- `performance`（运行时间）
+- `compile_latency`（编译时延）
+- `binary_codegen`（二进制字节数）
+
+并且对 `binary_codegen` 默认启用：
+
+- `--stats-scope all-business`
+- `--compile-coverage`
+- `--coverage-all-business-functions`
+- `--no-inline`
+
+即：保持预热、尽可能覆盖并编译业务函数、禁用内联，统计 **所有已编译业务函数** 的总字节数。
+
 ### 2) 只跑单个 benchmark
 
 ```bash
 python3 scripts/bench/run_pipeline.py \
   --bench scripts/bench/benchmarks/matrix-multiply.ts
+```
+
+nightly 单基准：
+
+```bash
+python3 scripts/bench/run_nightly.py \
+  --bench-dir scripts/bench/benchmarks \
+  --max-benches 1
 ```
 
 ### 3) 指定 d8 / 配置文件
@@ -88,6 +118,10 @@ python3 scripts/bench/run_pipeline.py \
 - 每次 `run_bench.py` 输出：`tmp/bench/results-*.json`
 - pipeline 汇总输出：`tmp/bench/pipeline-report-*.json`
 - 逐项追加记录：`tmp/bench/bench-results.jsonl`
+- nightly 汇总输出：`tmp/bench/nightly-results.jsonl`
+- nightly 兼容入口：
+  - `run_full_nightly.py` → 转发到 `run_nightly.py --dimensions performance,compile_latency,binary_codegen`
+  - `run_nightly_codegen_only.py` → 转发到 `run_nightly.py --dimensions binary_codegen`
 
 ## 测试方法与设计
 
@@ -123,7 +157,8 @@ python3 scripts/bench/run_pipeline.py \
 思路：
 
 - 使用 `generate_assembly.py` 生成 `with/without metadata` 的汇编
-- 统计指令行数或字节数变化
+- 对 `all-business` 范围统计 **所有已编译业务函数** 的总字节数（不仅是 paired 函数）
+- 默认禁用内联，降低噪声并避免字节统计被内联折叠影响
 - 观察是否出现 **类型守卫/边界检查/带检算术** 的剥离
 
 操作建议：

@@ -113,9 +113,10 @@ def extract_all_assemblies(
     return assemblies
 
 
-def discover_business_functions(bench_js: Path) -> Set[str]:
+def discover_business_functions(bench_js: Path, excluded_names: Optional[Set[str]] = None) -> Set[str]:
     source = bench_js.read_text(encoding="utf-8")
     names: Set[str] = set()
+    excluded_names = set(excluded_names or set())
 
     for match in re.finditer(r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\(", source):
         names.add(match.group(1))
@@ -133,6 +134,7 @@ def discover_business_functions(bench_js: Path) -> Set[str]:
         and not name.startswith("__")
         and not re.fullmatch(r"[A-Z0-9_]+", name)
         and name not in {"exports", "module", "require"}
+        and name not in excluded_names
     }
     return filtered
 
@@ -379,7 +381,9 @@ def build_d8_flags(
                 flags.append(flag)
 
     if trace_ir:
-        trace_flags = ["--trace-turbo", "--trace-turbo-reduction", f"--trace-turbo-filter={function_name}"]
+        trace_flags = ["--trace-turbo", "--trace-turbo-reduction"]
+        if use_filter:
+            trace_flags.append(f"--trace-turbo-filter={function_name}")
         for flag in trace_flags:
             if flag not in flags:
                 flags.append(flag)
@@ -390,6 +394,28 @@ def run_d8(d8_path: Path, harness: Path, flags: Sequence[str]) -> Tuple[int, str
     command = [str(d8_path)] + list(flags) + [str(harness)]
     result = subprocess.run(command, capture_output=True, text=True)
     return result.returncode, result.stdout, result.stderr
+
+
+def split_ir_logs_by_function(ir_text: str, allowed_names: Optional[Set[str]] = None) -> Dict[str, str]:
+    chunks: Dict[str, List[str]] = {}
+    current_name: Optional[str] = None
+
+    begin_compile = re.compile(r"Begin compiling method\s+([^\s]+)\s+using TurboFan")
+
+    for line in ir_text.splitlines():
+        begin_match = begin_compile.search(line)
+        if begin_match:
+            current_name = begin_match.group(1).strip()
+            if allowed_names is not None and current_name not in allowed_names:
+                current_name = None
+                continue
+            chunks.setdefault(current_name, []).append(line)
+            continue
+
+        if current_name is not None:
+            chunks[current_name].append(line)
+
+    return {name: "\n".join(lines).strip() + "\n" for name, lines in chunks.items() if lines}
 
 
 def normalize_lines(asm: Optional[str]) -> List[str]:
@@ -668,6 +694,11 @@ def main() -> int:
 
         case_dir = out_dir / bench_file.stem
         case_dir.mkdir(parents=True, exist_ok=True)
+        for stale_file in list(case_dir.glob("*.asm")) + list(case_dir.glob("*.ir.log")):
+            try:
+                stale_file.unlink()
+            except OSError:
+                pass
         target = ensure_dict(targets_cfg.get(bench_file.stem, {}))
         target_function = args.function or target.get("function") or "bench"
         target_setup = args.setup or target.get("setup") or "setup"
@@ -703,6 +734,8 @@ def main() -> int:
         if isinstance(target_extra_flags, list) and target_extra_flags:
             print(f"target extra flags: {target_extra_flags}")
 
+        lifecycle_names = {"setup", "teardown", target_setup, target_teardown}
+
         coverage_targets: List[Dict[str, str]] = []
         raw_coverage_targets = target.get("coverage_targets", [])
         if isinstance(raw_coverage_targets, list):
@@ -711,7 +744,13 @@ def main() -> int:
                     continue
                 fn_name = entry.get("function")
                 invoke_expr = entry.get("invoke_expr")
-                if isinstance(fn_name, str) and fn_name and isinstance(invoke_expr, str) and invoke_expr:
+                if (
+                    isinstance(fn_name, str)
+                    and fn_name
+                    and fn_name not in lifecycle_names
+                    and isinstance(invoke_expr, str)
+                    and invoke_expr
+                ):
                     coverage_targets.append({"function": fn_name, "invoke_expr": invoke_expr})
 
         for raw in args.coverage_target:
@@ -722,23 +761,26 @@ def main() -> int:
             fn_name, invoke_expr = raw.split("=", 1)
             fn_name = fn_name.strip()
             invoke_expr = invoke_expr.strip()
-            if fn_name and invoke_expr:
+            if fn_name and fn_name not in lifecycle_names and invoke_expr:
                 coverage_targets.append({"function": fn_name, "invoke_expr": invoke_expr})
 
-        if args.compile_coverage and args.coverage_all_business_functions and not coverage_targets:
+        business_functions = discover_business_functions(bench_js, excluded_names=lifecycle_names)
+
+        if args.compile_coverage and args.coverage_all_business_functions:
             explicit_names = {item["function"] for item in coverage_targets}
-            for fn_name in sorted(discover_business_functions(bench_js)):
+            for fn_name in sorted(business_functions):
                 if fn_name in explicit_names:
                     continue
                 safe_invoke_expr = (
                     f"(() => {{ const __fn = globalThis[{json.dumps(fn_name)}]; "
                     "if (typeof __fn !== 'function') return 0; "
-                    "if (__fn.length !== 0) return 0; "
-                    "return __fn(); })()"
+                    "const __argc = Math.max(0, (__fn.length | 0)); "
+                    "const __args = new Array(__argc).fill(undefined); "
+                    "return __fn.apply(undefined, __args); })()"
                 )
                 coverage_targets.append({"function": fn_name, "invoke_expr": safe_invoke_expr})
 
-        if args.compile_coverage and not coverage_targets:
+        if args.compile_coverage and not coverage_targets and target_function not in lifecycle_names:
             coverage_targets.append({"function": target_function, "invoke_expr": target_invoke_expr})
 
         harness = write_harness(
@@ -751,8 +793,6 @@ def main() -> int:
             prewarm_exprs=target_prewarm_exprs,
             warmup_calls=target_warmup_calls,
         )
-
-        business_functions = discover_business_functions(bench_js)
 
         cmd_without = [str(d8_path)] + base_flags + [str(harness)]
         rc_without, stdout_without, stderr_without = run_d8(d8_path, harness, base_flags)
@@ -828,6 +868,11 @@ def main() -> int:
             with_result=with_result,
         )
 
+        out_cov_without = ""
+        err_cov_without = ""
+        out_cov_with = ""
+        err_cov_with = ""
+
         if args.compile_coverage:
             coverage_harness = write_coverage_harness(
                 tmp_dir=tmp_dir,
@@ -847,8 +892,6 @@ def main() -> int:
             compiled_with: Set[str] = set()
             invoke_with: Dict[str, str] = {}
             rc_cov_with = 0
-            out_cov_with = ""
-            err_cov_with = ""
             if args.metadata_mode == "strict":
                 coverage_with_flags = list(base_flags)
                 if metadata_dir:
@@ -955,6 +998,21 @@ def main() -> int:
                     }
                 )
 
+            total_without_instruction_lines = sum(
+                len(normalize_lines(asm_text)) for asm_text, _ in asm_without_map.values()
+            )
+            total_with_instruction_lines = sum(
+                len(normalize_lines(asm_text)) for asm_text, _ in asm_with_map.values()
+            )
+
+            without_sizes = [size for _, size in asm_without_map.values() if isinstance(size, int)]
+            with_sizes = [size for _, size in asm_with_map.values() if isinstance(size, int)]
+            total_without_instruction_size = sum(without_sizes) if without_sizes else None
+            total_with_instruction_size = sum(with_sizes) if with_sizes else None
+            total_instruction_size_delta = None
+            if total_without_instruction_size is not None and total_with_instruction_size is not None:
+                total_instruction_size_delta = total_with_instruction_size - total_without_instruction_size
+
             report_json["stats_scope"] = "all-business"
             report_json["optimized_business_functions"] = {
                 "without_count": len(asm_without_map),
@@ -964,10 +1022,20 @@ def main() -> int:
                 "only_with": only_with,
                 "paired": per_function,
             }
+            report_json["all_business_totals"] = {
+                "without_instruction_lines": total_without_instruction_lines,
+                "with_instruction_lines": total_with_instruction_lines,
+                "line_delta": total_with_instruction_lines - total_without_instruction_lines,
+                "without_instruction_size": total_without_instruction_size,
+                "with_instruction_size": total_with_instruction_size,
+                "instruction_size_delta": total_instruction_size_delta,
+            }
             report_json["diff"] = {
-                "line_delta": aggregate_line_delta,
+                "line_delta": total_with_instruction_lines - total_without_instruction_lines,
                 "changed_lines": aggregate_changed_lines,
-                "instruction_size_delta": aggregate_instruction_delta,
+                "instruction_size_delta": total_instruction_size_delta,
+                "paired_line_delta": aggregate_line_delta,
+                "paired_instruction_size_delta": aggregate_instruction_delta,
             }
 
         report_md = generate_markdown_report(
@@ -1007,9 +1075,29 @@ def main() -> int:
             )
 
         if args.trace_ir:
-            (case_dir / f"{target_function}_without.ir.log").write_text(without_result.stdout + "\n" + without_result.stderr, encoding="utf-8")
+            without_ir_text = without_result.stdout + "\n" + without_result.stderr
+            with_ir_text = with_result.stdout + "\n" + with_result.stderr
+            if args.compile_coverage:
+                without_ir_text += "\n" + out_cov_without + "\n" + err_cov_without
+                if args.metadata_mode == "strict":
+                    with_ir_text += "\n" + out_cov_with + "\n" + err_cov_with
+
+            allowed_ir_names = business_functions if args.stats_scope == "all-business" else {target_function}
+            without_ir_by_fn = split_ir_logs_by_function(without_ir_text, allowed_names=allowed_ir_names)
+            with_ir_by_fn = split_ir_logs_by_function(with_ir_text, allowed_names=allowed_ir_names)
+
+            if without_ir_by_fn:
+                for fn_name, text in sorted(without_ir_by_fn.items()):
+                    (case_dir / f"{fn_name}_without.ir.log").write_text(text, encoding="utf-8")
+            else:
+                (case_dir / f"{target_function}_without.ir.log").write_text(without_ir_text, encoding="utf-8")
+
             if args.metadata_mode == "strict":
-                (case_dir / f"{target_function}_with.ir.log").write_text(with_result.stdout + "\n" + with_result.stderr, encoding="utf-8")
+                if with_ir_by_fn:
+                    for fn_name, text in sorted(with_ir_by_fn.items()):
+                        (case_dir / f"{fn_name}_with.ir.log").write_text(text, encoding="utf-8")
+                else:
+                    (case_dir / f"{target_function}_with.ir.log").write_text(with_ir_text, encoding="utf-8")
 
         print(f"output: {case_dir}")
         print(f"asm without: {'ok' if asm_without else 'missing'}")
