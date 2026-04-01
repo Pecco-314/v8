@@ -53,6 +53,20 @@ def main() -> int:
     parser.add_argument("--bench-dir", default="scripts/bench/benchmarks", help="Benchmark directory")
     parser.add_argument("--d8", help="Optional d8 path override")
     parser.add_argument("--trace-ir", action="store_true", help="Enable IR tracing")
+    parser.add_argument("--compile-coverage", action="store_true", help="Enable multi-target compile coverage collection")
+    parser.add_argument(
+        "--coverage-all-business-functions",
+        action="store_true",
+        help="When compile coverage is enabled, auto-cover all business functions with default fn() invocation.",
+    )
+    parser.add_argument("--no-inline", action="store_true", help="Disable TurboFan inlining during codegen run")
+    parser.add_argument("--coverage-warmup-calls", type=int, default=8, help="Warmup calls per coverage target")
+    parser.add_argument(
+        "--coverage-target",
+        action="append",
+        default=[],
+        help="Additional coverage target in format function=invoke_expr",
+    )
     parser.add_argument("--max-benches", type=int, help="Optional max benchmark count")
     parser.add_argument("--results-jsonl", default="tmp/bench/nightly-codegen-results.jsonl", help="Append-only result stream")
     parser.add_argument("--run-log", default="tmp/bench/nightly-codegen.log", help="Human-readable run log")
@@ -67,9 +81,9 @@ def main() -> int:
     hotspots_path = root / "scripts" / "bench" / "config" / "hotspots.json"
     hotspots = load_json(hotspots_path) if hotspots_path.exists() else {}
 
-    radix = hotspots.get("radix-sort", {})
-    if radix.get("function") != "radixSort" or radix.get("invoke_expr") != "radixSort(data.slice())":
-        print("hotspots.json 校验失败: radix-sort 必须指向 radixSort(data.slice())")
+    merge = hotspots.get("merge-sort", {})
+    if merge.get("function") != "mergeSort" or merge.get("invoke_expr") != "mergeSort(data.slice())":
+        print("hotspots.json 校验失败: merge-sort 必须指向 mergeSort(data.slice())")
         return 2
 
     benches = discover_benches(bench_dir)
@@ -83,6 +97,9 @@ def main() -> int:
     run_log = (root / args.run_log).resolve()
     run_log.parent.mkdir(parents=True, exist_ok=True)
     run_id = time.strftime("%Y%m%d-%H%M%S")
+
+    results_jsonl.parent.mkdir(parents=True, exist_ok=True)
+    results_jsonl.write_text("", encoding="utf-8")
 
     append_jsonl(
         results_jsonl,
@@ -135,6 +152,15 @@ def main() -> int:
             cmd += ["--invoke-expr", str(hotspot["invoke_expr"])]
         if args.trace_ir:
             cmd.append("--trace-ir")
+        if args.compile_coverage:
+            cmd.append("--compile-coverage")
+            cmd += ["--coverage-warmup-calls", str(args.coverage_warmup_calls)]
+            if args.coverage_all_business_functions:
+                cmd.append("--coverage-all-business-functions")
+            for coverage_target in args.coverage_target:
+                cmd += ["--coverage-target", str(coverage_target)]
+        if args.no_inline:
+            cmd.append("--no-inline")
         if args.d8:
             cmd += ["--d8", args.d8]
 
@@ -146,16 +172,36 @@ def main() -> int:
             diff = cmp_json.get("diff", {})
             scope = cmp_json.get("stats_scope", "target")
             optimized = cmp_json.get("optimized_business_functions", {})
+            paired = optimized.get("paired", []) if isinstance(optimized, dict) else []
+            target_without_size = (cmp_json.get("without_metadata") or {}).get("instruction_size")
+            target_with_size = (cmp_json.get("with_metadata") or {}).get("instruction_size")
+            aggregate_without_size = None
+            aggregate_with_size = None
+            if scope == "all-business" and isinstance(paired, list):
+                without_sizes = [item.get("without_instruction_size") for item in paired if isinstance(item, dict)]
+                with_sizes = [item.get("with_instruction_size") for item in paired if isinstance(item, dict)]
+                if without_sizes and all(isinstance(v, int) for v in without_sizes):
+                    aggregate_without_size = sum(without_sizes)
+                if with_sizes and all(isinstance(v, int) for v in with_sizes):
+                    aggregate_with_size = sum(with_sizes)
+
+            coverage = cmp_json.get("compile_coverage", {}) if isinstance(cmp_json.get("compile_coverage"), dict) else {}
+            coverage_without = coverage.get("without", {}) if isinstance(coverage.get("without"), dict) else {}
+            coverage_with = coverage.get("with", {}) if isinstance(coverage.get("with"), dict) else {}
             metrics = {
                 "stats_scope": scope,
                 "line_delta": diff.get("line_delta"),
                 "instruction_size_delta": diff.get("instruction_size_delta"),
                 "changed_lines": diff.get("changed_lines"),
-                "without_instruction_size": (cmp_json.get("without_metadata") or {}).get("instruction_size"),
-                "with_instruction_size": (cmp_json.get("with_metadata") or {}).get("instruction_size"),
+                "without_instruction_size": aggregate_without_size if aggregate_without_size is not None else target_without_size,
+                "with_instruction_size": aggregate_with_size if aggregate_with_size is not None else target_with_size,
                 "optimized_without_count": optimized.get("without_count"),
                 "optimized_with_count": optimized.get("with_count"),
                 "optimized_paired_count": optimized.get("paired_count"),
+                "coverage_enabled": coverage.get("enabled"),
+                "coverage_target_count": len(coverage.get("targets", [])) if isinstance(coverage.get("targets"), list) else None,
+                "coverage_without_compiled_target_count": coverage_without.get("compiled_target_count"),
+                "coverage_with_compiled_target_count": coverage_with.get("compiled_target_count"),
             }
 
         append_jsonl(

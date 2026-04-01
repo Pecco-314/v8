@@ -1,15 +1,32 @@
 {
   "matrix-multiply": {
     "function": "matmul",
-    "invoke_expr": "matmul(left, right, result)"
+    "invoke_expr": "matmul(left, right, result)",
+    "coverage_targets": [
+      { "function": "allocMatrix", "invoke_expr": "allocMatrix(size)" },
+      { "function": "fillMatrix", "invoke_expr": "fillMatrix(left, 1)" },
+      { "function": "matmul", "invoke_expr": "matmul(left, right, result)" },
+      { "function": "bench", "invoke_expr": "bench()" },
+      { "function": "setup", "invoke_expr": "setup()" },
+      { "function": "teardown", "invoke_expr": "teardown()" }
+    ]
   },
   "deltablue": {
     "function": "propagate",
     "invoke_expr": "propagate()"
   },
-  "radix-sort": {
-    "function": "radixSort",
-    "invoke_expr": "radixSort(data.slice())"
+  "merge-sort": {
+    "function": "mergeSort",
+    "invoke_expr": "mergeSort(data.slice())",
+    "coverage_targets": [
+      { "function": "pairLessOrEqual", "invoke_expr": "pairLessOrEqual([1, 2], [2, 1])" },
+      { "function": "merge", "invoke_expr": "(() => { const arr = data.slice(); const mid = arr.length >> 1; merge(arr, 0, mid, arr.length); return arr.length; })()" },
+      { "function": "mergeSortRange", "invoke_expr": "(() => { const arr = data.slice(); mergeSortRange(arr, 0, arr.length); return arr.length; })()" },
+      { "function": "mergeSort", "invoke_expr": "mergeSort(data.slice())" },
+      { "function": "bench", "invoke_expr": "bench()" },
+      { "function": "setup", "invoke_expr": "setup()" },
+      { "function": "teardown", "invoke_expr": "teardown()" }
+    ]
   },
   "n-body": {
     "function": "step",
@@ -17,11 +34,33 @@
   },
   "json-parser": {
     "function": "parseJson",
-    "invoke_expr": "parseJson(jsonText)"
+    "invoke_expr": "parseJson(jsonText)",
+    "coverage_targets": [
+      { "function": "skipWhitespace", "invoke_expr": "skipWhitespace({text: jsonText, index: 0})" },
+      { "function": "parseString", "invoke_expr": "parseString({text: '\"v8\"', index: 0})" },
+      { "function": "parseNumber", "invoke_expr": "parseNumber({text: '12345', index: 0})" },
+      { "function": "parseArray", "invoke_expr": "parseArray({text: '[1,2,3]', index: 0})" },
+      { "function": "parseObject", "invoke_expr": "parseObject({text: '{\"x\":7,\"y\":9}', index: 0})" },
+      { "function": "parseValue", "invoke_expr": "parseValue({text: '42', index: 0})" },
+      { "function": "parseJson", "invoke_expr": "parseJson(jsonText)" },
+      { "function": "isJsonObject", "invoke_expr": "isJsonObject(parseJson(jsonText))" },
+      { "function": "sumNumbers", "invoke_expr": "sumNumbers(parseJson(jsonText))" },
+      { "function": "bench", "invoke_expr": "bench()" },
+      { "function": "setup", "invoke_expr": "setup()" },
+      { "function": "teardown", "invoke_expr": "teardown()" }
+    ]
   },
   "crypto-sha256": {
     "function": "sha256",
-    "invoke_expr": "sha256(inputBytes)"
+    "invoke_expr": "sha256(inputBytes)",
+    "coverage_targets": [
+      { "function": "rotr", "invoke_expr": "rotr(0x12345678, 7)" },
+      { "function": "prepareBlock", "invoke_expr": "prepareBlock(inputBytes)" },
+      { "function": "sha256", "invoke_expr": "sha256(inputBytes)" },
+      { "function": "bench", "invoke_expr": "bench()" },
+      { "function": "setup", "invoke_expr": "setup()" },
+      { "function": "teardown", "invoke_expr": "teardown()" }
+    ]
   },
   "lz77-compression": {
     "function": "compress",
@@ -29,7 +68,14 @@
   },
   "base64-codec": {
     "function": "decodeBase64",
-    "invoke_expr": "decodeBase64(encoded)"
+    "invoke_expr": "decodeBase64(encoded)",
+    "coverage_targets": [
+      { "function": "encodeBase64", "invoke_expr": "encodeBase64(inputBytes)" },
+      { "function": "decodeBase64", "invoke_expr": "decodeBase64(encoded)" },
+      { "function": "bench", "invoke_expr": "bench()" },
+      { "function": "setup", "invoke_expr": "setup()" },
+      { "function": "teardown", "invoke_expr": "teardown()" }
+    ]
   },
   "image-convolution": {
     "function": "convolve",

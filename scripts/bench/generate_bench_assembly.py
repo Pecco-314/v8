@@ -131,6 +131,7 @@ def discover_business_functions(bench_js: Path) -> Set[str]:
         for name in names
         if not name.startswith("__ti_local_wrap_")
         and not name.startswith("__")
+        and not re.fullmatch(r"[A-Z0-9_]+", name)
         and name not in {"exports", "module", "require"}
     }
     return filtered
@@ -193,6 +194,99 @@ print('BENCH_ASM_DONE');
     return harness_path
 
 
+def write_coverage_harness(
+        tmp_dir: Path,
+        bench_js: Path,
+        setup_name: str,
+        teardown_name: str,
+        coverage_targets: Sequence[Dict[str, str]],
+        warmup_calls: int,
+) -> Path:
+        harness_path = tmp_dir / f"harness-coverage-{bench_js.stem}.js"
+        bench_literal = json.dumps(str(bench_js))
+        setup_literal = json.dumps(setup_name)
+        teardown_literal = json.dumps(teardown_name)
+        warmup_calls = max(1, int(warmup_calls))
+
+        target_blocks: List[str] = []
+        for target in coverage_targets:
+                fn_name = target["function"]
+                invoke_expr = target["invoke_expr"]
+                fn_name_literal = json.dumps(fn_name)
+                target_blocks.append(
+                        f"""
+try {{
+    const __fn = globalThis[{fn_name_literal}];
+    if (typeof __fn !== 'function') {{
+        print('COVERAGE_RESULT|{fn_name}|not_function');
+    }} else {{
+        %PrepareFunctionForOptimization(__fn);
+        for (let i = 0; i < {warmup_calls}; i++) {{
+            ({invoke_expr});
+        }}
+        %OptimizeFunctionOnNextCall(__fn);
+        ({invoke_expr});
+        print('COVERAGE_RESULT|{fn_name}|invoked');
+    }}
+}} catch (e) {{
+    print('COVERAGE_RESULT|{fn_name}|invoke_failed:' + String(e));
+}}
+""".strip()
+                )
+
+        targets_script = "\n\n".join(target_blocks)
+        harness = f"""
+load({bench_literal});
+
+const setupFn = globalThis[{setup_literal}];
+const teardownFn = globalThis[{teardown_literal}];
+
+if (typeof setupFn === 'function') setupFn();
+
+{targets_script}
+
+if (typeof teardownFn === 'function') teardownFn();
+
+print('BENCH_COVERAGE_DONE');
+""".strip()
+        harness_path.write_text(harness + "\n", encoding="utf-8")
+        return harness_path
+
+
+def parse_compiled_methods(output_text: str) -> Set[str]:
+    compiled: Set[str] = set()
+
+    for name in re.findall(r"Finished compiling method\s+([^\s]+)\s+using TurboFan", output_text):
+        normalized = name.strip()
+        if normalized:
+            compiled.add(normalized)
+
+    for name in re.findall(r"completed optimizing\s+[^\n]*<JSFunction\s+([^\s>]+)", output_text):
+        normalized = name.strip()
+        if normalized:
+            compiled.add(normalized)
+
+    for block_name in extract_all_assemblies(output_text).keys():
+        normalized = block_name.strip()
+        if normalized:
+            compiled.add(normalized)
+
+    return compiled
+
+
+def parse_coverage_results(output_text: str) -> Dict[str, str]:
+        results: Dict[str, str] = {}
+        for line in output_text.splitlines():
+                if not line.startswith("COVERAGE_RESULT|"):
+                        continue
+                parts = line.split("|", 2)
+                if len(parts) != 3:
+                        continue
+                _, function_name, status = parts
+                results[function_name] = status
+        return results
+
+
 def prepare_ts_bench(root: Path, bench_file: Path, metadata_dir: Path, tmp_dir: Path, use_wrapper_preprocess: bool) -> Path:
     preprocess_script = root / "scripts" / "ts_locals_to_wrappers.js"
     ts_to_metadata = root / "scripts" / "ts_to_metadata.js"
@@ -247,7 +341,13 @@ def prepare_ts_bench(root: Path, bench_file: Path, metadata_dir: Path, tmp_dir: 
     return js_file
 
 
-def build_d8_flags(defaults: Dict, function_name: str, trace_ir: bool, use_filter: bool = True) -> List[str]:
+def build_d8_flags(
+    defaults: Dict,
+    function_name: str,
+    trace_ir: bool,
+    use_filter: bool = True,
+    no_inline: bool = False,
+) -> List[str]:
     flags: List[str] = ["--turbofan", "--print-opt-code"]
     if use_filter:
         flags.append(f"--print-opt-code-filter={function_name}")
@@ -266,6 +366,17 @@ def build_d8_flags(defaults: Dict, function_name: str, trace_ir: bool, use_filte
     for flag in required_stable_flags:
         if flag not in flags:
             flags.append(flag)
+
+    if no_inline:
+        no_inline_flags = [
+            "--max-inlined-bytecode-size=0",
+            "--max-inlined-bytecode-size-small=0",
+            "--max-inlined-bytecode-size-cumulative=0",
+            "--max-inlined-bytecode-size-absolute=0",
+        ]
+        for flag in no_inline_flags:
+            if flag not in flags:
+                flags.append(flag)
 
     if trace_ir:
         trace_flags = ["--trace-turbo", "--trace-turbo-reduction", f"--trace-turbo-filter={function_name}"]
@@ -314,6 +425,9 @@ def generate_markdown_report(
     metadata_file: Optional[Path],
     without_result: AssemblyRunResult,
     with_result: AssemblyRunResult,
+    stats_scope: str = "target",
+    optimized_business_functions: Optional[Dict] = None,
+    aggregate_diff: Optional[Dict] = None,
 ) -> str:
     lines = [f"# {bench_name} 二进制代码对比", ""]
     lines.append(f"- Source: `{source_file}`")
@@ -337,6 +451,36 @@ def generate_markdown_report(
         lines.append(f"- 归一化差异行数: {changed_lines}")
     else:
         lines.append("- ⚠️ 未能同时提取两个模式的汇编输出")
+
+    if stats_scope == "all-business" and isinstance(optimized_business_functions, dict):
+        paired = optimized_business_functions.get("paired", [])
+        lines.append("")
+        lines.append("## all-business 汇总")
+        lines.append("")
+        lines.append(
+            f"- 业务函数数量: without={optimized_business_functions.get('without_count')} with={optimized_business_functions.get('with_count')} paired={optimized_business_functions.get('paired_count')}"
+        )
+        if isinstance(aggregate_diff, dict):
+            lines.append(
+                f"- 汇总指令行数变化: {aggregate_diff.get('line_delta')}"
+            )
+            lines.append(
+                f"- 汇总指令字节变化: {aggregate_diff.get('instruction_size_delta')}"
+            )
+            lines.append(
+                f"- 汇总归一化差异行数: {aggregate_diff.get('changed_lines')}"
+            )
+        if isinstance(paired, list) and paired:
+            lines.append("")
+            lines.append("- 逐函数统计:")
+            for item in paired:
+                if not isinstance(item, dict):
+                    continue
+                fn = item.get("function")
+                wout = item.get("without_instruction_size")
+                w = item.get("with_instruction_size")
+                d = item.get("instruction_size_delta")
+                lines.append(f"  - {fn}: {wout} -> {w} ({d:+d})")
 
     return "\n".join(lines) + "\n"
 
@@ -423,6 +567,33 @@ def parse_args() -> argparse.Namespace:
         choices=["target", "all-business"],
         default="target",
         help="target: 只统计目标函数；all-business: 统计所有已优化编译的业务函数（排除库函数）",
+    )
+    parser.add_argument(
+        "--compile-coverage",
+        action="store_true",
+        help="额外执行多目标编译覆盖统计，输出每个目标函数是否被编译。",
+    )
+    parser.add_argument(
+        "--coverage-warmup-calls",
+        type=int,
+        default=8,
+        help="compile-coverage 模式下每个目标函数的热身调用次数。",
+    )
+    parser.add_argument(
+        "--coverage-target",
+        action="append",
+        default=[],
+        help="追加覆盖目标，格式: function=invoke_expr，例如 parseJson=parseJson(jsonText)",
+    )
+    parser.add_argument(
+        "--coverage-all-business-functions",
+        action="store_true",
+        help="compile-coverage 时将所有业务函数都加入覆盖目标（默认调用表达式为 fn()）。",
+    )
+    parser.add_argument(
+        "--no-inline",
+        action="store_true",
+        help="禁用 TurboFan inlining，减少干扰项。",
     )
     return parser.parse_args()
 
@@ -511,7 +682,13 @@ def main() -> int:
         else:
             target_prewarm_exprs = []
         use_filter = args.stats_scope != "all-business"
-        base_flags = build_d8_flags(defaults, target_function, trace_ir=args.trace_ir, use_filter=use_filter)
+        base_flags = build_d8_flags(
+            defaults,
+            target_function,
+            trace_ir=args.trace_ir,
+            use_filter=use_filter,
+            no_inline=args.no_inline,
+        )
         target_extra_flags = target.get("extra_flags", [])
         if isinstance(target_extra_flags, list):
             for flag in target_extra_flags:
@@ -525,6 +702,44 @@ def main() -> int:
             print(f"prewarm expr count: {len(target_prewarm_exprs)}")
         if isinstance(target_extra_flags, list) and target_extra_flags:
             print(f"target extra flags: {target_extra_flags}")
+
+        coverage_targets: List[Dict[str, str]] = []
+        raw_coverage_targets = target.get("coverage_targets", [])
+        if isinstance(raw_coverage_targets, list):
+            for entry in raw_coverage_targets:
+                if not isinstance(entry, dict):
+                    continue
+                fn_name = entry.get("function")
+                invoke_expr = entry.get("invoke_expr")
+                if isinstance(fn_name, str) and fn_name and isinstance(invoke_expr, str) and invoke_expr:
+                    coverage_targets.append({"function": fn_name, "invoke_expr": invoke_expr})
+
+        for raw in args.coverage_target:
+            if not isinstance(raw, str):
+                continue
+            if "=" not in raw:
+                continue
+            fn_name, invoke_expr = raw.split("=", 1)
+            fn_name = fn_name.strip()
+            invoke_expr = invoke_expr.strip()
+            if fn_name and invoke_expr:
+                coverage_targets.append({"function": fn_name, "invoke_expr": invoke_expr})
+
+        if args.compile_coverage and args.coverage_all_business_functions and not coverage_targets:
+            explicit_names = {item["function"] for item in coverage_targets}
+            for fn_name in sorted(discover_business_functions(bench_js)):
+                if fn_name in explicit_names:
+                    continue
+                safe_invoke_expr = (
+                    f"(() => {{ const __fn = globalThis[{json.dumps(fn_name)}]; "
+                    "if (typeof __fn !== 'function') return 0; "
+                    "if (__fn.length !== 0) return 0; "
+                    "return __fn(); })()"
+                )
+                coverage_targets.append({"function": fn_name, "invoke_expr": safe_invoke_expr})
+
+        if args.compile_coverage and not coverage_targets:
+            coverage_targets.append({"function": target_function, "invoke_expr": target_invoke_expr})
 
         harness = write_harness(
             tmp_dir=tmp_dir,
@@ -604,16 +819,6 @@ def main() -> int:
             if with_result.asm:
                 (case_dir / f"{target_function}_with.asm").write_text(with_result.asm + "\n", encoding="utf-8")
 
-        report_md = generate_markdown_report(
-            bench_name=bench_file.stem,
-            source_file=bench_js,
-            source_hash=source_hash,
-            metadata_file=metadata_file if args.metadata_mode == "strict" else None,
-            without_result=without_result,
-            with_result=with_result,
-        )
-        (case_dir / "comparison.md").write_text(report_md, encoding="utf-8")
-
         report_json = generate_json_report(
             bench_name=bench_file.stem,
             source_file=bench_js,
@@ -622,6 +827,96 @@ def main() -> int:
             without_result=without_result,
             with_result=with_result,
         )
+
+        if args.compile_coverage:
+            coverage_harness = write_coverage_harness(
+                tmp_dir=tmp_dir,
+                bench_js=bench_js,
+                setup_name=target_setup,
+                teardown_name=target_teardown,
+                coverage_targets=coverage_targets,
+                warmup_calls=args.coverage_warmup_calls,
+            )
+
+            coverage_without_flags = list(base_flags)
+            rc_cov_without, out_cov_without, err_cov_without = run_d8(d8_path, coverage_harness, coverage_without_flags)
+            cov_without_text = (out_cov_without or "") + "\n" + (err_cov_without or "")
+            compiled_without = parse_compiled_methods(cov_without_text)
+            invoke_without = parse_coverage_results(cov_without_text)
+
+            compiled_with: Set[str] = set()
+            invoke_with: Dict[str, str] = {}
+            rc_cov_with = 0
+            out_cov_with = ""
+            err_cov_with = ""
+            if args.metadata_mode == "strict":
+                coverage_with_flags = list(base_flags)
+                if metadata_dir:
+                    coverage_with_flags.append(f"--turbo_metadata_path={metadata_dir}")
+                rc_cov_with, out_cov_with, err_cov_with = run_d8(d8_path, coverage_harness, coverage_with_flags)
+                cov_with_text = (out_cov_with or "") + "\n" + (err_cov_with or "")
+                compiled_with = parse_compiled_methods(cov_with_text)
+                invoke_with = parse_coverage_results(cov_with_text)
+
+            if args.stats_scope == "all-business":
+                cov_without_asm_map = extract_all_assemblies(
+                    out_cov_without or "",
+                    allowed_names=business_functions,
+                )
+                asm_without_map.update(cov_without_asm_map)
+
+                if args.metadata_mode == "strict":
+                    cov_with_asm_map = extract_all_assemblies(
+                        out_cov_with or "",
+                        allowed_names=business_functions,
+                    )
+                    asm_with_map.update(cov_with_asm_map)
+
+                if target_function in asm_without_map:
+                    without_result.asm, without_result.code_size = asm_without_map[target_function]
+                    without_result.normalized_lines = normalize_lines(without_result.asm)
+                if args.metadata_mode == "strict" and target_function in asm_with_map:
+                    with_result.asm, with_result.code_size = asm_with_map[target_function]
+                    with_result.normalized_lines = normalize_lines(with_result.asm)
+
+                for function_name, (asm_text, _) in sorted(asm_without_map.items()):
+                    (case_dir / f"{function_name}_without.asm").write_text(asm_text + "\n", encoding="utf-8")
+                for function_name, (asm_text, _) in sorted(asm_with_map.items()):
+                    (case_dir / f"{function_name}_with.asm").write_text(asm_text + "\n", encoding="utf-8")
+
+            target_names = [item["function"] for item in coverage_targets]
+            per_target = []
+            for fn_name in target_names:
+                per_target.append(
+                    {
+                        "function": fn_name,
+                        "without_invocation": invoke_without.get(fn_name, "missing"),
+                        "without_compiled": fn_name in compiled_without,
+                        "with_invocation": invoke_with.get(fn_name, "missing") if args.metadata_mode == "strict" else None,
+                        "with_compiled": (fn_name in compiled_with) if args.metadata_mode == "strict" else None,
+                    }
+                )
+
+            report_json["compile_coverage"] = {
+                "enabled": True,
+                "warmup_calls": args.coverage_warmup_calls,
+                "targets": target_names,
+                "without": {
+                    "returncode": rc_cov_without,
+                    "compiled_methods": sorted(compiled_without),
+                    "invocations": invoke_without,
+                    "compiled_target_count": sum(1 for fn_name in target_names if fn_name in compiled_without),
+                },
+                "with": {
+                    "returncode": rc_cov_with,
+                    "compiled_methods": sorted(compiled_with),
+                    "invocations": invoke_with,
+                    "compiled_target_count": sum(1 for fn_name in target_names if fn_name in compiled_with),
+                }
+                if args.metadata_mode == "strict"
+                else None,
+                "per_target": per_target,
+            }
 
         if args.stats_scope == "all-business":
             paired_functions = sorted(set(asm_without_map.keys()) & set(asm_with_map.keys()))
@@ -674,6 +969,20 @@ def main() -> int:
                 "changed_lines": aggregate_changed_lines,
                 "instruction_size_delta": aggregate_instruction_delta,
             }
+
+        report_md = generate_markdown_report(
+            bench_name=bench_file.stem,
+            source_file=bench_js,
+            source_hash=source_hash,
+            metadata_file=metadata_file if args.metadata_mode == "strict" else None,
+            without_result=without_result,
+            with_result=with_result,
+            stats_scope=str(report_json.get("stats_scope", "target")),
+            optimized_business_functions=report_json.get("optimized_business_functions"),
+            aggregate_diff=report_json.get("diff"),
+        )
+        (case_dir / "comparison.md").write_text(report_md, encoding="utf-8")
+
         (case_dir / "comparison.json").write_text(
             json.dumps(report_json, ensure_ascii=False, indent=2),
             encoding="utf-8",

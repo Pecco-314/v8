@@ -12,14 +12,16 @@ let root: SplayNode | null = null;
 let keys: rawint32[] = [];
 
 function rotateRight(p: SplayNode): SplayNode {
-  const q = p.left as SplayNode;
+  const q = p.left;
+  if (q === null) return p;
   p.left = q.right;
   q.right = p;
   return q;
 }
 
 function rotateLeft(p: SplayNode): SplayNode {
-  const q = p.right as SplayNode;
+  const q = p.right;
+  if (q === null) return p;
   p.right = q.left;
   q.left = p;
   return q;

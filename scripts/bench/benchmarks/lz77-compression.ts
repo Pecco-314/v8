@@ -7,6 +7,14 @@ const LOOKAHEAD: rawint32 = 16;
 
 let inputData: rawint32[] = [];
 
+function rawMin(a: rawint32, b: rawint32): rawint32 {
+  return a < b ? a : b;
+}
+
+function rawMax(a: rawint32, b: rawint32): rawint32 {
+  return a > b ? a : b;
+}
+
 function setup(): void {
   const text = 'lz77-compression-benchmark-data-';
   inputData = [];
@@ -25,7 +33,7 @@ function compress(data: rawint32[]): rawint32 {
     let bestLen: rawint32 = 0;
     let bestOffset: rawint32 = 0;
 
-    const maxOffset = Math.min(WINDOW_SIZE, pos);
+    const maxOffset = rawMin(WINDOW_SIZE, pos);
     for (let offset: rawint32 = 1; offset <= maxOffset; offset = offset + 1) {
       let len: rawint32 = 0;
       while (
@@ -36,7 +44,7 @@ function compress(data: rawint32[]): rawint32 {
         len = len + 1;
       }
       if (len > bestLen) {
-        bestLen = len;
+        bestLen = rawMax(bestLen, len);
         bestOffset = offset;
       }
     }

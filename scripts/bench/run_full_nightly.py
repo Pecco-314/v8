@@ -84,6 +84,20 @@ def main() -> int:
     parser.add_argument("--compile-warmup-pairs", type=int, default=2, help="Warmup pairs for compile-latency")
     parser.add_argument("--compile-bootstrap-iterations", type=int, default=3000, help="Bootstrap iterations")
     parser.add_argument("--trace-ir", action="store_true", help="Enable IR tracing in assembly dimension")
+    parser.add_argument("--compile-coverage", action="store_true", help="Enable compile coverage in codegen dimension")
+    parser.add_argument(
+        "--coverage-all-business-functions",
+        action="store_true",
+        help="When compile coverage is enabled, auto-cover all business functions.",
+    )
+    parser.add_argument("--coverage-warmup-calls", type=int, default=8, help="Warmup calls for compile coverage")
+    parser.add_argument(
+        "--coverage-target",
+        action="append",
+        default=[],
+        help="Additional coverage target in format function=invoke_expr",
+    )
+    parser.add_argument("--no-inline", action="store_true", help="Disable TurboFan inlining in codegen dimension")
     parser.add_argument("--max-benches", type=int, help="Optional max number of benches for quick tests")
     parser.add_argument("--results-jsonl", default="tmp/bench/nightly-full-results.jsonl", help="Append-only result stream")
     parser.add_argument("--run-log", default="tmp/bench/nightly-full.log", help="Human-readable log file")
@@ -96,6 +110,8 @@ def main() -> int:
         return 2
 
     results_jsonl = (root / args.results_jsonl).resolve()
+    results_jsonl.parent.mkdir(parents=True, exist_ok=True)
+    results_jsonl.write_text("", encoding="utf-8")
     run_log = (root / args.run_log).resolve()
     run_log.parent.mkdir(parents=True, exist_ok=True)
     run_id = time.strftime("%Y%m%d-%H%M%S")
@@ -269,6 +285,15 @@ def main() -> int:
             asm_cmd += ["--invoke-expr", str(hotspot["invoke_expr"])]
         if args.trace_ir:
             asm_cmd.append("--trace-ir")
+        if args.compile_coverage:
+            asm_cmd.append("--compile-coverage")
+            asm_cmd += ["--coverage-warmup-calls", str(args.coverage_warmup_calls)]
+            if args.coverage_all_business_functions:
+                asm_cmd.append("--coverage-all-business-functions")
+            for coverage_target in args.coverage_target:
+                asm_cmd += ["--coverage-target", str(coverage_target)]
+        if args.no_inline:
+            asm_cmd.append("--no-inline")
         if args.d8:
             asm_cmd += ["--d8", args.d8]
         asm_ret = run_cmd(asm_cmd, root)
@@ -278,16 +303,38 @@ def main() -> int:
         if comparison_path.exists():
             cmp_json = load_json(comparison_path)
             diff = cmp_json.get("diff", {})
+            scope = cmp_json.get("stats_scope", "target")
             optimized = cmp_json.get("optimized_business_functions", {})
+            paired = optimized.get("paired", []) if isinstance(optimized, dict) else []
+            target_without_size = ((cmp_json.get("without_metadata") or {}).get("instruction_size"))
+            target_with_size = ((cmp_json.get("with_metadata") or {}).get("instruction_size"))
+            aggregate_without_size = None
+            aggregate_with_size = None
+            if scope == "all-business" and isinstance(paired, list):
+                without_sizes = [item.get("without_instruction_size") for item in paired if isinstance(item, dict)]
+                with_sizes = [item.get("with_instruction_size") for item in paired if isinstance(item, dict)]
+                if without_sizes and all(isinstance(v, int) for v in without_sizes):
+                    aggregate_without_size = sum(without_sizes)
+                if with_sizes and all(isinstance(v, int) for v in with_sizes):
+                    aggregate_with_size = sum(with_sizes)
+
+            coverage = cmp_json.get("compile_coverage", {}) if isinstance(cmp_json.get("compile_coverage"), dict) else {}
+            coverage_without = coverage.get("without", {}) if isinstance(coverage.get("without"), dict) else {}
+            coverage_with = coverage.get("with", {}) if isinstance(coverage.get("with"), dict) else {}
             asm_metrics = {
+                "stats_scope": scope,
                 "line_delta": diff.get("line_delta"),
                 "instruction_size_delta": diff.get("instruction_size_delta"),
                 "changed_lines": diff.get("changed_lines"),
-                "without_instruction_size": ((cmp_json.get("without_metadata") or {}).get("instruction_size")),
-                "with_instruction_size": ((cmp_json.get("with_metadata") or {}).get("instruction_size")),
+                "without_instruction_size": aggregate_without_size if aggregate_without_size is not None else target_without_size,
+                "with_instruction_size": aggregate_with_size if aggregate_with_size is not None else target_with_size,
                 "optimized_without_count": optimized.get("without_count"),
                 "optimized_with_count": optimized.get("with_count"),
                 "optimized_paired_count": optimized.get("paired_count"),
+                "coverage_enabled": coverage.get("enabled"),
+                "coverage_target_count": len(coverage.get("targets", [])) if isinstance(coverage.get("targets"), list) else None,
+                "coverage_without_compiled_target_count": coverage_without.get("compiled_target_count"),
+                "coverage_with_compiled_target_count": coverage_with.get("compiled_target_count"),
             }
 
         asm_record = {

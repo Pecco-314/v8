@@ -105,7 +105,11 @@ void MetadataTypeAnnotator::ProcessLoadFieldNode(Node* node) {
   auto field_type = FindFieldInObj(object_type, field_name);
   if (field_type.has_value()) {
     const TypeAST* field_ptr = StoreOwnedTypeAST(field_type.value());
-    AnnotateNode(node, field_ptr);
+    if (field_type->kind == TypeAST::Num) {
+      SetNodeType(node, field_ptr);
+    } else {
+      AnnotateNode(node, field_ptr);
+    }
   }
 }
 

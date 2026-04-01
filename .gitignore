@@ -134,3 +134,4 @@ bazel-v8
 docs/graphs
 docs/assembly
 tmp/
+scripts/bench/metadata/
