@@ -8,8 +8,8 @@
     "invoke_expr": "propagate()"
   },
   "radix-sort": {
-    "function": "bench",
-    "invoke_expr": "bench()"
+    "function": "radixSort",
+    "invoke_expr": "radixSort(data.slice())"
   },
   "n-body": {
     "function": "step",

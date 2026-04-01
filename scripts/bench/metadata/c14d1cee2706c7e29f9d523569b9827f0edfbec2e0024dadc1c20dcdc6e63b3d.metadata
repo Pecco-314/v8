@@ -5,7 +5,7 @@
 # Provenance-TS-Source: tmp/bench/preprocessed/matrix-multiply.locals.ts
 # Provenance-TS-SHA256: e6ee58f3ec3835fa43ad555a6af69465ba46a99ddcf30b1e4924228df085b4cb
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-03-31T15:02:42.709Z
+# Provenance-Generated-At: 2026-04-01T07:07:08.379Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0

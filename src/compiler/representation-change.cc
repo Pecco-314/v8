@@ -1017,8 +1017,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
                        MachineRepresentation::kWord32);
     }
   } else if (IsAnyTagged(output_rep)) {
-    if (output_rep == MachineRepresentation::kTaggedSigned &&
-        output_type.Is(Type::SignedSmall())) {
+    if (output_rep == MachineRepresentation::kTaggedSigned) {
       op = simplified()->ChangeTaggedSignedToInt32();
     } else if (output_type.Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();

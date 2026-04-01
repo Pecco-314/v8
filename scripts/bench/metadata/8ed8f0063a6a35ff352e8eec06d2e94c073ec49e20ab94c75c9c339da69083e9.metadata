@@ -2,10 +2,10 @@
 # Metadata-Version: 2
 # Provenance-Generator: ts_to_metadata.js
 # Provenance-Generator-SHA256: 5aaf963ea25416bd099c4ceaccd196cfab43012bbde3d1ba6f1e967cd882821f
-# Provenance-TS-Source: scripts/bench/benchmarks/json-parser.ts
-# Provenance-TS-SHA256: 265db7670aa1bfb258301dbe35ad3ac91bb1723be922cf582f0546e5277d98a5
+# Provenance-TS-Source: tmp/bench/preprocessed/json-parser.locals.ts
+# Provenance-TS-SHA256: f9719ef68b7eb7f1f433d596d685c77139074050547c0ee4369362b84ac136ec
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-03-31T19:04:40.400Z
+# Provenance-Generated-At: 2026-04-01T07:06:59.776Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 1
@@ -13,8 +13,8 @@
 # Unsafe-Functions: sumNumbers
 # Unsafe-As-Functions: sumNumbers
 # Unsafe-TsIgnore-Functions: 
-# Source: tmp/bench/tsc/json-parser.js
-# JS SHA256: d1b6ee9c068cce8eb185e7c06343a7f747a052e07d5f00dff67566a7b2364b70
-# Entries-Selected: 0/11
+# Source: tmp/bench/tsc/json-parser.locals.js
+# JS SHA256: 8ed8f0063a6a35ff352e8eec06d2e94c073ec49e20ab94c75c9c339da69083e9
+# Entries-Selected: 0/23
 # Entries SHA256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-# Provenance-Stamp: 4e5109788c0d8f35862b708678fb1384c43fc4391eb0825ca3c8d1ad780b7a92
+# Provenance-Stamp: c34dc41333992183b9b340d94dab80c88fd256383e02b6f21bf58ba1ad66e505
