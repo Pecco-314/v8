@@ -37,7 +37,7 @@ function runScheduler(iterations: rawint32): rawint32 {
   let checksum: rawint32 = 0;
   for (let i: rawint32 = 0; i < iterations; i = i + 1) {
     if (taskList === null) break;
-    const task = taskList;
+    const task : Task = taskList;
     taskList = task.next;
     task.work = task.work - 1;
     checksum += task.id + task.work;

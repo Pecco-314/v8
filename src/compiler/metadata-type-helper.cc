@@ -13,6 +13,14 @@
 
 namespace v8::internal::compiler {
 
+#if V8_COMPILER_TYPE_INJECTOR_DEBUG
+#include "src/base/logging.h"
+#define TYPE_HELPER_DEBUG(...) \
+  do { PrintF("[MetadataTypeHelper] " __VA_ARGS__); PrintF("\n"); } while (false)
+#else
+#define TYPE_HELPER_DEBUG(...) ((void)0)
+#endif
+
 MetadataTypeHelper::MetadataTypeHelper(OptimizedCompilationInfo* compilation_info,
                                        TFGraph* graph,
                                        CommonOperatorBuilder* common,
@@ -271,7 +279,9 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
              node->opcode() == IrOpcode::kInt32Mul ||
              node->opcode() == IrOpcode::kCheckedInt32Add ||
              node->opcode() == IrOpcode::kCheckedInt32Sub ||
-             node->opcode() == IrOpcode::kCheckedInt32Mul) {
+             node->opcode() == IrOpcode::kCheckedInt32Mul ||
+             node->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd ||
+             node->opcode() == IrOpcode::kSpeculativeSmallIntegerSubtract) {
     if (node->op()->ValueInputCount() < 2) {
       return std::nullopt;
     }
@@ -285,17 +295,36 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
     auto right_is_raw = right_type_opt.has_value() && is_raw_kind(right_type_opt->kind);
 
     if (left_is_raw && right_is_raw && left_type_opt->kind == right_type_opt->kind) {
+      TYPE_HELPER_DEBUG("start_pos=%d node#%d op=%s inferred raw-raw kind=%d",
+                        context_.current_start_pos(), node->id(),
+                        IrOpcode::Mnemonic(node->opcode()),
+                        static_cast<int>(left_type_opt->kind));
       return cache_and_return(left_type_opt.value());
     }
 
     bool right_is_const = TryGetConstantIndex(right).has_value();
     bool left_is_const = TryGetConstantIndex(left).has_value();
     if (left_is_raw && right_is_const) {
+      TYPE_HELPER_DEBUG("start_pos=%d node#%d op=%s inferred raw+const kind=%d",
+                        context_.current_start_pos(), node->id(),
+                        IrOpcode::Mnemonic(node->opcode()),
+                        static_cast<int>(left_type_opt->kind));
       return cache_and_return(left_type_opt.value());
     }
     if (right_is_raw && left_is_const) {
+      TYPE_HELPER_DEBUG("start_pos=%d node#%d op=%s inferred const+raw kind=%d",
+                        context_.current_start_pos(), node->id(),
+                        IrOpcode::Mnemonic(node->opcode()),
+                        static_cast<int>(right_type_opt->kind));
       return cache_and_return(right_type_opt.value());
     }
+
+    TYPE_HELPER_DEBUG(
+        "start_pos=%d node#%d op=%s no-raw-proof left=%d right=%d left_const=%d right_const=%d",
+        context_.current_start_pos(), node->id(), IrOpcode::Mnemonic(node->opcode()),
+        left_type_opt.has_value() ? static_cast<int>(left_type_opt->kind) : -1,
+        right_type_opt.has_value() ? static_cast<int>(right_type_opt->kind) : -1,
+        left_is_const ? 1 : 0, right_is_const ? 1 : 0);
 
     return std::nullopt;
   } else if (node->opcode() == IrOpcode::kPhi) {
@@ -308,7 +337,12 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
     for (int i = 0; i < value_input_count; ++i) {
       Node* input = NodeProperties::GetValueInput(node, i);
       auto input_type_opt = GetNodeTypeAST(input);
-      if (!input_type_opt.has_value()) continue;
+      if (!input_type_opt.has_value()) {
+        TYPE_HELPER_DEBUG("start_pos=%d phi#%d input#%d node#%d type=missing",
+                          context_.current_start_pos(), node->id(), i,
+                          input ? input->id() : -1);
+        continue;
+      }
 
       TypeAST::TypeKind input_kind = input_type_opt->kind;
       if (is_raw_kind(input_kind)) {
@@ -317,6 +351,11 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
           continue;
         }
         if (candidate_raw_kind.value() != input_kind) {
+          TYPE_HELPER_DEBUG(
+              "start_pos=%d phi#%d raw-kind-mismatch input#%d kind=%d candidate=%d",
+              context_.current_start_pos(), node->id(), i,
+              static_cast<int>(input_kind),
+              static_cast<int>(candidate_raw_kind.value()));
           return std::nullopt;
         }
         continue;
@@ -326,10 +365,60 @@ std::optional<TypeAST> MetadataTypeHelper::GetNodeTypeAST(Node* node) {
         continue;
       }
 
+      TYPE_HELPER_DEBUG(
+          "start_pos=%d phi#%d rejected input#%d node#%d kind=%d (not raw/const-num)",
+          context_.current_start_pos(), node->id(), i,
+          input ? input->id() : -1, static_cast<int>(input_kind));
+
       return std::nullopt;
     }
 
     if (!candidate_raw_kind.has_value()) {
+      if (value_input_count == 2) {
+        Node* first = NodeProperties::GetValueInput(node, 0);
+        Node* second = NodeProperties::GetValueInput(node, 1);
+        Node* const_input = nullptr;
+        Node* recur_input = nullptr;
+
+        if (first && TryGetConstantIndex(first).has_value()) {
+          const_input = first;
+          recur_input = second;
+        } else if (second && TryGetConstantIndex(second).has_value()) {
+          const_input = second;
+          recur_input = first;
+        }
+
+        if (const_input && recur_input) {
+          IrOpcode::Value recur_opcode = recur_input->opcode();
+          bool recur_is_addsub =
+              recur_opcode == IrOpcode::kCheckedInt32Add ||
+              recur_opcode == IrOpcode::kInt32Add ||
+              recur_opcode == IrOpcode::kSpeculativeSmallIntegerAdd ||
+              recur_opcode == IrOpcode::kCheckedInt32Sub ||
+              recur_opcode == IrOpcode::kInt32Sub ||
+              recur_opcode == IrOpcode::kSpeculativeSmallIntegerSubtract;
+
+          if (recur_is_addsub && recur_input->op()->ValueInputCount() >= 2) {
+            Node* recur_left = NodeProperties::GetValueInput(recur_input, 0);
+            Node* recur_right = NodeProperties::GetValueInput(recur_input, 1);
+            bool touches_self = recur_left == node || recur_right == node;
+            Node* other = recur_left == node ? recur_right : recur_left;
+            bool other_is_const = other && TryGetConstantIndex(other).has_value();
+
+            if (touches_self && other_is_const) {
+              TYPE_HELPER_DEBUG(
+                  "start_pos=%d phi#%d inferred induction rawint32 via recur node#%d",
+                  context_.current_start_pos(), node->id(), recur_input->id());
+              TypeAST phi_type;
+              phi_type.kind = TypeAST::RawInt32;
+              return cache_and_return(phi_type);
+            }
+          }
+        }
+      }
+
+      TYPE_HELPER_DEBUG("start_pos=%d phi#%d no-raw-candidate", context_.current_start_pos(),
+                        node->id());
       return std::nullopt;
     }
 

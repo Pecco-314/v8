@@ -1,6 +1,7 @@
 #ifndef V8_COMPILER_METADATA_TYPE_CONTEXT_H_
 #define V8_COMPILER_METADATA_TYPE_CONTEXT_H_
 
+#include <deque>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -34,7 +35,7 @@ class MetadataTypeContext {
 
  private:
   std::unordered_map<Node*, const TypeAST*> node_type_map_;
-  std::vector<TypeAST> owned_typeasts_;
+  std::deque<TypeAST> owned_typeasts_;
   std::vector<TypeAST> param_types_;
   std::string script_hash_;
   int current_start_pos_ = 0;

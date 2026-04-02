@@ -33,7 +33,7 @@ function compress(data: rawint32[]): rawint32 {
     let bestLen: rawint32 = 0;
     let bestOffset: rawint32 = 0;
 
-    const maxOffset = rawMin(WINDOW_SIZE, pos);
+    const maxOffset: rawint32 = rawMin(WINDOW_SIZE, pos);
     for (let offset: rawint32 = 1; offset <= maxOffset; offset = offset + 1) {
       let len: rawint32 = 0;
       while (
@@ -49,7 +49,7 @@ function compress(data: rawint32[]): rawint32 {
       }
     }
 
-    const next = pos + bestLen < data.length ? data[pos + bestLen] : 0;
+    const next: rawint32 = pos + bestLen < data.length ? data[pos + bestLen] : 0;
     checksum += bestOffset + bestLen + next;
     pos = pos + bestLen + 1;
   }

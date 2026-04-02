@@ -5,7 +5,7 @@
 # Provenance-TS-Source: scripts/bench/benchmarks/base64-codec.ts
 # Provenance-TS-SHA256: fc48e15e7b1a573f989126884b9392466f7942e1cf6124211fc3c0d312a3d89b
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-04-01T21:48:20.894Z
+# Provenance-Generated-At: 2026-04-02T01:49:10.160Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0

@@ -88,6 +88,14 @@
     "prewarm_exprs": [
       "dijkstra(0)",
       "dijkstra(1)"
+    ],
+    "coverage_targets": [
+      { "function": "heapPush", "invoke_expr": "(() => { const h = []; heapPush(h, [3, 1]); heapPush(h, [1, 2]); return h.length; })()" },
+      { "function": "heapPopMin", "invoke_expr": "(() => { const h = []; heapPush(h, [2, 4]); heapPush(h, [1, 3]); const x = heapPopMin(h); return x === null ? -1 : x[1]; })()" },
+      { "function": "dijkstra", "invoke_expr": "dijkstra(0)" },
+      { "function": "bench", "invoke_expr": "bench()" },
+      { "function": "setup", "invoke_expr": "setup()" },
+      { "function": "teardown", "invoke_expr": "teardown()" }
     ]
   },
   "richards": {

@@ -349,6 +349,11 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--max-benches", type=int, help="Optional max number of benches for quick tests")
     parser.add_argument("--results-jsonl", default="tmp/bench/nightly-results.jsonl", help="Append-only result stream")
+    parser.add_argument(
+        "--results-archive-dir",
+        default="tmp/bench/nightly-results-archive",
+        help="Per-run JSONL archive directory",
+    )
     parser.add_argument("--run-log", default="tmp/bench/nightly.log", help="Human-readable run log")
     return parser.parse_args()
 
@@ -383,16 +388,22 @@ def main() -> int:
         print("no benchmarks found")
         return 2
 
-    results_jsonl = (root / args.results_jsonl).resolve()
-    results_jsonl.parent.mkdir(parents=True, exist_ok=True)
-    results_jsonl.write_text("", encoding="utf-8")
-
     run_log = (root / args.run_log).resolve()
     run_log.parent.mkdir(parents=True, exist_ok=True)
     run_id = time.strftime("%Y%m%d-%H%M%S")
 
-    append_jsonl(
-        results_jsonl,
+    results_jsonl = (root / args.results_jsonl).resolve()
+    results_jsonl.parent.mkdir(parents=True, exist_ok=True)
+
+    results_archive_dir = (root / args.results_archive_dir).resolve()
+    results_archive_dir.mkdir(parents=True, exist_ok=True)
+    run_results_jsonl = (results_archive_dir / f"nightly-results-{run_id}.jsonl").resolve()
+
+    def emit(payload: dict[str, Any]) -> None:
+        append_jsonl(results_jsonl, payload)
+        append_jsonl(run_results_jsonl, payload)
+
+    emit(
         {
             "type": "run_start",
             "run_id": run_id,
@@ -410,6 +421,7 @@ def main() -> int:
                 "codegen_compile_coverage": args.codegen_compile_coverage,
                 "codegen_coverage_all_business": args.codegen_coverage_all_business,
                 "codegen_no_inline": args.codegen_no_inline,
+                "results_archive_dir": str(results_archive_dir),
             },
         },
     )
@@ -423,8 +435,7 @@ def main() -> int:
     total_failures = 0
 
     for index, bench in enumerate(benches, start=1):
-        append_jsonl(
-            results_jsonl,
+        emit(
             {
                 "type": "bench_start",
                 "run_id": run_id,
@@ -447,8 +458,7 @@ def main() -> int:
             else:
                 record, returncode = collect_binary_codegen(root, bench, args, hotspots)
 
-            append_jsonl(
-                results_jsonl,
+            emit(
                 {
                     "type": "dimension_result",
                     "run_id": run_id,
@@ -463,8 +473,7 @@ def main() -> int:
 
         total_failures += bench_failures
 
-        append_jsonl(
-            results_jsonl,
+        emit(
             {
                 "type": "bench_end",
                 "run_id": run_id,
@@ -480,8 +489,7 @@ def main() -> int:
                 f"[{now_iso()}] bench_end {bench.name} failed_dimensions={bench_failures}/{len(requested_dimensions)}\\n"
             )
 
-    append_jsonl(
-        results_jsonl,
+    emit(
         {
             "type": "run_end",
             "run_id": run_id,
@@ -490,6 +498,7 @@ def main() -> int:
             "dimension_records": total_dimension_records,
             "failed_dimensions": total_failures,
             "results_jsonl": str(results_jsonl),
+            "run_results_jsonl": str(run_results_jsonl),
             "run_log": str(run_log),
         },
     )
@@ -500,6 +509,7 @@ def main() -> int:
     print(f"Run ID: {run_id}")
     print(f"Dimensions: {','.join(requested_dimensions)}")
     print(f"Results JSONL: {results_jsonl}")
+    print(f"Run Results JSONL: {run_results_jsonl}")
     print(f"Run log: {run_log}")
     return 1 if total_failures else 0
 

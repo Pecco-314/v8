@@ -220,12 +220,17 @@ void MetadataTypeAnnotator::ProcessJSCallNode(Node* node) {
   }
 
   SharedFunctionInfoRef shared = shared_opt.value();
+  TYPE_INJECTOR_DEBUG("start_pos=%d JSCall node#%d target_start=%d value_inputs=%d",
+                      context_.current_start_pos(), node->id(),
+                      shared.StartPosition(), node->op()->ValueInputCount());
 
   if (v8_flags.turbo_builtin_type_table && shared.HasBuiltinId()) {
     Builtin builtin_id = shared.builtin_id();
     auto signature = storage_->GetBuiltinSignature(builtin_id);
 
     if (signature.has_value()) {
+      TYPE_INJECTOR_DEBUG("builtin-signature hit node#%d params=%zu",
+                          node->id(), signature->param_types.size());
       AnnotateNode(node, signature->return_type);
 
       JSCallNode call_node(node);
@@ -251,11 +256,16 @@ void MetadataTypeAnnotator::ProcessJSCallNode(Node* node) {
   int start_pos = shared.StartPosition();
   auto return_type_opt = GetFunctionReturnType(start_pos);
   if (!return_type_opt.has_value()) {
+    TYPE_INJECTOR_DEBUG("metadata-miss node#%d target_start=%d", node->id(),
+                        start_pos);
     return;
   }
 
   const TypeAST& return_type_ast = return_type_opt.value();
   const TypeAST* ret_ptr = StoreOwnedTypeAST(return_type_ast);
+  TYPE_INJECTOR_DEBUG("metadata-hit node#%d target_start=%d ret_kind=%d",
+                      node->id(), start_pos,
+                      static_cast<int>(return_type_ast.kind));
   AnnotateNode(node, ret_ptr);
 }
 

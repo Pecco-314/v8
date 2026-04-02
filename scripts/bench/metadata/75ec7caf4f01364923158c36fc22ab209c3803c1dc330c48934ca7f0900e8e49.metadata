@@ -5,7 +5,7 @@
 # Provenance-TS-Source: tmp/bench/preprocessed/dijkstra-routing.locals.ts
 # Provenance-TS-SHA256: 8bf6db7d8a0a44c50189e55e9c8775aaa4d4f9dfcf538722066b21f0d80bfbcf
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-04-01T15:00:08.722Z
+# Provenance-Generated-At: 2026-04-01T22:51:53.323Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0

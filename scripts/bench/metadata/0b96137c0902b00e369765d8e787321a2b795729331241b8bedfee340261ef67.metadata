@@ -5,7 +5,7 @@
 # Provenance-TS-Source: tmp/bench/preprocessed/deltablue.locals.ts
 # Provenance-TS-SHA256: 154dca4ccb57051940e9da94ab612db35d761037977477eb788021e50161615f
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-04-01T14:42:32.386Z
+# Provenance-Generated-At: 2026-04-02T01:50:15.068Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0

@@ -2,87 +2,127 @@
 
 type rawint32 = number;
 
-type SplayNode = {
-  key: rawint32;
-  left: SplayNode | null;
-  right: SplayNode | null;
-};
+type SplayNode = [rawint32, rawint32, rawint32];
 
-let root: SplayNode | null = null;
+const NIL: rawint32 = -1;
+const KEY: rawint32 = 0;
+const LEFT: rawint32 = 1;
+const RIGHT: rawint32 = 2;
+
+let nodes: SplayNode[] = [];
+let root: rawint32 = NIL;
 let keys: rawint32[] = [];
 
-function rotateRight(p: SplayNode): SplayNode {
-  const q = p.left;
-  if (q === null) return p;
-  p.left = q.right;
-  q.right = p;
+function getNode(index: rawint32): SplayNode {
+  return nodes[index];
+}
+
+function makeNode(key: rawint32, left: rawint32, right: rawint32): rawint32 {
+  nodes.push([key, left, right]);
+  return nodes.length - 1;
+}
+
+function rotateRight(p: rawint32): rawint32 {
+  const pNode: SplayNode = getNode(p);
+  const q: rawint32 = pNode[LEFT];
+  if (q === NIL) return p;
+  pNode[LEFT] = getNode(q)[RIGHT];
+  getNode(q)[RIGHT] = p;
   return q;
 }
 
-function rotateLeft(p: SplayNode): SplayNode {
-  const q = p.right;
-  if (q === null) return p;
-  p.right = q.left;
-  q.left = p;
+function rotateLeft(p: rawint32): rawint32 {
+  const pNode: SplayNode = getNode(p);
+  const q: rawint32 = pNode[RIGHT];
+  if (q === NIL) return p;
+  pNode[RIGHT] = getNode(q)[LEFT];
+  getNode(q)[LEFT] = p;
   return q;
 }
 
-function splay(node: SplayNode | null, key: rawint32): SplayNode | null {
-  if (node === null) return null;
-  if (key < node.key) {
-    if (node.left === null) return node;
-    if (key < node.left.key) {
-      node.left.left = splay(node.left.left, key);
+function splay(node: rawint32, key: rawint32): rawint32 {
+  if (node === NIL) return NIL;
+
+  const nodeData: SplayNode = getNode(node);
+
+  if (key < nodeData[KEY]) {
+    const left: rawint32 = nodeData[LEFT];
+    if (left === NIL) return node;
+
+    const leftNode: SplayNode = getNode(left);
+
+    if (key < leftNode[KEY]) {
+      const leftLeft: rawint32 = leftNode[LEFT];
+      leftNode[LEFT] = splay(leftLeft, key);
       node = rotateRight(node);
-    } else if (key > node.left.key) {
-      node.left.right = splay(node.left.right, key);
-      if (node.left.right !== null) node.left = rotateLeft(node.left);
+    } else if (key > leftNode[KEY]) {
+      const leftRight: rawint32 = leftNode[RIGHT];
+      leftNode[RIGHT] = splay(leftRight, key);
+      const currentNode: SplayNode = getNode(node);
+      const curLeft: rawint32 = currentNode[LEFT];
+      if (curLeft !== NIL && getNode(curLeft)[RIGHT] !== NIL) {
+        currentNode[LEFT] = rotateLeft(curLeft);
+      }
     }
-    return node.left === null ? node : rotateRight(node);
+    return getNode(node)[LEFT] === NIL ? node : rotateRight(node);
   }
 
-  if (key > node.key) {
-    if (node.right === null) return node;
-    if (key > node.right.key) {
-      node.right.right = splay(node.right.right, key);
+  if (key > nodeData[KEY]) {
+    const right: rawint32 = nodeData[RIGHT];
+    if (right === NIL) return node;
+
+    const rightNode: SplayNode = getNode(right);
+
+    if (key > rightNode[KEY]) {
+      const rightRight: rawint32 = rightNode[RIGHT];
+      rightNode[RIGHT] = splay(rightRight, key);
       node = rotateLeft(node);
-    } else if (key < node.right.key) {
-      node.right.left = splay(node.right.left, key);
-      if (node.right.left !== null) node.right = rotateRight(node.right);
+    } else if (key < rightNode[KEY]) {
+      const rightLeft: rawint32 = rightNode[LEFT];
+      rightNode[LEFT] = splay(rightLeft, key);
+      const currentNode: SplayNode = getNode(node);
+      const curRight: rawint32 = currentNode[RIGHT];
+      if (curRight !== NIL && getNode(curRight)[LEFT] !== NIL) {
+        currentNode[RIGHT] = rotateRight(curRight);
+      }
     }
-    return node.right === null ? node : rotateLeft(node);
+    return getNode(node)[RIGHT] === NIL ? node : rotateLeft(node);
   }
 
   return node;
 }
 
 function insert(key: rawint32): void {
-  if (root === null) {
-    root = { key, left: null, right: null };
+  if (root === NIL) {
+    root = makeNode(key, NIL, NIL);
     return;
   }
+
   root = splay(root, key);
-  if (root && root.key === key) return;
-  const newNode: SplayNode = { key, left: null, right: null };
-  if (root && key < root.key) {
-    newNode.left = root.left;
-    newNode.right = root;
-    root.left = null;
-  } else if (root) {
-    newNode.right = root.right;
-    newNode.left = root;
-    root.right = null;
+  const rootNode: SplayNode = getNode(root);
+  if (rootNode[KEY] === key) return;
+
+  if (key < rootNode[KEY]) {
+    const leftSubtree: rawint32 = rootNode[LEFT];
+    const newRoot: rawint32 = makeNode(key, leftSubtree, root);
+    rootNode[LEFT] = NIL;
+    root = newRoot;
+  } else {
+    const rightSubtree: rawint32 = rootNode[RIGHT];
+    const newRoot: rawint32 = makeNode(key, root, rightSubtree);
+    rootNode[RIGHT] = NIL;
+    root = newRoot;
   }
-  root = newNode;
 }
 
-function find(key: rawint32): SplayNode | null {
+function find(key: rawint32): rawint32 {
   root = splay(root, key);
   return root;
 }
 
 function setup(): void {
-  root = null;
+  nodes = [];
+  root = NIL;
   keys = [];
   let value: rawint32 = 1;
   for (let i: rawint32 = 0; i < 64; i = i + 1) {
@@ -97,13 +137,14 @@ function setup(): void {
 function bench(): rawint32 {
   let sum: rawint32 = 0;
   for (let i = 0; i < keys.length; i++) {
-    const node = find(keys[i]);
-    if (node) sum += node.key;
+    const nodeIndex: rawint32 = find(keys[i]);
+    if (nodeIndex !== NIL) sum += getNode(nodeIndex)[KEY];
   }
   return sum;
 }
 
 function teardown(): void {
-  root = null;
+  nodes = [];
+  root = NIL;
   keys = [];
 }

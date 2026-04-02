@@ -11,6 +11,59 @@ let edgeTo: rawint32[] = [];
 let edgeWeight: rawint32[] = [];
 let relaxMetric: rawint32 = 0;
 
+type HeapEntry = [rawint32, rawint32];
+
+function heapPush(heap: HeapEntry[], entry: HeapEntry): void {
+  heap.push(entry);
+  let idx: rawint32 = heap.length - 1;
+  while (idx > 0) {
+    const parent: rawint32 = (idx - 1) >> 1;
+    if (heap[parent][0] <= heap[idx][0]) {
+      break;
+    }
+    const tmp: HeapEntry = heap[parent];
+    heap[parent] = heap[idx];
+    heap[idx] = tmp;
+    idx = parent;
+  }
+}
+
+function heapPopMin(heap: HeapEntry[]): HeapEntry | null {
+  const n: rawint32 = heap.length;
+  if (n === 0) {
+    return null;
+  }
+  const minEntry: HeapEntry = heap[0];
+  const last: HeapEntry = heap[n - 1];
+  heap.pop();
+  if (n > 1) {
+    heap[0] = last;
+    let idx: rawint32 = 0;
+    const size: rawint32 = heap.length;
+    while (true) {
+      const left: rawint32 = (idx << 1) + 1;
+      const right: rawint32 = left + 1;
+      let smallest: rawint32 = idx;
+
+      if (left < size && heap[left][0] < heap[smallest][0]) {
+        smallest = left;
+      }
+      if (right < size && heap[right][0] < heap[smallest][0]) {
+        smallest = right;
+      }
+      if (smallest === idx) {
+        break;
+      }
+
+      const tmp: HeapEntry = heap[idx];
+      heap[idx] = heap[smallest];
+      heap[smallest] = tmp;
+      idx = smallest;
+    }
+  }
+  return minEntry;
+}
+
 function setup(): void {
   edgeStart = new Array(NODE_COUNT + 1);
   edgeTo = [];
@@ -40,40 +93,35 @@ function dijkstra(start: rawint32): rawint32[] {
   const toList: rawint32[] = edgeTo;
   const weightList: rawint32[] = edgeWeight;
   const dist: rawint32[] = new Array(NODE_COUNT);
-  const used: rawint32[] = new Array(NODE_COUNT);
+  const heap: HeapEntry[] = [];
   let localMetric: rawint32 = 0;
 
   for (let i: rawint32 = 0; i < NODE_COUNT; i = i + 1) {
     dist[i] = INF;
-    used[i] = 0;
   }
   dist[start] = 0;
+  heapPush(heap, [0, start]);
 
-  for (let step: rawint32 = 0; step < NODE_COUNT; step = step + 1) {
-    let bestNode: rawint32 = -1;
-    let bestDist: rawint32 = INF;
-
-    for (let i: rawint32 = 0; i < NODE_COUNT; i = i + 1) {
-      const cand: rawint32 = dist[i];
-      if (used[i] === 0 && cand < bestDist) {
-        bestDist = cand;
-        bestNode = i;
-      }
-    }
-
-    if (bestNode < 0) {
+  while (heap.length > 0) {
+    const current = heapPopMin(heap);
+    if (current === null) {
       break;
     }
+    const bestDist: rawint32 = current[0];
+    const bestNode: rawint32 = current[1];
+    if (bestDist !== dist[bestNode]) {
+      continue;
+    }
 
-    used[bestNode] = 1;
     const begin: rawint32 = startIndex[bestNode];
     const end: rawint32 = startIndex[bestNode + 1];
 
     for (let p: rawint32 = begin; p < end; p = p + 1) {
       const to: rawint32 = toList[p];
-      const nextDist: rawint32 = dist[bestNode] + weightList[p];
+      const nextDist: rawint32 = bestDist + weightList[p];
       if (nextDist < dist[to]) {
         dist[to] = nextDist;
+        heapPush(heap, [nextDist, to]);
       }
 
       const mix: rawint32 = (to + p) * weightList[p];

@@ -7,6 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/division-by-constant.h"
+#include "src/flags/flags.h"
 
 #include <cmath>
 #include <limits>
@@ -22,6 +23,14 @@ namespace v8::internal::compiler {
 #else
 #define RAWINT32_SR_DEBUG(...) ((void)0)
 #endif
+
+#define RAWINT32_SR_TRACE(...)                                              \
+  do {                                                                      \
+    if (v8_flags.trace_turbo) {                                             \
+      PrintF("[RawInt32StrengthReduction] " __VA_ARGS__);                  \
+      PrintF("\n");                                                       \
+    }                                                                       \
+  } while (false)
 
 namespace {
 
@@ -70,6 +79,11 @@ namespace {
     case TypeAST::Void:
       return "void";
   }
+}
+
+const char* TypeKindNameOrNone(const std::optional<TypeAST>& type_opt) {
+  if (!type_opt.has_value()) return "<none>";
+  return TypeKindName(type_opt->kind);
 }
 
 TypeAST::TypeKind RawIntKindToTypeKind(
@@ -373,6 +387,8 @@ bool RawInt32StrengthReduction::IsRawTyped(Node* node, RawIntKind kind) {
       case IrOpcode::kCheckedTaggedToFloat64:
       case IrOpcode::kCheckedTaggedSignedToInt32:
       case IrOpcode::kCheckedTaggedToInt32:
+      case IrOpcode::kChangeTaggedSignedToInt32:
+      case IrOpcode::kChangeTaggedToInt32:
       case IrOpcode::kChangeFloat64ToInt32:
       case IrOpcode::kChangeFloat64ToUint32:
       case IrOpcode::kChangeInt32ToFloat64:
@@ -436,17 +452,39 @@ bool RawInt32StrengthReduction::IsTypeOrLiteralCompatible(Node* node,
 }
 
 bool RawInt32StrengthReduction::CurrentFunctionHasRawProofAnnotation() {
+  auto typemap = storage_->GetTypeMap(context_.script_hash());
+  RAWINT32_SR_TRACE("raw-proof-check script_hash=%s typemap_size=%d",
+                    context_.script_hash().c_str(),
+                    static_cast<int>(typemap.size()));
+
   auto& param_types = context_.param_types();
+  RAWINT32_SR_TRACE("raw-proof-check start_pos=%d param_count=%d",
+                    context_.current_start_pos(),
+                    static_cast<int>(param_types.size()));
   for (const auto& ast : param_types) {
+    RAWINT32_SR_TRACE("raw-proof-check param kind=%s", TypeKindName(ast.kind));
     if (ast.kind == TypeAST::RawInt32 || ast.kind == TypeAST::RawUint32 ||
         ast.kind == TypeAST::RawInt64 || ast.kind == TypeAST::RawUint64) {
+      RAWINT32_SR_TRACE("raw-proof-check param-hit kind=%s",
+                        TypeKindName(ast.kind));
       return true;
     }
   }
 
   auto return_type_opt = GetFunctionReturnType(context_.current_start_pos());
-  if (!return_type_opt.has_value()) return false;
+  if (!return_type_opt.has_value()) {
+    RAWINT32_SR_TRACE("raw-proof-check return-miss start_pos=%d",
+                      context_.current_start_pos());
+    int printed = 0;
+    for (const auto& entry : typemap) {
+      RAWINT32_SR_TRACE("raw-proof-check typemap-key[%d]=%d", printed,
+                        entry.first);
+      if (++printed >= 8) break;
+    }
+    return false;
+  }
   TypeAST::TypeKind kind = return_type_opt->kind;
+  RAWINT32_SR_TRACE("raw-proof-check return-hit kind=%s", TypeKindName(kind));
   return kind == TypeAST::RawInt32 || kind == TypeAST::RawUint32 ||
          kind == TypeAST::RawInt64 || kind == TypeAST::RawUint64;
 }
@@ -464,6 +502,8 @@ bool RawInt32StrengthReduction::IsInt32SemanticNode(Node* node, int depth) {
       return true;
     case IrOpcode::kCheckedTaggedSignedToInt32:
     case IrOpcode::kCheckedTaggedToInt32:
+    case IrOpcode::kChangeTaggedSignedToInt32:
+    case IrOpcode::kChangeTaggedToInt32:
     case IrOpcode::kChangeFloat64ToInt32:
       return true;
     case IrOpcode::kChangeInt32ToTagged:
@@ -494,13 +534,17 @@ bool RawInt32StrengthReduction::IsInt32SemanticNode(Node* node, int depth) {
         if (lhs_is_literal &&
             (IsInt32SemanticNode(rhs, depth + 1) || rhs->opcode() == IrOpcode::kPhi ||
              rhs->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 ||
-             rhs->opcode() == IrOpcode::kCheckedTaggedToInt32)) {
+             rhs->opcode() == IrOpcode::kCheckedTaggedToInt32 ||
+             rhs->opcode() == IrOpcode::kChangeTaggedSignedToInt32 ||
+             rhs->opcode() == IrOpcode::kChangeTaggedToInt32)) {
           return true;
         }
         if (rhs_is_literal &&
             (IsInt32SemanticNode(lhs, depth + 1) || lhs->opcode() == IrOpcode::kPhi ||
              lhs->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 ||
-             lhs->opcode() == IrOpcode::kCheckedTaggedToInt32)) {
+             lhs->opcode() == IrOpcode::kCheckedTaggedToInt32 ||
+             lhs->opcode() == IrOpcode::kChangeTaggedSignedToInt32 ||
+             lhs->opcode() == IrOpcode::kChangeTaggedToInt32)) {
           return true;
         }
 
@@ -557,12 +601,32 @@ bool RawInt32StrengthReduction::ReduceCheckedBinop(
     Node* node, const Operator* replacement_op, RawIntKind kind) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
+  auto left_type = GetNodeTypeAST(left);
+  auto right_type = GetNodeTypeAST(right);
   bool left_ok = IsTypeOrLiteralCompatible(left, kind);
   bool right_ok = IsTypeOrLiteralCompatible(right, kind);
+  bool left_semantic = false;
+  bool right_semantic = false;
+
+  if (kind == RawIntKind::kInt32 && CurrentFunctionHasRawProofAnnotation()) {
+    left_semantic = IsInt32SemanticNode(left);
+    right_semantic = IsInt32SemanticNode(right);
+  }
+
+  RAWINT32_SR_TRACE(
+      "check %s#%d start_pos=%d kind=%s left#%d(%s,%s,ok=%d,sem=%d) "
+      "right#%d(%s,%s,ok=%d,sem=%d)",
+      IrOpcode::Mnemonic(node->opcode()), node->id(), context_.current_start_pos(),
+      RawIntKindName(kind), left != nullptr ? left->id() : -1,
+      left != nullptr ? IrOpcode::Mnemonic(left->opcode()) : "<null>",
+      TypeKindNameOrNone(left_type), left_ok ? 1 : 0, left_semantic ? 1 : 0,
+      right != nullptr ? right->id() : -1,
+      right != nullptr ? IrOpcode::Mnemonic(right->opcode()) : "<null>",
+      TypeKindNameOrNone(right_type), right_ok ? 1 : 0, right_semantic ? 1 : 0);
 
   if ((!left_ok || !right_ok) && kind == RawIntKind::kInt32 &&
       CurrentFunctionHasRawProofAnnotation() &&
-      IsInt32SemanticNode(left) && IsInt32SemanticNode(right)) {
+      left_semantic && right_semantic) {
     left_ok = true;
     right_ok = true;
     RAWINT32_SR_DEBUG(
@@ -571,8 +635,6 @@ bool RawInt32StrengthReduction::ReduceCheckedBinop(
   }
 
   if (!left_ok || !right_ok) {
-    auto left_type = GetNodeTypeAST(left);
-    auto right_type = GetNodeTypeAST(right);
     RAWINT32_SR_DEBUG(
         "skip %s#%d kind=%s left#%d(%s,ok=%d) right#%d(%s,ok=%d)",
         IrOpcode::Mnemonic(node->opcode()), node->id(), RawIntKindName(kind),
@@ -609,6 +671,9 @@ bool RawInt32StrengthReduction::ReduceCheckedBinop(
   }
 
   RAWINT32_SR_DEBUG("replace %s#%d -> %s (kind=%s)",
+                    IrOpcode::Mnemonic(node->opcode()), node->id(),
+                    replacement_op->mnemonic(), RawIntKindName(kind));
+  RAWINT32_SR_TRACE("replace %s#%d -> %s (kind=%s)",
                     IrOpcode::Mnemonic(node->opcode()), node->id(),
                     replacement_op->mnemonic(), RawIntKindName(kind));
 
@@ -833,6 +898,8 @@ bool RawInt32StrengthReduction::ReduceRawFloat64DivOrMod(Node* node,
 
 void RawInt32StrengthReduction::Run() {
   EnsureMetadataLoaded();
+  RAWINT32_SR_TRACE("run start_pos=%d raw_proof=%d", context_.current_start_pos(),
+                    CurrentFunctionHasRawProofAnnotation() ? 1 : 0);
 
   // Use multiple rounds because newly reduced machine nodes can unlock
   // additional checked nodes in the same graph.

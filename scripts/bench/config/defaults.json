@@ -7,7 +7,7 @@
   "warmup": 2000,
   "iterations": 3000,
   "inner_loop": 40,
-  "repeats": 5,
+  "repeats": 20,
   "drop_first": 4,
   "mad_z": 3.0,
   "sleep_ms": 25,
