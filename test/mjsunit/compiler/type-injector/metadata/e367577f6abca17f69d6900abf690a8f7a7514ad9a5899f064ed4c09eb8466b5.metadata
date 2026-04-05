@@ -3,9 +3,9 @@
 # Provenance-Generator: ts_to_metadata.js
 # Provenance-Generator-SHA256: b08a287a1319bc1e8ad7935882ce7229395b725f064fbc3128322bbf4b36695e
 # Provenance-TS-Source: test/mjsunit/compiler/type-injector/test-rawint32.ts
-# Provenance-TS-SHA256: ced5069ed26161ffefc52bf5b8555ddce96520d28fefa173ea81c027b99d21e8
+# Provenance-TS-SHA256: 03259194f389b2c2c9e15b2dff5916a4face931680fe08eb67cf5142e7d44f32
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-04-05T09:27:49.929Z
+# Provenance-Generated-At: 2026-04-05T10:51:52.246Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0
@@ -14,10 +14,10 @@
 # Unsafe-As-Functions: 
 # Unsafe-TsIgnore-Functions: 
 # Source: test/mjsunit/compiler/type-injector/test-rawint32.js
-# JS SHA256: 028d4378d9aa704ec38ec2bf8755104bcbd6a5b7634e8174f177fe083b27ceb0
-# Entries-Selected: 38/38
-# Entries SHA256: 99e0bf4d3e7dd929fe79fa0ca72a4b6d286219dc0d2cdba1b396e8c55fb9ec8b
-# Provenance-Stamp: 2bbc4f3fa0e470742f3f7873fd4cf1f27537873942db08ffe6703c6ad3482b17
+# JS SHA256: e367577f6abca17f69d6900abf690a8f7a7514ad9a5899f064ed4c09eb8466b5
+# Entries-Selected: 41/41
+# Entries SHA256: 957dfcf00b8ab9ca0ded70ef0871c4ed1657baaaeec9b463c4c27eb45b9f2e23
+# Provenance-Stamp: 79a248dba46a2da94b219dd9a2cce2a9c47dfc5fab1278fa6da77df64e6b2e48
 
 173 @params any any @ret void  # prepare
 261 @params any any @ret void  # optimize
@@ -40,20 +40,23 @@
 4188 @params any rawint32 rawint32 @ret rawint32  # divRawInt32Trunc
 4437 @params any rawint32 rawint32 @ret rawint32  # divRawInt32Overflow
 4722 @params any rawint32 rawint32 @ret rawint32  # divRawInt32ByZero
-5107 @params any rawint32 rawint32 @ret rawint32  # modRawInt32
-5366 @params any rawint32 rawint32 @ret rawint32  # modRawInt32Negative
-5661 @params any rawint32 rawint32 @ret rawint32  # modRawInt32ByZero
-6172 @params any rawint32 @ret rawint32  # addRawInt32Const
-6372 @params any rawint32 @ret rawint32  # subRawInt32Const
-6572 @params any rawint32 @ret rawint32  # divRawInt32Const
-6772 @params any rawint32 @ret rawint32  # modRawInt32Const
-6997 @params any rawint32 @ret rawint32  # mulRawInt32Const
-7198 @params any rawuint32 @ret rawuint32  # addRawUint32Const
-7402 @params any rawuint32 @ret rawuint32  # subRawUint32Const
-7606 @params any rawuint32 @ret rawuint32  # mulRawUint32Const
-7810 @params any rawuint32 @ret rawuint32  # divRawUint32Const
-8014 @params any rawuint32 @ret rawuint32  # modRawUint32Const
-8242 @params any rawint64 @ret rawint64  # divRawInt64Const
-8565 @params any rawint64 @ret rawint64  # modRawInt64Const
-8732 @params any rawuint64 @ret rawuint64  # divRawUint64Const
-9060 @params any rawuint64 @ret rawuint64  # modRawUint64Const
+5299 @params any rawint32 rawint32 @ret rawint32  # modRawInt32
+5558 @params any rawint32 rawint32 @ret rawint32  # modRawInt32Negative
+5853 @params any rawint32 rawint32 @ret rawint32  # modRawInt32ByZero
+6556 @params any rawint32 @ret rawint32  # addRawInt32Const
+6756 @params any rawint32 @ret rawint32  # subRawInt32Const
+6956 @params any rawint32 @ret rawint32  # divRawInt32Const
+7156 @params any rawint32 @ret rawint32  # modRawInt32Const
+7381 @params any rawint32 @ret rawint32  # mulRawInt32Const
+7582 @params any rawuint32 @ret rawuint32  # addRawUint32Const
+7786 @params any rawuint32 @ret rawuint32  # subRawUint32Const
+7990 @params any rawuint32 @ret rawuint32  # mulRawUint32Const
+8194 @params any rawuint32 @ret rawuint32  # divRawUint32Const
+8398 @params any rawuint32 @ret rawuint32  # modRawUint32Const
+8626 @params any rawint64 @ret rawint64  # divRawInt64Const
+8949 @params any rawint64 @ret rawint64  # modRawInt64Const
+9115 @params any rawint64 @ret rawint64  # addRawInt64Const
+9284 @params any rawint64 @ret rawint64  # subRawInt64Const
+9453 @params any rawint64 @ret rawint64  # mulRawInt64Const
+9623 @params any rawuint64 @ret rawuint64  # divRawUint64Const
+9951 @params any rawuint64 @ret rawuint64  # modRawUint64Const

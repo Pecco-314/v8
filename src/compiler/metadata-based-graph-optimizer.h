@@ -32,6 +32,7 @@ class MetadataBasedGraphOptimizer : private MetadataTypeHelper {
   void ReplaceTupleLengthWithConstant(Node* load_field_node, int tuple_length);
   void ProcessCheckMapsNode(Node* node);
   void OptimizeRawIntDivModZeroGuard(Node* node);
+  void OptimizeCheckedTaggedSignedToInt32(Node* node);
   bool IsRawInt32Like(const std::optional<TypeAST>& type_opt) const;
   bool IsRawInt32Node(Node* node);
 

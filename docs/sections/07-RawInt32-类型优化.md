@@ -634,7 +634,7 @@ function sumLoopRawInt32(arr) {
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
 | `CheckedInt32Add` | 1 | 0 |
-| `Int32Add` | 0 | 1 |
+| `Int32Add` | 1 | 2 |
 
 **优化前 Graph (EarlyOptimization)：**
 
@@ -732,7 +732,7 @@ function sumLoopRawInt32(arr) {
 ```
 ----- Graph after V8.TFEarlyOptimization ----- 
 #97:Int32Constant[1]()
-#114:ExternalConstant[ADDR1]()
+#115:ExternalConstant[ADDR1]()
 #89:Int64Constant[0]()
 #0:Start()
 #2:Parameter[1](#0:Start)
@@ -743,70 +743,70 @@ function sumLoopRawInt32(arr) {
 #4:Parameter[5, debug name: %context](#0:Start)
 #52:HeapConstant[ADDR2 <JSFunction sumLoopRawInt32 (sfi = ADDR3)>]()
 #82:FrameState[UNOPTIMIZED_FRAME, 4, Ignore, ADDR3 <SharedFunctionInfo sumLoopRawInt32>](#9:TypedStateValues, #83:TypedStateValues, #91:TypedStateValues, #4:Parameter, #52:HeapConstant, #0:Start)
-#103:ExternalConstant[ADDR4]()
-#104:Load[kRepWord64](#103:ExternalConstant, #89:Int64Constant, #0:Start, #0:Start)
-#105:StackPointerGreaterThan[JSFunctionEntry](#104:Load, #104:Load)
-#113:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#111:LoadStackCheckOffset()
-#112:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#104:ExternalConstant[ADDR4]()
+#105:Load[kRepWord64](#104:ExternalConstant, #89:Int64Constant, #0:Start, #0:Start)
+#106:StackPointerGreaterThan[JSFunctionEntry](#105:Load, #105:Load)
+#114:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#112:LoadStackCheckOffset()
+#113:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
 #6:HeapConstant[ADDR7 <NativeContext[304]>]()
 #10:TypedStateValues[, sparse:...]()
 #13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo sumLoopRawInt32>](#9:TypedStateValues, #10:TypedStateValues, #91:TypedStateValues, #4:Parameter, #52:HeapConstant, #0:Start)
-#106:Branch[Unspecified, True](#105:StackPointerGreaterThan, #0:Start)
-#108:IfFalse(#106:Branch)
-#8:Call[Code:StackGuardWithGap:r1s1i5f1](#113:HeapConstant, #111:LoadStackCheckOffset, #112:ExternalConstant, #97:Int32Constant, #6:HeapConstant, #13:FrameState, #105:StackPointerGreaterThan, #108:IfFalse)
-#107:IfTrue(#106:Branch)
-#109:Merge(#107:IfTrue, #8:Call)
-#110:EffectPhi(#105:StackPointerGreaterThan, #8:Call, #109:Merge)
-#84:Checkpoint(#82:FrameState, #110:EffectPhi, #109:Merge)
-#73:CheckMaps[None, ADDR8, FeedbackSource(INVALID)](#2:Parameter, #84:Checkpoint, #109:Merge)
-#72:LoadField[BuildLoadDataField, tagged base, 12, ADDR9: [String] in ReadOnlySpace: #length, Range(0, 67108864), kRepTaggedSigned|kTypeInt32, FullWriteBarrier, mutable](#2:Parameter, #73:CheckMaps, #109:Merge)
+#107:Branch[Unspecified, True](#106:StackPointerGreaterThan, #0:Start)
+#109:IfFalse(#107:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#114:HeapConstant, #112:LoadStackCheckOffset, #113:ExternalConstant, #97:Int32Constant, #6:HeapConstant, #13:FrameState, #106:StackPointerGreaterThan, #109:IfFalse)
+#108:IfTrue(#107:Branch)
+#110:Merge(#108:IfTrue, #8:Call)
+#111:EffectPhi(#106:StackPointerGreaterThan, #8:Call, #110:Merge)
+#84:Checkpoint(#82:FrameState, #111:EffectPhi, #110:Merge)
+#73:CheckMaps[None, ADDR8, FeedbackSource(INVALID)](#2:Parameter, #84:Checkpoint, #110:Merge)
+#72:LoadField[BuildLoadDataField, tagged base, 12, ADDR9: [String] in ReadOnlySpace: #length, Range(0, 67108864), kRepTaggedSigned|kTypeInt32, FullWriteBarrier, mutable](#2:Parameter, #73:CheckMaps, #110:Merge)
 #92:Int32Constant[0]()
 #93:ChangeTaggedSignedToInt32(#72:LoadField)
 #65:Uint32LessThan(#92:Int32Constant, #93:ChangeTaggedSignedToInt32)
-#81:Branch[Machine, None](#65:Uint32LessThan, #109:Merge)
+#81:Branch[Machine, None](#65:Uint32LessThan, #110:Merge)
 #79:IfTrue(#81:Branch)
 #70:LoadField[JSObjectElements, tagged base, 8, Internal, kRepTaggedPointer|kTypeAny, PointerWriteBarrier, mutable](#2:Parameter, #72:LoadField, #79:IfTrue)
 #68:CheckedUint32Bounds[FeedbackSource(INVALID), 0](#92:Int32Constant, #93:ChangeTaggedSignedToInt32, #70:LoadField, #79:IfTrue)
 #95:ChangeUint32ToUint64(#68:CheckedUint32Bounds)
 #67:LoadElement[tagged base, 8, Signed31, kRepTaggedSigned|kTypeInt32, FullWriteBarrier](#70:LoadField, #95:ChangeUint32ToUint64, #68:CheckedUint32Bounds, #79:IfTrue)
-#115:Load[kRepWord8|kTypeUint32](#114:ExternalConstant, #89:Int64Constant, #67:LoadElement, #79:IfTrue)
-#122:ExternalConstant[ADDR10 <HandleNoHeapWritesInterrupts.entry>]()
+#116:Load[kRepWord8|kTypeUint32](#115:ExternalConstant, #89:Int64Constant, #67:LoadElement, #79:IfTrue)
+#123:ExternalConstant[ADDR10 <HandleNoHeapWritesInterrupts.entry>]()
 #96:ChangeTaggedSignedToInt32(#67:LoadElement)
 #75:TypedStateValues[kRepWord32|kTypeInt32, kRepWord32|kTypeInt32, sparse:^^.](#96:ChangeTaggedSignedToInt32, #97:Int32Constant)
 #74:FrameState[UNOPTIMIZED_FRAME, 30, Ignore, ADDR3 <SharedFunctionInfo sumLoopRawInt32>](#9:TypedStateValues, #75:TypedStateValues, #91:TypedStateValues, #4:Parameter, #52:HeapConstant, #0:Start)
-#117:Branch[Unspecified, False](#115:Load, #79:IfTrue)
-#119:IfTrue(#117:Branch)
-#76:Call[Code:HandleNoHeapWritesInterrupts:r1s0i4f1](#113:HeapConstant, #122:ExternalConstant, #92:Int32Constant, #6:HeapConstant, #74:FrameState, #115:Load, #119:IfTrue)
-#118:IfFalse(#117:Branch)
-#120:Merge(#118:IfFalse, #76:Call)
-#121:EffectPhi(#115:Load, #76:Call, #120:Merge)
-#66:TypeGuard[Range(0, 67108864)](#97:Int32Constant, #121:EffectPhi, #120:Merge)
-#18:Phi[kRepWord32](#96:ChangeTaggedSignedToInt32, #42:CheckedInt32Add, #15:Loop)
+#118:Branch[Unspecified, False](#116:Load, #79:IfTrue)
+#120:IfTrue(#118:Branch)
+#76:Call[Code:HandleNoHeapWritesInterrupts:r1s0i4f1](#114:HeapConstant, #123:ExternalConstant, #92:Int32Constant, #6:HeapConstant, #74:FrameState, #116:Load, #120:IfTrue)
+#119:IfFalse(#118:Branch)
+#121:Merge(#119:IfFalse, #76:Call)
+#122:EffectPhi(#116:Load, #76:Call, #121:Merge)
+#66:TypeGuard[Range(0, 67108864)](#97:Int32Constant, #122:EffectPhi, #121:Merge)
 #99:ChangeUint32ToUint64(#58:CheckedUint32Bounds)
 #63:Uint32LessThan(#19:Phi, #93:ChangeTaggedSignedToInt32)
 #29:Branch[Machine, None](#63:Uint32LessThan, #15:Loop)
 #36:IfTrue(#29:Branch)
 #59:LoadElement[tagged base, 8, Signed31, kRepTaggedSigned|kTypeInt32, FullWriteBarrier](#70:LoadField, #99:ChangeUint32ToUint64, #58:CheckedUint32Bounds, #36:IfTrue)
+#124:Load[kRepWord8|kTypeUint32](#115:ExternalConstant, #89:Int64Constant, #59:LoadElement, #36:IfTrue)
+#126:Branch[Unspecified, False](#124:Load, #36:IfTrue)
+#127:IfFalse(#126:Branch)
+#18:Phi[kRepWord32](#96:ChangeTaggedSignedToInt32, #103:Int32Add, #15:Loop)
 #100:ChangeTaggedSignedToInt32(#59:LoadElement)
-#42:CheckedInt32Add(#18:Phi, #100:ChangeTaggedSignedToInt32, #59:LoadElement, #36:IfTrue)
-#123:Load[kRepWord8|kTypeUint32](#114:ExternalConstant, #89:Int64Constant, #42:CheckedInt32Add, #36:IfTrue)
-#125:Branch[Unspecified, False](#123:Load, #36:IfTrue)
-#126:IfFalse(#125:Branch)
-#46:TypedStateValues[kRepWord32|kTypeInt32, kRepWord32|kTypeInt32, sparse:^^.](#42:CheckedInt32Add, #44:Int32Add)
+#103:Int32Add(#18:Phi, #100:ChangeTaggedSignedToInt32)
+#46:TypedStateValues[kRepWord32|kTypeInt32, kRepWord32|kTypeInt32, sparse:^^.](#103:Int32Add, #44:Int32Add)
 #47:FrameState[UNOPTIMIZED_FRAME, 30, Ignore, ADDR3 <SharedFunctionInfo sumLoopRawInt32>](#9:TypedStateValues, #46:TypedStateValues, #91:TypedStateValues, #4:Parameter, #52:HeapConstant, #0:Start)
-#127:IfTrue(#125:Branch)
-#45:Call[Code:HandleNoHeapWritesInterrupts:r1s0i4f1](#113:HeapConstant, #122:ExternalConstant, #92:Int32Constant, #6:HeapConstant, #47:FrameState, #123:Load, #127:IfTrue)
-#128:Merge(#126:IfFalse, #45:Call)
-#15:Loop(#120:Merge, #128:Merge)
+#128:IfTrue(#126:Branch)
+#45:Call[Code:HandleNoHeapWritesInterrupts:r1s0i4f1](#114:HeapConstant, #123:ExternalConstant, #92:Int32Constant, #6:HeapConstant, #47:FrameState, #124:Load, #128:IfTrue)
+#129:Merge(#127:IfFalse, #45:Call)
+#15:Loop(#121:Merge, #129:Merge)
 #19:Phi[kRepWord32](#66:TypeGuard, #60:TypeGuard, #15:Loop)
 #22:TypedStateValues[kRepWord32|kTypeInt32, kRepWord32|kTypeInt32, sparse:^^.](#18:Phi, #19:Phi)
 #23:FrameState[UNOPTIMIZED_FRAME, 4, Ignore, ADDR3 <SharedFunctionInfo sumLoopRawInt32>](#9:TypedStateValues, #22:TypedStateValues, #91:TypedStateValues, #4:Parameter, #52:HeapConstant, #0:Start)
 #21:Checkpoint(#23:FrameState, #16:EffectPhi, #15:Loop)
 #58:CheckedUint32Bounds[FeedbackSource(INVALID), 0](#19:Phi, #93:ChangeTaggedSignedToInt32, #21:Checkpoint, #36:IfTrue)
 #44:Int32Add(#58:CheckedUint32Bounds, #97:Int32Constant)
-#129:EffectPhi(#123:Load, #45:Call, #128:Merge)
-#60:TypeGuard[Range(0, 67108864)](#44:Int32Add, #129:EffectPhi, #128:Merge)
+#130:EffectPhi(#124:Load, #45:Call, #129:Merge)
+#60:TypeGuard[Range(0, 67108864)](#44:Int32Add, #130:EffectPhi, #129:Merge)
 #16:EffectPhi(#66:TypeGuard, #60:TypeGuard, #15:Loop)
 #20:Terminate(#16:EffectPhi, #15:Loop)
 #102:ChangeInt32ToTagged(#18:Phi)
@@ -1732,7 +1732,7 @@ function divRawInt32Exact(a, b) {
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
 | `CheckedInt32Div` | 1 | 0 |
-| `Int32Div` | 0 | 2 |
+| `Int32Div` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
@@ -1863,7 +1863,7 @@ function divRawInt32Trunc(a, b) {
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
 | `Float64Div` | 1 | 0 |
-| `Int32Div` | 0 | 2 |
+| `Int32Div` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
@@ -1921,35 +1921,51 @@ function divRawInt32Trunc(a, b) {
 #5:Parameter[6, debug name: %context](#0:Start)
 #23:HeapConstant[ADDR1 <JSFunction divRawInt32Trunc (sfi = ADDR2)>]()
 #16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR2 <SharedFunctionInfo divRawInt32Trunc>](#10:TypedStateValues, #11:TypedStateValues, #38:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#45:ExternalConstant[ADDR3]()
+#64:ExternalConstant[ADDR3]()
 #37:Int64Constant[0]()
-#46:Load[kRepWord64](#45:ExternalConstant, #37:Int64Constant, #0:Start, #0:Start)
-#47:StackPointerGreaterThan[JSFunctionEntry](#46:Load, #46:Load)
-#56:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#53:LoadStackCheckOffset()
-#54:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
-#55:Int32Constant[1]()
+#65:Load[kRepWord64](#64:ExternalConstant, #37:Int64Constant, #0:Start, #0:Start)
+#66:StackPointerGreaterThan[JSFunctionEntry](#65:Load, #65:Load)
+#75:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#72:LoadStackCheckOffset()
+#73:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
+#74:Int32Constant[1]()
 #7:HeapConstant[ADDR6 <NativeContext[304]>]()
 #39:TypedStateValues[, sparse:.]()
 #14:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR2 <SharedFunctionInfo divRawInt32Trunc>](#10:TypedStateValues, #11:TypedStateValues, #39:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#48:Branch[Unspecified, True](#47:StackPointerGreaterThan, #0:Start)
-#50:IfFalse(#48:Branch)
-#9:Call[Code:StackGuardWithGap:r1s1i5f1](#56:HeapConstant, #53:LoadStackCheckOffset, #54:ExternalConstant, #55:Int32Constant, #7:HeapConstant, #14:FrameState, #47:StackPointerGreaterThan, #50:IfFalse)
-#49:IfTrue(#48:Branch)
-#51:Merge(#49:IfTrue, #9:Call)
-#52:EffectPhi(#47:StackPointerGreaterThan, #9:Call, #51:Merge)
-#15:Checkpoint(#16:FrameState, #52:EffectPhi, #51:Merge)
-#27:Branch[Unspecified, True](#3:Parameter, #51:Merge)
+#67:Branch[Unspecified, True](#66:StackPointerGreaterThan, #0:Start)
+#69:IfFalse(#67:Branch)
+#9:Call[Code:StackGuardWithGap:r1s1i5f1](#75:HeapConstant, #72:LoadStackCheckOffset, #73:ExternalConstant, #74:Int32Constant, #7:HeapConstant, #14:FrameState, #66:StackPointerGreaterThan, #69:IfFalse)
+#68:IfTrue(#67:Branch)
+#70:Merge(#68:IfTrue, #9:Call)
+#71:EffectPhi(#66:StackPointerGreaterThan, #9:Call, #70:Merge)
+#15:Checkpoint(#16:FrameState, #71:EffectPhi, #70:Merge)
+#27:Branch[Unspecified, True](#3:Parameter, #70:Merge)
 #29:IfTrue(#27:Branch)
 #40:CheckedTaggedToFloat64[NumberOrOddball, FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #29:IfTrue)
+#45:ChangeFloat64ToInt32(#40:CheckedTaggedToFloat64)
+#57:Int32Sub(#42:Int32Constant, #45:ChangeFloat64ToInt32)
 #41:CheckedTaggedToFloat64[NumberOrOddball, FeedbackSource(INVALID)](#3:Parameter, #40:CheckedTaggedToFloat64, #29:IfTrue)
-#17:Float64Div(#40:CheckedTaggedToFloat64, #41:CheckedTaggedToFloat64)
-#43:ChangeFloat64ToTagged[check-for-minus-zero](#17:Float64Div)
+#46:ChangeFloat64ToInt32(#41:CheckedTaggedToFloat64)
+#48:Int32Constant[-1]()
+#53:Word32Equal(#46:ChangeFloat64ToInt32, #48:Int32Constant)
+#50:Branch[Unspecified, True](#46:ChangeFloat64ToInt32, #29:IfTrue)
+#52:IfTrue(#50:Branch)
+#54:Branch[Machine, False](#53:Word32Equal, #52:IfTrue)
+#56:IfFalse(#54:Branch)
+#58:Int32Div(#45:ChangeFloat64ToInt32, #46:ChangeFloat64ToInt32, #56:IfFalse)
+#55:IfTrue(#54:Branch)
+#59:Merge(#55:IfTrue, #56:IfFalse)
+#60:Phi[kRepWord32](#57:Int32Sub, #58:Int32Div, #59:Merge)
+#51:IfFalse(#50:Branch)
+#61:Merge(#51:IfFalse, #59:Merge)
+#62:Phi[kRepWord32](#42:Int32Constant, #60:Phi, #61:Merge)
+#63:ChangeInt32ToFloat64(#62:Phi)
+#43:ChangeFloat64ToTagged[check-for-minus-zero](#63:ChangeInt32ToFloat64)
 #19:Return(#42:Int32Constant, #43:ChangeFloat64ToTagged, #41:CheckedTaggedToFloat64, #29:IfTrue)
 #44:Int64Constant[452]()
-#57:ExternalConstant[ADDR7 <ThrowRangeError.entry>]()
+#76:ExternalConstant[ADDR7 <ThrowRangeError.entry>]()
 #28:IfFalse(#27:Branch)
-#31:Call[Code:ThrowRangeError:r1s1i5f1](#56:HeapConstant, #44:Int64Constant, #57:ExternalConstant, #55:Int32Constant, #5:Parameter, #16:FrameState, #15:Checkpoint, #28:IfFalse)
+#31:Call[Code:ThrowRangeError:r1s1i5f1](#75:HeapConstant, #44:Int64Constant, #76:ExternalConstant, #74:Int32Constant, #5:Parameter, #16:FrameState, #15:Checkpoint, #28:IfFalse)
 #32:Throw(#31:Call, #31:Call)
 #20:End(#19:Return, #32:Throw)
 ```
@@ -1981,7 +1997,7 @@ function divRawInt32Overflow(a, b) {
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
 | `CheckedInt32Div` | 1 | 0 |
-| `Int32Div` | 0 | 2 |
+| `Int32Div` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
@@ -2112,7 +2128,7 @@ function divRawInt32ByZero(a, b) {
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
 | `CheckedInt32Div` | 1 | 0 |
-| `Int32Div` | 0 | 2 |
+| `Int32Div` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
@@ -2229,7 +2245,7 @@ function modRawInt32(a, b) {
 **Metadata：**
 
 ```
-5480 @params any rawint32 rawint32 @ret rawint32  # modRawInt32
+5263 @params any rawint32 rawint32 @ret rawint32  # modRawInt32
 ```
 
 **优化 Flags：**
@@ -2243,7 +2259,7 @@ function modRawInt32(a, b) {
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
 | `CheckedInt32Mod` | 1 | 0 |
-| `Int32Mod` | 0 | 2 |
+| `Int32Mod` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
@@ -2352,7 +2368,7 @@ function modRawInt32Negative(a, b) {
 **Metadata：**
 
 ```
-5739 @params any rawint32 rawint32 @ret rawint32  # modRawInt32Negative
+5522 @params any rawint32 rawint32 @ret rawint32  # modRawInt32Negative
 ```
 
 **优化 Flags：**
@@ -2366,7 +2382,7 @@ function modRawInt32Negative(a, b) {
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
 | `CheckedInt32Mod` | 1 | 0 |
-| `Int32Mod` | 0 | 2 |
+| `Int32Mod` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
@@ -2475,7 +2491,7 @@ function modRawInt32ByZero(a, b) {
 **Metadata：**
 
 ```
-6034 @params any rawint32 rawint32 @ret rawint32  # modRawInt32ByZero
+5817 @params any rawint32 rawint32 @ret rawint32  # modRawInt32ByZero
 ```
 
 **优化 Flags：**
@@ -2489,7 +2505,7 @@ function modRawInt32ByZero(a, b) {
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
 | `CheckedInt32Mod` | 1 | 0 |
-| `Int32Mod` | 0 | 2 |
+| `Int32Mod` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
@@ -2590,15 +2606,15 @@ function modRawInt32ByZero(a, b) {
 **测试代码：**
 
 ```javascript
-function divRawInt64Const(a, b) {
-    return a / b;
+function divRawInt64Const(a) {
+    return a / 10n;
 }
 ```
 
 **Metadata：**
 
 ```
-9131 @params any rawint64 rawint64 @ret rawint64  # divRawInt64Const
+8613 @params any rawint64 @ret rawint64  # divRawInt64Const
 ```
 
 **优化 Flags：**
@@ -2611,49 +2627,50 @@ function divRawInt64Const(a, b) {
 
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
+| `CheckedInt64Div` | 1 | 0 |
+| `Int64Div` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
 ```
 ----- Graph after V8.TFEarlyOptimization ----- 
-#39:Int32Constant[0]()
+#38:Int32Constant[0]()
 #0:Start()
 #2:Parameter[1](#0:Start)
 #1:Parameter[0, debug name: %this](#0:Start)
-#3:Parameter[2](#0:Start)
-#10:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter, #3:Parameter)
-#11:TypedStateValues[, dense]()
-#31:TypedStateValues[kRepTagged|kTypeAny, dense](#3:Parameter)
-#5:Parameter[6, debug name: %context](#0:Start)
-#23:HeapConstant[ADDR1 <JSFunction divRawInt64Const (sfi = ADDR2)>]()
-#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR2 <SharedFunctionInfo divRawInt64Const>](#10:TypedStateValues, #11:TypedStateValues, #31:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#41:ExternalConstant[ADDR3]()
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 10>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction divRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo divRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#40:ExternalConstant[ADDR4]()
 #30:Int64Constant[0]()
-#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
-#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
-#52:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#49:LoadStackCheckOffset()
-#50:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
-#51:Int32Constant[1]()
-#7:HeapConstant[ADDR6 <NativeContext[304]>]()
+#41:Load[kRepWord64](#40:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#42:StackPointerGreaterThan[JSFunctionEntry](#41:Load, #41:Load)
+#51:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#48:LoadStackCheckOffset()
+#49:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#50:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
 #32:TypedStateValues[, sparse:.]()
-#14:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR2 <SharedFunctionInfo divRawInt64Const>](#10:TypedStateValues, #11:TypedStateValues, #32:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
-#46:IfFalse(#44:Branch)
-#9:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #7:HeapConstant, #14:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
-#45:IfTrue(#44:Branch)
-#47:Merge(#45:IfTrue, #9:Call)
-#48:EffectPhi(#43:StackPointerGreaterThan, #9:Call, #47:Merge)
-#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
-#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
-#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo divRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#43:Branch[Unspecified, True](#42:StackPointerGreaterThan, #0:Start)
+#45:IfFalse(#43:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#51:HeapConstant, #48:LoadStackCheckOffset, #49:ExternalConstant, #50:Int32Constant, #6:HeapConstant, #13:FrameState, #42:StackPointerGreaterThan, #45:IfFalse)
+#44:IfTrue(#43:Branch)
+#46:Merge(#44:IfTrue, #8:Call)
+#47:EffectPhi(#42:StackPointerGreaterThan, #8:Call, #46:Merge)
+#15:Checkpoint(#16:FrameState, #47:EffectPhi, #46:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #46:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #46:Merge)
 #35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
-#36:CheckBigInt[FeedbackSource(INVALID)](#3:Parameter, #34:CheckedBigIntToBigInt64, #47:Merge)
-#37:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#36:CheckBigInt, #36:CheckBigInt, #47:Merge)
-#38:TruncateBigIntToWord64(#37:CheckedBigIntToBigInt64)
-#17:CheckedInt64Div(#35:TruncateBigIntToWord64, #38:TruncateBigIntToWord64, #37:CheckedBigIntToBigInt64, #47:Merge)
-#40:ChangeInt64ToBigInt(#17:CheckedInt64Div)
-#19:Return(#39:Int32Constant, #40:ChangeInt64ToBigInt, #17:CheckedInt64Div, #47:Merge)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #46:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#17:CheckedInt64Div(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #36:CheckedBigIntToBigInt64, #46:Merge)
+#39:ChangeInt64ToBigInt(#17:CheckedInt64Div)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #17:CheckedInt64Div, #46:Merge)
 #20:End(#19:Return)
 ```
 
@@ -2661,44 +2678,43 @@ function divRawInt64Const(a, b) {
 
 ```
 ----- Graph after V8.TFEarlyOptimization ----- 
-#39:Int32Constant[0]()
+#38:Int32Constant[0]()
 #0:Start()
 #2:Parameter[1](#0:Start)
 #1:Parameter[0, debug name: %this](#0:Start)
-#3:Parameter[2](#0:Start)
-#10:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter, #3:Parameter)
-#11:TypedStateValues[, dense]()
-#31:TypedStateValues[kRepTagged|kTypeAny, dense](#3:Parameter)
-#5:Parameter[6, debug name: %context](#0:Start)
-#23:HeapConstant[ADDR1 <JSFunction divRawInt64Const (sfi = ADDR2)>]()
-#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR2 <SharedFunctionInfo divRawInt64Const>](#10:TypedStateValues, #11:TypedStateValues, #31:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#42:ExternalConstant[ADDR3]()
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 10>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction divRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo divRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#41:ExternalConstant[ADDR4]()
 #30:Int64Constant[0]()
-#43:Load[kRepWord64](#42:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
-#44:StackPointerGreaterThan[JSFunctionEntry](#43:Load, #43:Load)
-#53:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#50:LoadStackCheckOffset()
-#51:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
-#52:Int32Constant[1]()
-#7:HeapConstant[ADDR6 <NativeContext[304]>]()
+#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
+#52:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#49:LoadStackCheckOffset()
+#50:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#51:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
 #32:TypedStateValues[, sparse:.]()
-#14:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR2 <SharedFunctionInfo divRawInt64Const>](#10:TypedStateValues, #11:TypedStateValues, #32:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#45:Branch[Unspecified, True](#44:StackPointerGreaterThan, #0:Start)
-#47:IfFalse(#45:Branch)
-#9:Call[Code:StackGuardWithGap:r1s1i5f1](#53:HeapConstant, #50:LoadStackCheckOffset, #51:ExternalConstant, #52:Int32Constant, #7:HeapConstant, #14:FrameState, #44:StackPointerGreaterThan, #47:IfFalse)
-#46:IfTrue(#45:Branch)
-#48:Merge(#46:IfTrue, #9:Call)
-#49:EffectPhi(#44:StackPointerGreaterThan, #9:Call, #48:Merge)
-#15:Checkpoint(#16:FrameState, #49:EffectPhi, #48:Merge)
-#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #48:Merge)
-#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #48:Merge)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo divRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
+#46:IfFalse(#44:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #6:HeapConstant, #13:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
+#45:IfTrue(#44:Branch)
+#47:Merge(#45:IfTrue, #8:Call)
+#48:EffectPhi(#43:StackPointerGreaterThan, #8:Call, #47:Merge)
+#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
 #35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
-#36:CheckBigInt[FeedbackSource(INVALID)](#3:Parameter, #34:CheckedBigIntToBigInt64, #48:Merge)
-#37:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#36:CheckBigInt, #36:CheckBigInt, #48:Merge)
-#38:TruncateBigIntToWord64(#37:CheckedBigIntToBigInt64)
-#41:Int64Div(#35:TruncateBigIntToWord64, #38:TruncateBigIntToWord64, #48:Merge)
-#40:ChangeInt64ToBigInt(#41:Int64Div)
-#19:Return(#39:Int32Constant, #40:ChangeInt64ToBigInt, #37:CheckedBigIntToBigInt64, #48:Merge)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #47:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#40:Int64Div(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #47:Merge)
+#39:ChangeInt64ToBigInt(#40:Int64Div)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #36:CheckedBigIntToBigInt64, #47:Merge)
 #20:End(#19:Return)
 ```
 
@@ -2707,15 +2723,15 @@ function divRawInt64Const(a, b) {
 **测试代码：**
 
 ```javascript
-function modRawInt64Const(a, b) {
-    return a % b;
+function modRawInt64Const(a) {
+    return a % 8n;
 }
 ```
 
 **Metadata：**
 
 ```
-9465 @params any rawint64 rawint64 @ret rawint64  # modRawInt64Const
+8782 @params any rawint64 @ret rawint64  # modRawInt64Const
 ```
 
 **优化 Flags：**
@@ -2728,49 +2744,50 @@ function modRawInt64Const(a, b) {
 
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
+| `CheckedInt64Mod` | 1 | 0 |
+| `Int64Mod` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
 ```
 ----- Graph after V8.TFEarlyOptimization ----- 
-#39:Int32Constant[0]()
+#38:Int32Constant[0]()
 #0:Start()
 #2:Parameter[1](#0:Start)
 #1:Parameter[0, debug name: %this](#0:Start)
-#3:Parameter[2](#0:Start)
-#10:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter, #3:Parameter)
-#11:TypedStateValues[, dense]()
-#31:TypedStateValues[kRepTagged|kTypeAny, dense](#3:Parameter)
-#5:Parameter[6, debug name: %context](#0:Start)
-#23:HeapConstant[ADDR1 <JSFunction modRawInt64Const (sfi = ADDR2)>]()
-#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR2 <SharedFunctionInfo modRawInt64Const>](#10:TypedStateValues, #11:TypedStateValues, #31:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#41:ExternalConstant[ADDR3]()
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 8>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction modRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo modRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#40:ExternalConstant[ADDR4]()
 #30:Int64Constant[0]()
-#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
-#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
-#52:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#49:LoadStackCheckOffset()
-#50:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
-#51:Int32Constant[1]()
-#7:HeapConstant[ADDR6 <NativeContext[304]>]()
+#41:Load[kRepWord64](#40:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#42:StackPointerGreaterThan[JSFunctionEntry](#41:Load, #41:Load)
+#51:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#48:LoadStackCheckOffset()
+#49:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#50:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
 #32:TypedStateValues[, sparse:.]()
-#14:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR2 <SharedFunctionInfo modRawInt64Const>](#10:TypedStateValues, #11:TypedStateValues, #32:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
-#46:IfFalse(#44:Branch)
-#9:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #7:HeapConstant, #14:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
-#45:IfTrue(#44:Branch)
-#47:Merge(#45:IfTrue, #9:Call)
-#48:EffectPhi(#43:StackPointerGreaterThan, #9:Call, #47:Merge)
-#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
-#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
-#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo modRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#43:Branch[Unspecified, True](#42:StackPointerGreaterThan, #0:Start)
+#45:IfFalse(#43:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#51:HeapConstant, #48:LoadStackCheckOffset, #49:ExternalConstant, #50:Int32Constant, #6:HeapConstant, #13:FrameState, #42:StackPointerGreaterThan, #45:IfFalse)
+#44:IfTrue(#43:Branch)
+#46:Merge(#44:IfTrue, #8:Call)
+#47:EffectPhi(#42:StackPointerGreaterThan, #8:Call, #46:Merge)
+#15:Checkpoint(#16:FrameState, #47:EffectPhi, #46:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #46:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #46:Merge)
 #35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
-#36:CheckBigInt[FeedbackSource(INVALID)](#3:Parameter, #34:CheckedBigIntToBigInt64, #47:Merge)
-#37:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#36:CheckBigInt, #36:CheckBigInt, #47:Merge)
-#38:TruncateBigIntToWord64(#37:CheckedBigIntToBigInt64)
-#17:CheckedInt64Mod(#35:TruncateBigIntToWord64, #38:TruncateBigIntToWord64, #37:CheckedBigIntToBigInt64, #47:Merge)
-#40:ChangeInt64ToBigInt(#17:CheckedInt64Mod)
-#19:Return(#39:Int32Constant, #40:ChangeInt64ToBigInt, #17:CheckedInt64Mod, #47:Merge)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #46:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#17:CheckedInt64Mod(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #36:CheckedBigIntToBigInt64, #46:Merge)
+#39:ChangeInt64ToBigInt(#17:CheckedInt64Mod)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #17:CheckedInt64Mod, #46:Merge)
 #20:End(#19:Return)
 ```
 
@@ -2778,44 +2795,394 @@ function modRawInt64Const(a, b) {
 
 ```
 ----- Graph after V8.TFEarlyOptimization ----- 
-#39:Int32Constant[0]()
+#38:Int32Constant[0]()
 #0:Start()
 #2:Parameter[1](#0:Start)
 #1:Parameter[0, debug name: %this](#0:Start)
-#3:Parameter[2](#0:Start)
-#10:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter, #3:Parameter)
-#11:TypedStateValues[, dense]()
-#31:TypedStateValues[kRepTagged|kTypeAny, dense](#3:Parameter)
-#5:Parameter[6, debug name: %context](#0:Start)
-#23:HeapConstant[ADDR1 <JSFunction modRawInt64Const (sfi = ADDR2)>]()
-#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR2 <SharedFunctionInfo modRawInt64Const>](#10:TypedStateValues, #11:TypedStateValues, #31:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#42:ExternalConstant[ADDR3]()
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 8>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction modRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo modRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#41:ExternalConstant[ADDR4]()
 #30:Int64Constant[0]()
-#43:Load[kRepWord64](#42:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
-#44:StackPointerGreaterThan[JSFunctionEntry](#43:Load, #43:Load)
-#53:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#50:LoadStackCheckOffset()
-#51:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
-#52:Int32Constant[1]()
-#7:HeapConstant[ADDR6 <NativeContext[304]>]()
+#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
+#52:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#49:LoadStackCheckOffset()
+#50:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#51:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
 #32:TypedStateValues[, sparse:.]()
-#14:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR2 <SharedFunctionInfo modRawInt64Const>](#10:TypedStateValues, #11:TypedStateValues, #32:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#45:Branch[Unspecified, True](#44:StackPointerGreaterThan, #0:Start)
-#47:IfFalse(#45:Branch)
-#9:Call[Code:StackGuardWithGap:r1s1i5f1](#53:HeapConstant, #50:LoadStackCheckOffset, #51:ExternalConstant, #52:Int32Constant, #7:HeapConstant, #14:FrameState, #44:StackPointerGreaterThan, #47:IfFalse)
-#46:IfTrue(#45:Branch)
-#48:Merge(#46:IfTrue, #9:Call)
-#49:EffectPhi(#44:StackPointerGreaterThan, #9:Call, #48:Merge)
-#15:Checkpoint(#16:FrameState, #49:EffectPhi, #48:Merge)
-#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #48:Merge)
-#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #48:Merge)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo modRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
+#46:IfFalse(#44:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #6:HeapConstant, #13:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
+#45:IfTrue(#44:Branch)
+#47:Merge(#45:IfTrue, #8:Call)
+#48:EffectPhi(#43:StackPointerGreaterThan, #8:Call, #47:Merge)
+#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
 #35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
-#36:CheckBigInt[FeedbackSource(INVALID)](#3:Parameter, #34:CheckedBigIntToBigInt64, #48:Merge)
-#37:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#36:CheckBigInt, #36:CheckBigInt, #48:Merge)
-#38:TruncateBigIntToWord64(#37:CheckedBigIntToBigInt64)
-#41:Int64Mod(#35:TruncateBigIntToWord64, #38:TruncateBigIntToWord64, #48:Merge)
-#40:ChangeInt64ToBigInt(#41:Int64Mod)
-#19:Return(#39:Int32Constant, #40:ChangeInt64ToBigInt, #37:CheckedBigIntToBigInt64, #48:Merge)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #47:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#40:Int64Mod(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #47:Merge)
+#39:ChangeInt64ToBigInt(#40:Int64Mod)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #36:CheckedBigIntToBigInt64, #47:Merge)
+#20:End(#19:Return)
+```
+
+#### 函数: `addRawInt64Const`
+
+**测试代码：**
+
+```javascript
+function addRawInt64Const(a) {
+    return a + 5n;
+}
+```
+
+**Metadata：**
+
+```
+8948 @params any rawint64 @ret rawint64  # addRawInt64Const
+```
+
+**优化 Flags：**
+
+```
+--turbo_metadata_path=test/mjsunit/compiler/type-injector/metadata
+```
+
+**优化效果：**
+
+| 节点类型 | 优化前 | 优化后 |
+|---------|-------|-------|
+| `CheckedInt64Add` | 1 | 0 |
+| `Int64Add` | 0 | 1 |
+
+**优化前 Graph (EarlyOptimization)：**
+
+```
+----- Graph after V8.TFEarlyOptimization ----- 
+#38:Int32Constant[0]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 5>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction addRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo addRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#40:ExternalConstant[ADDR4]()
+#30:Int64Constant[0]()
+#41:Load[kRepWord64](#40:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#42:StackPointerGreaterThan[JSFunctionEntry](#41:Load, #41:Load)
+#51:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#48:LoadStackCheckOffset()
+#49:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#50:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
+#32:TypedStateValues[, sparse:.]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo addRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#43:Branch[Unspecified, True](#42:StackPointerGreaterThan, #0:Start)
+#45:IfFalse(#43:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#51:HeapConstant, #48:LoadStackCheckOffset, #49:ExternalConstant, #50:Int32Constant, #6:HeapConstant, #13:FrameState, #42:StackPointerGreaterThan, #45:IfFalse)
+#44:IfTrue(#43:Branch)
+#46:Merge(#44:IfTrue, #8:Call)
+#47:EffectPhi(#42:StackPointerGreaterThan, #8:Call, #46:Merge)
+#15:Checkpoint(#16:FrameState, #47:EffectPhi, #46:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #46:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #46:Merge)
+#35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #46:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#17:CheckedInt64Add(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #36:CheckedBigIntToBigInt64, #46:Merge)
+#39:ChangeInt64ToBigInt(#17:CheckedInt64Add)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #17:CheckedInt64Add, #46:Merge)
+#20:End(#19:Return)
+```
+
+**优化后 Graph (EarlyOptimization)：**
+
+```
+----- Graph after V8.TFEarlyOptimization ----- 
+#38:Int32Constant[0]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 5>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction addRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo addRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#41:ExternalConstant[ADDR4]()
+#30:Int64Constant[0]()
+#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
+#52:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#49:LoadStackCheckOffset()
+#50:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#51:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
+#32:TypedStateValues[, sparse:.]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo addRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
+#46:IfFalse(#44:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #6:HeapConstant, #13:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
+#45:IfTrue(#44:Branch)
+#47:Merge(#45:IfTrue, #8:Call)
+#48:EffectPhi(#43:StackPointerGreaterThan, #8:Call, #47:Merge)
+#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
+#35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #47:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#40:Int64Add(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64)
+#39:ChangeInt64ToBigInt(#40:Int64Add)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #36:CheckedBigIntToBigInt64, #47:Merge)
+#20:End(#19:Return)
+```
+
+#### 函数: `subRawInt64Const`
+
+**测试代码：**
+
+```javascript
+function subRawInt64Const(a) {
+    return a - 7n;
+}
+```
+
+**Metadata：**
+
+```
+9117 @params any rawint64 @ret rawint64  # subRawInt64Const
+```
+
+**优化 Flags：**
+
+```
+--turbo_metadata_path=test/mjsunit/compiler/type-injector/metadata
+```
+
+**优化效果：**
+
+| 节点类型 | 优化前 | 优化后 |
+|---------|-------|-------|
+| `CheckedInt64Sub` | 1 | 0 |
+| `Int64Sub` | 0 | 1 |
+
+**优化前 Graph (EarlyOptimization)：**
+
+```
+----- Graph after V8.TFEarlyOptimization ----- 
+#38:Int32Constant[0]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 7>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction subRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo subRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#40:ExternalConstant[ADDR4]()
+#30:Int64Constant[0]()
+#41:Load[kRepWord64](#40:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#42:StackPointerGreaterThan[JSFunctionEntry](#41:Load, #41:Load)
+#51:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#48:LoadStackCheckOffset()
+#49:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#50:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
+#32:TypedStateValues[, sparse:.]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo subRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#43:Branch[Unspecified, True](#42:StackPointerGreaterThan, #0:Start)
+#45:IfFalse(#43:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#51:HeapConstant, #48:LoadStackCheckOffset, #49:ExternalConstant, #50:Int32Constant, #6:HeapConstant, #13:FrameState, #42:StackPointerGreaterThan, #45:IfFalse)
+#44:IfTrue(#43:Branch)
+#46:Merge(#44:IfTrue, #8:Call)
+#47:EffectPhi(#42:StackPointerGreaterThan, #8:Call, #46:Merge)
+#15:Checkpoint(#16:FrameState, #47:EffectPhi, #46:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #46:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #46:Merge)
+#35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #46:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#17:CheckedInt64Sub(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #36:CheckedBigIntToBigInt64, #46:Merge)
+#39:ChangeInt64ToBigInt(#17:CheckedInt64Sub)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #17:CheckedInt64Sub, #46:Merge)
+#20:End(#19:Return)
+```
+
+**优化后 Graph (EarlyOptimization)：**
+
+```
+----- Graph after V8.TFEarlyOptimization ----- 
+#38:Int32Constant[0]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 7>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction subRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo subRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#41:ExternalConstant[ADDR4]()
+#30:Int64Constant[0]()
+#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
+#52:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#49:LoadStackCheckOffset()
+#50:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#51:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
+#32:TypedStateValues[, sparse:.]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo subRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
+#46:IfFalse(#44:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #6:HeapConstant, #13:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
+#45:IfTrue(#44:Branch)
+#47:Merge(#45:IfTrue, #8:Call)
+#48:EffectPhi(#43:StackPointerGreaterThan, #8:Call, #47:Merge)
+#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
+#35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #47:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#40:Int64Sub(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64)
+#39:ChangeInt64ToBigInt(#40:Int64Sub)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #36:CheckedBigIntToBigInt64, #47:Merge)
+#20:End(#19:Return)
+```
+
+#### 函数: `mulRawInt64Const`
+
+**测试代码：**
+
+```javascript
+function mulRawInt64Const(a) {
+    return a * 3n;
+}
+```
+
+**Metadata：**
+
+```
+9286 @params any rawint64 @ret rawint64  # mulRawInt64Const
+```
+
+**优化 Flags：**
+
+```
+--turbo_metadata_path=test/mjsunit/compiler/type-injector/metadata
+```
+
+**优化效果：**
+
+| 节点类型 | 优化前 | 优化后 |
+|---------|-------|-------|
+| `CheckedInt64Mul` | 1 | 0 |
+| `Int64Mul` | 0 | 1 |
+
+**优化前 Graph (EarlyOptimization)：**
+
+```
+----- Graph after V8.TFEarlyOptimization ----- 
+#38:Int32Constant[0]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 3>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction mulRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo mulRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#40:ExternalConstant[ADDR4]()
+#30:Int64Constant[0]()
+#41:Load[kRepWord64](#40:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#42:StackPointerGreaterThan[JSFunctionEntry](#41:Load, #41:Load)
+#51:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#48:LoadStackCheckOffset()
+#49:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#50:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
+#32:TypedStateValues[, sparse:.]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo mulRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#43:Branch[Unspecified, True](#42:StackPointerGreaterThan, #0:Start)
+#45:IfFalse(#43:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#51:HeapConstant, #48:LoadStackCheckOffset, #49:ExternalConstant, #50:Int32Constant, #6:HeapConstant, #13:FrameState, #42:StackPointerGreaterThan, #45:IfFalse)
+#44:IfTrue(#43:Branch)
+#46:Merge(#44:IfTrue, #8:Call)
+#47:EffectPhi(#42:StackPointerGreaterThan, #8:Call, #46:Merge)
+#15:Checkpoint(#16:FrameState, #47:EffectPhi, #46:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #46:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #46:Merge)
+#35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #46:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#17:CheckedInt64Mul(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #36:CheckedBigIntToBigInt64, #46:Merge)
+#39:ChangeInt64ToBigInt(#17:CheckedInt64Mul)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #17:CheckedInt64Mul, #46:Merge)
+#20:End(#19:Return)
+```
+
+**优化后 Graph (EarlyOptimization)：**
+
+```
+----- Graph after V8.TFEarlyOptimization ----- 
+#38:Int32Constant[0]()
+#0:Start()
+#2:Parameter[1](#0:Start)
+#1:Parameter[0, debug name: %this](#0:Start)
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 3>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction mulRawInt64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo mulRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#41:ExternalConstant[ADDR4]()
+#30:Int64Constant[0]()
+#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
+#52:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#49:LoadStackCheckOffset()
+#50:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#51:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
+#32:TypedStateValues[, sparse:.]()
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo mulRawInt64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
+#46:IfFalse(#44:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #6:HeapConstant, #13:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
+#45:IfTrue(#44:Branch)
+#47:Merge(#45:IfTrue, #8:Call)
+#48:EffectPhi(#43:StackPointerGreaterThan, #8:Call, #47:Merge)
+#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
+#35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #47:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#40:Int64Mul(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64)
+#39:ChangeInt64ToBigInt(#40:Int64Mul)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #36:CheckedBigIntToBigInt64, #47:Merge)
 #20:End(#19:Return)
 ```
 
@@ -2824,15 +3191,15 @@ function modRawInt64Const(a, b) {
 **测试代码：**
 
 ```javascript
-function divRawUint64Const(a, b) {
-    return a / b;
+function divRawUint64Const(a) {
+    return a / 10n;
 }
 ```
 
 **Metadata：**
 
 ```
-9642 @params any rawuint64 rawuint64 @ret rawuint64  # divRawUint64Const
+9456 @params any rawuint64 @ret rawuint64  # divRawUint64Const
 ```
 
 **优化 Flags：**
@@ -2845,49 +3212,50 @@ function divRawUint64Const(a, b) {
 
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
+| `CheckedInt64Div` | 1 | 0 |
+| `Uint64Div` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
 ```
 ----- Graph after V8.TFEarlyOptimization ----- 
-#39:Int32Constant[0]()
+#38:Int32Constant[0]()
 #0:Start()
 #2:Parameter[1](#0:Start)
 #1:Parameter[0, debug name: %this](#0:Start)
-#3:Parameter[2](#0:Start)
-#10:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter, #3:Parameter)
-#11:TypedStateValues[, dense]()
-#31:TypedStateValues[kRepTagged|kTypeAny, dense](#3:Parameter)
-#5:Parameter[6, debug name: %context](#0:Start)
-#23:HeapConstant[ADDR1 <JSFunction divRawUint64Const (sfi = ADDR2)>]()
-#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR2 <SharedFunctionInfo divRawUint64Const>](#10:TypedStateValues, #11:TypedStateValues, #31:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#41:ExternalConstant[ADDR3]()
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 10>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction divRawUint64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo divRawUint64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#40:ExternalConstant[ADDR4]()
 #30:Int64Constant[0]()
-#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
-#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
-#52:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#49:LoadStackCheckOffset()
-#50:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
-#51:Int32Constant[1]()
-#7:HeapConstant[ADDR6 <NativeContext[304]>]()
+#41:Load[kRepWord64](#40:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#42:StackPointerGreaterThan[JSFunctionEntry](#41:Load, #41:Load)
+#51:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#48:LoadStackCheckOffset()
+#49:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#50:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
 #32:TypedStateValues[, sparse:.]()
-#14:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR2 <SharedFunctionInfo divRawUint64Const>](#10:TypedStateValues, #11:TypedStateValues, #32:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
-#46:IfFalse(#44:Branch)
-#9:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #7:HeapConstant, #14:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
-#45:IfTrue(#44:Branch)
-#47:Merge(#45:IfTrue, #9:Call)
-#48:EffectPhi(#43:StackPointerGreaterThan, #9:Call, #47:Merge)
-#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
-#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
-#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo divRawUint64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#43:Branch[Unspecified, True](#42:StackPointerGreaterThan, #0:Start)
+#45:IfFalse(#43:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#51:HeapConstant, #48:LoadStackCheckOffset, #49:ExternalConstant, #50:Int32Constant, #6:HeapConstant, #13:FrameState, #42:StackPointerGreaterThan, #45:IfFalse)
+#44:IfTrue(#43:Branch)
+#46:Merge(#44:IfTrue, #8:Call)
+#47:EffectPhi(#42:StackPointerGreaterThan, #8:Call, #46:Merge)
+#15:Checkpoint(#16:FrameState, #47:EffectPhi, #46:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #46:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #46:Merge)
 #35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
-#36:CheckBigInt[FeedbackSource(INVALID)](#3:Parameter, #34:CheckedBigIntToBigInt64, #47:Merge)
-#37:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#36:CheckBigInt, #36:CheckBigInt, #47:Merge)
-#38:TruncateBigIntToWord64(#37:CheckedBigIntToBigInt64)
-#17:CheckedInt64Div(#35:TruncateBigIntToWord64, #38:TruncateBigIntToWord64, #37:CheckedBigIntToBigInt64, #47:Merge)
-#40:ChangeInt64ToBigInt(#17:CheckedInt64Div)
-#19:Return(#39:Int32Constant, #40:ChangeInt64ToBigInt, #17:CheckedInt64Div, #47:Merge)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #46:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#17:CheckedInt64Div(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #36:CheckedBigIntToBigInt64, #46:Merge)
+#39:ChangeInt64ToBigInt(#17:CheckedInt64Div)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #17:CheckedInt64Div, #46:Merge)
 #20:End(#19:Return)
 ```
 
@@ -2895,44 +3263,43 @@ function divRawUint64Const(a, b) {
 
 ```
 ----- Graph after V8.TFEarlyOptimization ----- 
-#39:Int32Constant[0]()
+#38:Int32Constant[0]()
 #0:Start()
 #2:Parameter[1](#0:Start)
 #1:Parameter[0, debug name: %this](#0:Start)
-#3:Parameter[2](#0:Start)
-#10:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter, #3:Parameter)
-#11:TypedStateValues[, dense]()
-#31:TypedStateValues[kRepTagged|kTypeAny, dense](#3:Parameter)
-#5:Parameter[6, debug name: %context](#0:Start)
-#23:HeapConstant[ADDR1 <JSFunction divRawUint64Const (sfi = ADDR2)>]()
-#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR2 <SharedFunctionInfo divRawUint64Const>](#10:TypedStateValues, #11:TypedStateValues, #31:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#42:ExternalConstant[ADDR3]()
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 10>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction divRawUint64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo divRawUint64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#41:ExternalConstant[ADDR4]()
 #30:Int64Constant[0]()
-#43:Load[kRepWord64](#42:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
-#44:StackPointerGreaterThan[JSFunctionEntry](#43:Load, #43:Load)
-#53:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#50:LoadStackCheckOffset()
-#51:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
-#52:Int32Constant[1]()
-#7:HeapConstant[ADDR6 <NativeContext[304]>]()
+#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
+#52:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#49:LoadStackCheckOffset()
+#50:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#51:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
 #32:TypedStateValues[, sparse:.]()
-#14:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR2 <SharedFunctionInfo divRawUint64Const>](#10:TypedStateValues, #11:TypedStateValues, #32:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#45:Branch[Unspecified, True](#44:StackPointerGreaterThan, #0:Start)
-#47:IfFalse(#45:Branch)
-#9:Call[Code:StackGuardWithGap:r1s1i5f1](#53:HeapConstant, #50:LoadStackCheckOffset, #51:ExternalConstant, #52:Int32Constant, #7:HeapConstant, #14:FrameState, #44:StackPointerGreaterThan, #47:IfFalse)
-#46:IfTrue(#45:Branch)
-#48:Merge(#46:IfTrue, #9:Call)
-#49:EffectPhi(#44:StackPointerGreaterThan, #9:Call, #48:Merge)
-#15:Checkpoint(#16:FrameState, #49:EffectPhi, #48:Merge)
-#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #48:Merge)
-#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #48:Merge)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo divRawUint64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
+#46:IfFalse(#44:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #6:HeapConstant, #13:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
+#45:IfTrue(#44:Branch)
+#47:Merge(#45:IfTrue, #8:Call)
+#48:EffectPhi(#43:StackPointerGreaterThan, #8:Call, #47:Merge)
+#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
 #35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
-#36:CheckBigInt[FeedbackSource(INVALID)](#3:Parameter, #34:CheckedBigIntToBigInt64, #48:Merge)
-#37:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#36:CheckBigInt, #36:CheckBigInt, #48:Merge)
-#38:TruncateBigIntToWord64(#37:CheckedBigIntToBigInt64)
-#41:Uint64Div(#35:TruncateBigIntToWord64, #38:TruncateBigIntToWord64, #48:Merge)
-#40:ChangeInt64ToBigInt(#41:Uint64Div)
-#19:Return(#39:Int32Constant, #40:ChangeInt64ToBigInt, #37:CheckedBigIntToBigInt64, #48:Merge)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #47:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#40:Uint64Div(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #47:Merge)
+#39:ChangeInt64ToBigInt(#40:Uint64Div)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #36:CheckedBigIntToBigInt64, #47:Merge)
 #20:End(#19:Return)
 ```
 
@@ -2941,15 +3308,15 @@ function divRawUint64Const(a, b) {
 **测试代码：**
 
 ```javascript
-function modRawUint64Const(a, b) {
-    return a % b;
+function modRawUint64Const(a) {
+    return a % 8n;
 }
 ```
 
 **Metadata：**
 
 ```
-9981 @params any rawuint64 rawuint64 @ret rawuint64  # modRawUint64Const
+9628 @params any rawuint64 @ret rawuint64  # modRawUint64Const
 ```
 
 **优化 Flags：**
@@ -2962,49 +3329,50 @@ function modRawUint64Const(a, b) {
 
 | 节点类型 | 优化前 | 优化后 |
 |---------|-------|-------|
+| `CheckedInt64Mod` | 1 | 0 |
+| `Uint64Mod` | 0 | 1 |
 
 **优化前 Graph (EarlyOptimization)：**
 
 ```
 ----- Graph after V8.TFEarlyOptimization ----- 
-#39:Int32Constant[0]()
+#38:Int32Constant[0]()
 #0:Start()
 #2:Parameter[1](#0:Start)
 #1:Parameter[0, debug name: %this](#0:Start)
-#3:Parameter[2](#0:Start)
-#10:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter, #3:Parameter)
-#11:TypedStateValues[, dense]()
-#31:TypedStateValues[kRepTagged|kTypeAny, dense](#3:Parameter)
-#5:Parameter[6, debug name: %context](#0:Start)
-#23:HeapConstant[ADDR1 <JSFunction modRawUint64Const (sfi = ADDR2)>]()
-#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR2 <SharedFunctionInfo modRawUint64Const>](#10:TypedStateValues, #11:TypedStateValues, #31:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#41:ExternalConstant[ADDR3]()
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 8>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction modRawUint64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo modRawUint64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#40:ExternalConstant[ADDR4]()
 #30:Int64Constant[0]()
-#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
-#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
-#52:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#49:LoadStackCheckOffset()
-#50:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
-#51:Int32Constant[1]()
-#7:HeapConstant[ADDR6 <NativeContext[304]>]()
+#41:Load[kRepWord64](#40:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#42:StackPointerGreaterThan[JSFunctionEntry](#41:Load, #41:Load)
+#51:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#48:LoadStackCheckOffset()
+#49:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#50:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
 #32:TypedStateValues[, sparse:.]()
-#14:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR2 <SharedFunctionInfo modRawUint64Const>](#10:TypedStateValues, #11:TypedStateValues, #32:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
-#46:IfFalse(#44:Branch)
-#9:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #7:HeapConstant, #14:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
-#45:IfTrue(#44:Branch)
-#47:Merge(#45:IfTrue, #9:Call)
-#48:EffectPhi(#43:StackPointerGreaterThan, #9:Call, #47:Merge)
-#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
-#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
-#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo modRawUint64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#43:Branch[Unspecified, True](#42:StackPointerGreaterThan, #0:Start)
+#45:IfFalse(#43:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#51:HeapConstant, #48:LoadStackCheckOffset, #49:ExternalConstant, #50:Int32Constant, #6:HeapConstant, #13:FrameState, #42:StackPointerGreaterThan, #45:IfFalse)
+#44:IfTrue(#43:Branch)
+#46:Merge(#44:IfTrue, #8:Call)
+#47:EffectPhi(#42:StackPointerGreaterThan, #8:Call, #46:Merge)
+#15:Checkpoint(#16:FrameState, #47:EffectPhi, #46:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #46:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #46:Merge)
 #35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
-#36:CheckBigInt[FeedbackSource(INVALID)](#3:Parameter, #34:CheckedBigIntToBigInt64, #47:Merge)
-#37:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#36:CheckBigInt, #36:CheckBigInt, #47:Merge)
-#38:TruncateBigIntToWord64(#37:CheckedBigIntToBigInt64)
-#17:CheckedInt64Mod(#35:TruncateBigIntToWord64, #38:TruncateBigIntToWord64, #37:CheckedBigIntToBigInt64, #47:Merge)
-#40:ChangeInt64ToBigInt(#17:CheckedInt64Mod)
-#19:Return(#39:Int32Constant, #40:ChangeInt64ToBigInt, #17:CheckedInt64Mod, #47:Merge)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #46:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#17:CheckedInt64Mod(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #36:CheckedBigIntToBigInt64, #46:Merge)
+#39:ChangeInt64ToBigInt(#17:CheckedInt64Mod)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #17:CheckedInt64Mod, #46:Merge)
 #20:End(#19:Return)
 ```
 
@@ -3012,43 +3380,42 @@ function modRawUint64Const(a, b) {
 
 ```
 ----- Graph after V8.TFEarlyOptimization ----- 
-#39:Int32Constant[0]()
+#38:Int32Constant[0]()
 #0:Start()
 #2:Parameter[1](#0:Start)
 #1:Parameter[0, debug name: %this](#0:Start)
-#3:Parameter[2](#0:Start)
-#10:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter, #3:Parameter)
-#11:TypedStateValues[, dense]()
-#31:TypedStateValues[kRepTagged|kTypeAny, dense](#3:Parameter)
-#5:Parameter[6, debug name: %context](#0:Start)
-#23:HeapConstant[ADDR1 <JSFunction modRawUint64Const (sfi = ADDR2)>]()
-#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR2 <SharedFunctionInfo modRawUint64Const>](#10:TypedStateValues, #11:TypedStateValues, #31:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#42:ExternalConstant[ADDR3]()
+#9:TypedStateValues[kRepTagged|kTypeAny, kRepTagged|kTypeAny, dense](#1:Parameter, #2:Parameter)
+#10:TypedStateValues[, dense]()
+#14:HeapConstant[ADDR1 <BigInt 8>]()
+#31:TypedStateValues[kRepTagged|kTypeAny, dense](#14:HeapConstant)
+#4:Parameter[5, debug name: %context](#0:Start)
+#23:HeapConstant[ADDR2 <JSFunction modRawUint64Const (sfi = ADDR3)>]()
+#16:FrameState[UNOPTIMIZED_FRAME, 2, Ignore, ADDR3 <SharedFunctionInfo modRawUint64Const>](#9:TypedStateValues, #10:TypedStateValues, #31:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#41:ExternalConstant[ADDR4]()
 #30:Int64Constant[0]()
-#43:Load[kRepWord64](#42:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
-#44:StackPointerGreaterThan[JSFunctionEntry](#43:Load, #43:Load)
-#53:HeapConstant[ADDR4 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
-#50:LoadStackCheckOffset()
-#51:ExternalConstant[ADDR5 <StackGuardWithGap.entry>]()
-#52:Int32Constant[1]()
-#7:HeapConstant[ADDR6 <NativeContext[304]>]()
+#42:Load[kRepWord64](#41:ExternalConstant, #30:Int64Constant, #0:Start, #0:Start)
+#43:StackPointerGreaterThan[JSFunctionEntry](#42:Load, #42:Load)
+#52:HeapConstant[ADDR5 <Code BUILTIN CEntry_Return1_ArgvOnStack_NoBuiltinExit>]()
+#49:LoadStackCheckOffset()
+#50:ExternalConstant[ADDR6 <StackGuardWithGap.entry>]()
+#51:Int32Constant[1]()
+#6:HeapConstant[ADDR7 <NativeContext[304]>]()
 #32:TypedStateValues[, sparse:.]()
-#14:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR2 <SharedFunctionInfo modRawUint64Const>](#10:TypedStateValues, #11:TypedStateValues, #32:TypedStateValues, #5:Parameter, #23:HeapConstant, #0:Start)
-#45:Branch[Unspecified, True](#44:StackPointerGreaterThan, #0:Start)
-#47:IfFalse(#45:Branch)
-#9:Call[Code:StackGuardWithGap:r1s1i5f1](#53:HeapConstant, #50:LoadStackCheckOffset, #51:ExternalConstant, #52:Int32Constant, #7:HeapConstant, #14:FrameState, #44:StackPointerGreaterThan, #47:IfFalse)
-#46:IfTrue(#45:Branch)
-#48:Merge(#46:IfTrue, #9:Call)
-#49:EffectPhi(#44:StackPointerGreaterThan, #9:Call, #48:Merge)
-#15:Checkpoint(#16:FrameState, #49:EffectPhi, #48:Merge)
-#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #48:Merge)
-#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #48:Merge)
+#13:FrameState[UNOPTIMIZED_FRAME, -1, Ignore, ADDR3 <SharedFunctionInfo modRawUint64Const>](#9:TypedStateValues, #10:TypedStateValues, #32:TypedStateValues, #4:Parameter, #23:HeapConstant, #0:Start)
+#44:Branch[Unspecified, True](#43:StackPointerGreaterThan, #0:Start)
+#46:IfFalse(#44:Branch)
+#8:Call[Code:StackGuardWithGap:r1s1i5f1](#52:HeapConstant, #49:LoadStackCheckOffset, #50:ExternalConstant, #51:Int32Constant, #6:HeapConstant, #13:FrameState, #43:StackPointerGreaterThan, #46:IfFalse)
+#45:IfTrue(#44:Branch)
+#47:Merge(#45:IfTrue, #8:Call)
+#48:EffectPhi(#43:StackPointerGreaterThan, #8:Call, #47:Merge)
+#15:Checkpoint(#16:FrameState, #48:EffectPhi, #47:Merge)
+#33:CheckBigInt[FeedbackSource(INVALID)](#2:Parameter, #15:Checkpoint, #47:Merge)
+#34:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#33:CheckBigInt, #33:CheckBigInt, #47:Merge)
 #35:TruncateBigIntToWord64(#34:CheckedBigIntToBigInt64)
-#36:CheckBigInt[FeedbackSource(INVALID)](#3:Parameter, #34:CheckedBigIntToBigInt64, #48:Merge)
-#37:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#36:CheckBigInt, #36:CheckBigInt, #48:Merge)
-#38:TruncateBigIntToWord64(#37:CheckedBigIntToBigInt64)
-#41:Uint64Mod(#35:TruncateBigIntToWord64, #38:TruncateBigIntToWord64, #48:Merge)
-#40:ChangeInt64ToBigInt(#41:Uint64Mod)
-#19:Return(#39:Int32Constant, #40:ChangeInt64ToBigInt, #37:CheckedBigIntToBigInt64, #48:Merge)
+#36:CheckedBigIntToBigInt64[FeedbackSource(INVALID)](#14:HeapConstant, #34:CheckedBigIntToBigInt64, #47:Merge)
+#37:TruncateBigIntToWord64(#36:CheckedBigIntToBigInt64)
+#40:Uint64Mod(#35:TruncateBigIntToWord64, #37:TruncateBigIntToWord64, #47:Merge)
+#39:ChangeInt64ToBigInt(#40:Uint64Mod)
+#19:Return(#38:Int32Constant, #39:ChangeInt64ToBigInt, #36:CheckedBigIntToBigInt64, #47:Merge)
 #20:End(#19:Return)
 ```

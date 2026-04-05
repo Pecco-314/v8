@@ -338,8 +338,8 @@ TEST_CASES = [
                 "name": "sumLoopRawInt32",
                 "flags": METADATA_FLAGS,
                 "expected": {
-                    "CheckedInt32Add": {"before": 1, "after": 1},
-                    "Int32Add": {"before": 1, "after": 1}
+                    "CheckedInt32Add": {"before": 1, "after": 0},
+                    "Int32Add": {"before": 1, "after": 2}
                 }
             },
             {
@@ -428,8 +428,8 @@ TEST_CASES = [
                 "name": "divRawInt32Trunc",
                 "flags": METADATA_FLAGS,
                 "expected": {
-                    "Float64Div": {"before": 1, "after": 1},
-                    "Int32Div": {"before": 0, "after": 0}
+                    "Float64Div": {"before": 1, "after": 0},
+                    "Int32Div": {"before": 0, "after": 1}
                 }
             },
             {
@@ -493,6 +493,33 @@ TEST_CASES = [
                 "expected": {
                     "CheckedInt64Mod": {"before": 1, "after": 0},
                     "Int64Mod": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "addRawInt64Const",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt64Add": {"before": 1, "after": 0},
+                    "Int64Add": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "subRawInt64Const",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt64Sub": {"before": 1, "after": 0},
+                    "Int64Sub": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "mulRawInt64Const",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt64Mul": {"before": 1, "after": 0},
+                    "Int64Mul": {"before": 0, "after": 1}
                 }
             },
             {

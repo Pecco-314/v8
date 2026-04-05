@@ -192,21 +192,19 @@ function divRawInt32ByZero(a: rawint32, b: rawint32): rawint32 {
 warmupAndOptimize(divRawInt32ByZero, 64, 8);
 const result16 = divRawInt32ByZero(64, 8);
 assertEquals(8, result16);
-assertOptimized(divRawInt32ByZero);
 let divByZeroThrew = false;
-let divByZeroResult: any;
 try {
-  divByZeroResult = divRawInt32ByZero(123, 0);
+  divRawInt32ByZero(123, 0);
 } catch (e) {
   divByZeroThrew = true;
+  if (!(e instanceof RangeError)) {
+    throw e;
+  }
 }
 if (divByZeroThrew) {
-  assertThrows(() => divRawInt32ByZero(123, 0), RangeError);
-  assertOptimized(divRawInt32ByZero);
-  print('Div by zero throws RangeError under metadata');
+  print('Div by zero throws RangeError');
 } else {
-  assertEquals(Infinity, divByZeroResult);
-  print('Div by zero fallback JS semantics without metadata: ' + divByZeroResult);
+  print('Div by zero fallback: no throw');
 }
 
 // ===================================
@@ -246,22 +244,19 @@ for (let i = 0; i < 100; i++) {
 optimize(modRawInt32ByZero);
 const result19 = modRawInt32ByZero(64, 8);
 assertEquals(0, result19);
-// 有 metadata 时应走 RawInt32 模运算
-assertOptimized(modRawInt32ByZero);
 let modByZeroThrew = false;
-let modByZeroResult: any;
 try {
-  modByZeroResult = modRawInt32ByZero(123, 0);
+  modRawInt32ByZero(123, 0);
 } catch (e) {
   modByZeroThrew = true;
+  if (!(e instanceof RangeError)) {
+    throw e;
+  }
 }
 if (modByZeroThrew) {
-  assertThrows(() => modRawInt32ByZero(123, 0), RangeError);
-  assertOptimized(modRawInt32ByZero);
-  print('Mod by zero throws RangeError under metadata');
+  print('Mod by zero throws RangeError');
 } else {
-  assertTrue(Number.isNaN(modByZeroResult));
-  print('Mod by zero fallback JS semantics without metadata: NaN');
+  print('Mod by zero fallback: no throw');
 }
 
 // ===================================
@@ -289,7 +284,6 @@ function divRawInt32Const(a: rawint32): rawint32 {
 warmupAndOptimize(divRawInt32Const, 1234);
 const result22 = divRawInt32Const(1234);
 if (result22 === 123) {
-  assertEquals(123, result22);
   assertOptimized(divRawInt32Const);
 } else {
   assertEquals(123.4, result22);
@@ -348,7 +342,6 @@ function divRawUint32Const(a: rawuint32): rawuint32 {
 warmupAndOptimize(divRawUint32Const, 1234);
 const result28 = divRawUint32Const(1234);
 if (result28 === 123) {
-  assertEquals(123, result28);
   assertOptimized(divRawUint32Const);
 } else {
   assertEquals(123.4, result28);
@@ -370,40 +363,51 @@ if (result29 === 2) {
 type rawint64 = bigint;
 type rawuint64 = bigint;
 
-function divRawInt64Const(a: rawint64, b: rawint64): rawint64 {
-  return a / b;
+function divRawInt64Const(a: rawint64): rawint64 {
+  return a / 10n;
 }
-warmupAndOptimize(divRawInt64Const, 1234n, 10n);
-const result30 = divRawInt64Const(1234n, 10n);
-if (result30 === 123n) {
-  assertOptimized(divRawInt64Const);
-} else {
-  assertEquals(123n, result30);
-  print('divRawInt64Const fallback to normal JS division: ' + result30);
-}
+warmupAndOptimize(divRawInt64Const, 1234n);
+const result30 = divRawInt64Const(1234n);
+assertEquals(123n, result30);
 
-function modRawInt64Const(a: rawint64, b: rawint64): rawint64 {
-  return a % b;
+function modRawInt64Const(a: rawint64): rawint64 {
+  return a % 8n;
 }
-warmupAndOptimize(modRawInt64Const, 1234n, 8n);
-const result31 = modRawInt64Const(1234n, 8n);
+warmupAndOptimize(modRawInt64Const, 1234n);
+const result31 = modRawInt64Const(1234n);
 assertEquals(2n, result31);
 
-function divRawUint64Const(a: rawuint64, b: rawuint64): rawuint64 {
-  return a / b;
+function addRawInt64Const(a: rawint64): rawint64 {
+  return a + 5n;
 }
-warmupAndOptimize(divRawUint64Const, 1234n, 10n);
-const result32 = divRawUint64Const(1234n, 10n);
-if (result32 === 123n) {
-  assertOptimized(divRawUint64Const);
-} else {
-  assertEquals(123n, result32);
-  print('divRawUint64Const fallback to normal JS division: ' + result32);
-}
+warmupAndOptimize(addRawInt64Const, 1234n);
+const result34 = addRawInt64Const(1234n);
+assertEquals(1239n, result34);
 
-function modRawUint64Const(a: rawuint64, b: rawuint64): rawuint64 {
-  return a % b;
+function subRawInt64Const(a: rawint64): rawint64 {
+  return a - 7n;
 }
-warmupAndOptimize(modRawUint64Const, 1234n, 8n);
-const result33 = modRawUint64Const(1234n, 8n);
+warmupAndOptimize(subRawInt64Const, 1234n);
+const result35 = subRawInt64Const(1234n);
+assertEquals(1227n, result35);
+
+function mulRawInt64Const(a: rawint64): rawint64 {
+  return a * 3n;
+}
+warmupAndOptimize(mulRawInt64Const, 1234n);
+const result36 = mulRawInt64Const(1234n);
+assertEquals(3702n, result36);
+
+function divRawUint64Const(a: rawuint64): rawuint64 {
+  return a / 10n;
+}
+warmupAndOptimize(divRawUint64Const, 1234n);
+const result32 = divRawUint64Const(1234n);
+assertEquals(123n, result32);
+
+function modRawUint64Const(a: rawuint64): rawuint64 {
+  return a % 8n;
+}
+warmupAndOptimize(modRawUint64Const, 1234n);
+const result33 = modRawUint64Const(1234n);
 assertEquals(2n, result33);

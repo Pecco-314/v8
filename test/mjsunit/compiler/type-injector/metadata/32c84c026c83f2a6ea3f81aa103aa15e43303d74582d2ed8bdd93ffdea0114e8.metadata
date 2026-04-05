@@ -3,9 +3,9 @@
 # Provenance-Generator: ts_to_metadata.js
 # Provenance-Generator-SHA256: b08a287a1319bc1e8ad7935882ce7229395b725f064fbc3128322bbf4b36695e
 # Provenance-TS-Source: test/mjsunit/compiler/type-injector/test-rawint32.ts
-# Provenance-TS-SHA256: ced5069ed26161ffefc52bf5b8555ddce96520d28fefa173ea81c027b99d21e8
+# Provenance-TS-SHA256: b3ecf8021bcf4c6eeb1953c81e907ceabb93809e1ef10fd3e7c028ca5fd62a92
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-04-05T09:27:49.929Z
+# Provenance-Generated-At: 2026-04-05T10:50:56.475Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0
@@ -14,10 +14,10 @@
 # Unsafe-As-Functions: 
 # Unsafe-TsIgnore-Functions: 
 # Source: test/mjsunit/compiler/type-injector/test-rawint32.js
-# JS SHA256: 028d4378d9aa704ec38ec2bf8755104bcbd6a5b7634e8174f177fe083b27ceb0
-# Entries-Selected: 38/38
-# Entries SHA256: 99e0bf4d3e7dd929fe79fa0ca72a4b6d286219dc0d2cdba1b396e8c55fb9ec8b
-# Provenance-Stamp: 2bbc4f3fa0e470742f3f7873fd4cf1f27537873942db08ffe6703c6ad3482b17
+# JS SHA256: 32c84c026c83f2a6ea3f81aa103aa15e43303d74582d2ed8bdd93ffdea0114e8
+# Entries-Selected: 41/41
+# Entries SHA256: 407af4622433c4d47b6b2fdb824e169d3c7cadc27bab21fe6f28723aed05dbba
+# Provenance-Stamp: 80e27f9257a05952a6956e6256eff7d2640265de87c0a777e61541018e6d6986
 
 173 @params any any @ret void  # prepare
 261 @params any any @ret void  # optimize
@@ -55,5 +55,8 @@
 8014 @params any rawuint32 @ret rawuint32  # modRawUint32Const
 8242 @params any rawint64 @ret rawint64  # divRawInt64Const
 8565 @params any rawint64 @ret rawint64  # modRawInt64Const
-8732 @params any rawuint64 @ret rawuint64  # divRawUint64Const
-9060 @params any rawuint64 @ret rawuint64  # modRawUint64Const
+8731 @params any rawint64 @ret rawint64  # addRawInt64Const
+8900 @params any rawint64 @ret rawint64  # subRawInt64Const
+9069 @params any rawint64 @ret rawint64  # mulRawInt64Const
+9239 @params any rawuint64 @ret rawuint64  # divRawUint64Const
+9567 @params any rawuint64 @ret rawuint64  # modRawUint64Const

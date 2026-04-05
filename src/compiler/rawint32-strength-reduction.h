@@ -44,6 +44,7 @@ class RawInt32StrengthReduction : private MetadataTypeHelper {
   bool ReduceCheckedInt32DivOrModClosed(Node* node, bool is_div);
   bool ReduceCheckedUint32DivOrModClosed(Node* node, bool is_div);
   bool ReduceCheckedInt64DivOrMod(Node* node, bool is_div);
+  bool ReduceCheckedTaggedSignedToInt32(Node* node);
   void MaybeChangeCheckedDivModOp(Node* node, const Operator* replacement_op,
                                   RawIntKind kind);
   bool ReduceRawFloat64DivOrMod(Node* node, bool is_div);

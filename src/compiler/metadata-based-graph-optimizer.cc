@@ -6,6 +6,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turbofan-graph.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/common/message-template.h"
 #include "src/objects/js-array.h"
 #include "src/runtime/runtime.h"
@@ -32,8 +33,48 @@ void MetadataBasedGraphOptimizer::Run() {
   }
 
   for (Node* node : all.reachable) {
+    OptimizeCheckedTaggedSignedToInt32(node);
+  }
+
+  for (Node* node : all.reachable) {
     OptimizeRawIntDivModZeroGuard(node);
   }
+}
+
+void MetadataBasedGraphOptimizer::OptimizeCheckedTaggedSignedToInt32(Node* node) {
+  if (node->opcode() != IrOpcode::kCheckedTaggedSignedToInt32) return;
+
+  Node* value_input = NodeProperties::GetValueInput(node, 0);
+  Type input_type = NodeProperties::GetType(value_input);
+  bool proven_smi = input_type.Is(Type::SignedSmall()) ||
+                    value_input->opcode() == IrOpcode::kCheckSmi;
+  if (!proven_smi) return;
+
+  Node* replacement = graph_->NewNode(simplified_->ChangeTaggedSignedToInt32(),
+                                      value_input);
+
+  Node* effect_input = NodeProperties::GetEffectInput(node);
+
+  ZoneVector<std::pair<Node*, int>> value_edges(graph_->zone());
+  ZoneVector<std::pair<Node*, int>> effect_edges(graph_->zone());
+  for (Edge edge : node->use_edges()) {
+    Node* use = edge.from();
+    int index = edge.index();
+    if (index < NodeProperties::FirstEffectIndex(use)) {
+      value_edges.push_back(std::make_pair(use, index));
+    } else if (NodeProperties::IsEffectEdge(edge)) {
+      effect_edges.push_back(std::make_pair(use, index));
+    }
+  }
+
+  for (auto& pair : value_edges) {
+    pair.first->ReplaceInput(pair.second, replacement);
+  }
+  for (auto& pair : effect_edges) {
+    pair.first->ReplaceInput(pair.second, effect_input);
+  }
+
+  node->Kill();
 }
 
 bool MetadataBasedGraphOptimizer::IsRawInt32Like(

@@ -311,6 +311,9 @@ Node* UnwrapConstantNode(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kChangeInt32ToInt64:
       case IrOpcode::kChangeUint32ToUint64:
+      case IrOpcode::kCheckBigInt:
+      case IrOpcode::kCheckedBigIntToBigInt64:
+      case IrOpcode::kTruncateBigIntToWord64:
       case IrOpcode::kCheckedUint32Bounds:
       case IrOpcode::kCheckedUint64Bounds:
       case IrOpcode::kCheckBounds:
@@ -346,6 +349,27 @@ bool TryGetInt64Literal(Node* node, int64_t* out) {
     default:
       return false;
   }
+}
+
+bool IsBigIntConstantThroughCheckedConversion(Node* node) {
+  bool saw_bigint_conversion = false;
+  while (node != nullptr) {
+    switch (node->opcode()) {
+      case IrOpcode::kCheckBigInt:
+      case IrOpcode::kCheckedBigIntToBigInt64:
+      case IrOpcode::kTruncateBigIntToWord64:
+        if (node->InputCount() == 0) return false;
+        saw_bigint_conversion = true;
+        node = node->InputAt(0);
+        continue;
+      case IrOpcode::kHeapConstant:
+      case IrOpcode::kCompressedHeapConstant:
+        return saw_bigint_conversion;
+      default:
+        return false;
+    }
+  }
+  return false;
 }
 
 bool TryGetFloat64IntegralConstant(Node* node, int64_t* out) {
@@ -427,6 +451,11 @@ bool RawInt32StrengthReduction::IsRawTyped(Node* node, RawIntKind kind) {
 
 bool RawInt32StrengthReduction::IsLiteralCompatible(Node* node,
                                                     RawIntKind kind) {
+  if ((kind == RawIntKind::kInt64 || kind == RawIntKind::kUint64) &&
+      IsBigIntConstantThroughCheckedConversion(node)) {
+    return true;
+  }
+
   int64_t value = 0;
   if (!TryGetInt64Literal(node, &value)) return false;
   switch (kind) {
@@ -529,6 +558,16 @@ bool RawInt32StrengthReduction::IsInt32SemanticNode(Node* node, int depth) {
       {
         Node* lhs = NodeProperties::GetValueInput(node, 0);
         Node* rhs = NodeProperties::GetValueInput(node, 1);
+
+        if (lhs->opcode() == IrOpcode::kPhi &&
+            IsInt32SemanticNode(rhs, depth + 1)) {
+          return true;
+        }
+        if (rhs->opcode() == IrOpcode::kPhi &&
+            IsInt32SemanticNode(lhs, depth + 1)) {
+          return true;
+        }
+
         int64_t lhs_literal = 0;
         int64_t rhs_literal = 0;
         bool lhs_is_literal = TryGetInt64Literal(lhs, &lhs_literal);
@@ -578,7 +617,7 @@ bool RawInt32StrengthReduction::IsInt32SemanticNode(Node* node, int depth) {
 
 namespace {
 
-bool IsMachineWord64Like(Node* node) {
+[[maybe_unused]] bool IsMachineWord64Like(Node* node) {
   node = UnwrapConstantNode(node);
   if (node == nullptr) return false;
   switch (node->opcode()) {
@@ -753,6 +792,48 @@ bool RawInt32StrengthReduction::ReduceCheckedInt64DivOrMod(Node* node,
   return false;
 }
 
+bool RawInt32StrengthReduction::ReduceCheckedTaggedSignedToInt32(Node* node) {
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Type input_type = NodeProperties::GetType(value);
+  bool proven_smi = input_type.Is(Type::SignedSmall()) ||
+                    value->opcode() == IrOpcode::kCheckSmi;
+  if (!IsRawTyped(value, RawIntKind::kInt32) || !proven_smi) {
+    return false;
+  }
+
+  Node* replacement = graph_->NewNode(simplified_->ChangeTaggedSignedToInt32(),
+                                      value);
+  AnnotateNode(replacement, MakeRawIntAst(RawIntKind::kInt32));
+
+  Node* effect_input = NodeProperties::GetEffectInput(node);
+  ZoneVector<std::pair<Node*, int>> value_edges(graph_->zone());
+  ZoneVector<std::pair<Node*, int>> effect_edges(graph_->zone());
+  for (Edge edge : node->use_edges()) {
+    Node* use = edge.from();
+    int index = edge.index();
+    if (index < NodeProperties::FirstEffectIndex(use)) {
+      value_edges.push_back(std::make_pair(use, index));
+    } else if (NodeProperties::IsEffectEdge(edge)) {
+      effect_edges.push_back(std::make_pair(use, index));
+    }
+  }
+
+  for (auto& pair : value_edges) {
+    pair.first->ReplaceInput(pair.second, replacement);
+  }
+  for (auto& pair : effect_edges) {
+    pair.first->ReplaceInput(pair.second, effect_input);
+  }
+
+  RAWINT32_SR_TRACE("replace %s#%d -> %s (kind=%s)",
+                    IrOpcode::Mnemonic(node->opcode()), node->id(),
+                    simplified_->ChangeTaggedSignedToInt32()->mnemonic(),
+                    RawIntKindName(RawIntKind::kInt32));
+
+  node->Kill();
+  return true;
+}
+
 void ReplaceCheckedWithValue(TFGraph* graph, Node* node, Node* replacement) {
   Node* effect_input = NodeProperties::GetEffectInput(node);
 
@@ -859,21 +940,57 @@ bool RawInt32StrengthReduction::ReduceRawFloat64DivOrMod(Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
+  RAWINT32_SR_TRACE(
+      "f64-%s-check node#%d left#%d(%s) right#%d(%s) start_pos=%d raw_proof=%d",
+      is_div ? "div" : "mod", node->id(), left != nullptr ? left->id() : -1,
+      left != nullptr ? IrOpcode::Mnemonic(left->opcode()) : "<null>",
+      right != nullptr ? right->id() : -1,
+      right != nullptr ? IrOpcode::Mnemonic(right->opcode()) : "<null>",
+      context_.current_start_pos(), CurrentFunctionHasRawProofAnnotation() ? 1 : 0);
+
   Node* left_unwrapped = UnwrapConstantNode(left);
   Node* right_unwrapped = UnwrapConstantNode(right);
-  if (left_unwrapped == nullptr || right_unwrapped == nullptr) return false;
+  RAWINT32_SR_TRACE(
+      "f64-%s-unwrapped node#%d left_unwrap#%d(%s) right_unwrap#%d(%s)",
+      is_div ? "div" : "mod", node->id(),
+      left_unwrapped != nullptr ? left_unwrapped->id() : -1,
+      left_unwrapped != nullptr ? IrOpcode::Mnemonic(left_unwrapped->opcode())
+                                : "<null>",
+      right_unwrapped != nullptr ? right_unwrapped->id() : -1,
+      right_unwrapped != nullptr ? IrOpcode::Mnemonic(right_unwrapped->opcode())
+                                 : "<null>");
+  if (left_unwrapped == nullptr || right_unwrapped == nullptr) {
+    RAWINT32_SR_TRACE("f64-%s-skip node#%d reason=unwrap-null",
+                      is_div ? "div" : "mod", node->id());
+    return false;
+  }
 
   int64_t rhs = 0;
-  if (!TryGetFloat64IntegralConstant(right, &rhs)) return false;
+  bool rhs_is_integral_const = TryGetFloat64IntegralConstant(right, &rhs);
+  if (!rhs_is_integral_const) {
+    RAWINT32_SR_TRACE("f64-%s-rhs-not-integral node#%d right#%d(%s)",
+                      is_div ? "div" : "mod", node->id(),
+                      right != nullptr ? right->id() : -1,
+                      right != nullptr ? IrOpcode::Mnemonic(right->opcode())
+                                       : "<null>");
+  } else {
+    RAWINT32_SR_TRACE("f64-%s-rhs-const node#%d rhs=%lld",
+                      is_div ? "div" : "mod", node->id(),
+                      static_cast<long long>(rhs));
+  }
 
-  if (IsRawTyped(left_unwrapped, RawIntKind::kInt32) &&
+  if (rhs_is_integral_const && IsRawTyped(left_unwrapped, RawIntKind::kInt32) &&
       rhs >= std::numeric_limits<int32_t>::min() &&
       rhs <= std::numeric_limits<int32_t>::max()) {
     int32_t rhs_i32_value = static_cast<int32_t>(rhs);
     if (rhs_i32_value == 0) {
+      RAWINT32_SR_TRACE("f64-%s-skip node#%d reason=i32-div-by-zero-const",
+                        is_div ? "div" : "mod", node->id());
       return false;
     }
     if (is_div && rhs_i32_value == std::numeric_limits<int32_t>::min()) {
+      RAWINT32_SR_TRACE("f64-%s-skip node#%d reason=i32-min-overflow-const",
+                        is_div ? "div" : "mod", node->id());
       return false;
     }
 
@@ -893,13 +1010,17 @@ bool RawInt32StrengthReduction::ReduceRawFloat64DivOrMod(Node* node,
     Node* replacement = graph_->NewNode(machine_->ChangeInt32ToFloat64(), result_i32);
 
     ReplaceValueUsesAndKill(graph_, node, replacement);
+    RAWINT32_SR_TRACE("f64-%s-replace node#%d path=i32-const", is_div ? "div" : "mod",
+                      node->id());
     return true;
   }
 
-  if (IsRawTyped(left_unwrapped, RawIntKind::kUint32) && rhs >= 0 &&
+  if (rhs_is_integral_const && IsRawTyped(left_unwrapped, RawIntKind::kUint32) && rhs >= 0 &&
       static_cast<uint64_t>(rhs) <= std::numeric_limits<uint32_t>::max()) {
     uint32_t rhs_u32_value = static_cast<uint32_t>(rhs);
     if (rhs_u32_value == 0) {
+      RAWINT32_SR_TRACE("f64-%s-skip node#%d reason=u32-div-by-zero-const",
+                        is_div ? "div" : "mod", node->id());
       return false;
     }
 
@@ -920,9 +1041,133 @@ bool RawInt32StrengthReduction::ReduceRawFloat64DivOrMod(Node* node,
     Node* replacement = graph_->NewNode(machine_->ChangeUint32ToFloat64(), result_u32);
 
     ReplaceValueUsesAndKill(graph_, node, replacement);
+    RAWINT32_SR_TRACE("f64-%s-replace node#%d path=u32-const", is_div ? "div" : "mod",
+                      node->id());
     return true;
   }
 
+    bool left_is_raw_i32 = IsRawTyped(left_unwrapped, RawIntKind::kInt32);
+    bool right_is_raw_i32 = IsRawTyped(right_unwrapped, RawIntKind::kInt32);
+    bool left_is_raw_u32 = IsRawTyped(left_unwrapped, RawIntKind::kUint32);
+    bool right_is_raw_u32 = IsRawTyped(right_unwrapped, RawIntKind::kUint32);
+    if (is_div && left_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      right_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      left_is_raw_i32 && right_is_raw_i32) {
+    Node* control_input = nullptr;
+    if (right_unwrapped->op()->ControlInputCount() > 0) {
+      control_input = NodeProperties::GetControlInput(right_unwrapped);
+    } else if (left_unwrapped->op()->ControlInputCount() > 0) {
+      control_input = NodeProperties::GetControlInput(left_unwrapped);
+    }
+    if (control_input == nullptr) {
+      control_input = graph_->start();
+    }
+
+    RAWINT32_SR_TRACE(
+        "f64-div-var-int32 node#%d control#%d(%s) left_ctrl_inputs=%d right_ctrl_inputs=%d",
+        node->id(), control_input != nullptr ? control_input->id() : -1,
+        control_input != nullptr ? IrOpcode::Mnemonic(control_input->opcode())
+                                 : "<null>",
+        left_unwrapped->op()->ControlInputCount(),
+        right_unwrapped->op()->ControlInputCount());
+
+    Node* lhs_i32 = graph_->NewNode(machine_->ChangeFloat64ToInt32(), left);
+    Node* rhs_i32 = graph_->NewNode(machine_->ChangeFloat64ToInt32(), right);
+    Node* result_i32 = BuildInt32VarDivClosed(graph_, machine_, common_,
+                                              lhs_i32, rhs_i32, control_input);
+    Node* replacement =
+        graph_->NewNode(machine_->ChangeInt32ToFloat64(), result_i32);
+
+    ReplaceValueUsesAndKill(graph_, node, replacement);
+    RAWINT32_SR_TRACE("f64-div-replace node#%d path=i32-var-closed", node->id());
+    return true;
+  }
+
+  if (is_div && left_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      right_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      (!left_is_raw_i32 || !right_is_raw_i32)) {
+    RAWINT32_SR_TRACE(
+        "f64-div-skip node#%d reason=var-i32-not-raw left_raw=%d right_raw=%d",
+        node->id(), left_is_raw_i32 ? 1 : 0, right_is_raw_i32 ? 1 : 0);
+  }
+
+  if (!is_div && left_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      right_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      left_is_raw_i32 && right_is_raw_i32) {
+    Node* control_input = nullptr;
+    if (right_unwrapped->op()->ControlInputCount() > 0) {
+      control_input = NodeProperties::GetControlInput(right_unwrapped);
+    } else if (left_unwrapped->op()->ControlInputCount() > 0) {
+      control_input = NodeProperties::GetControlInput(left_unwrapped);
+    }
+    if (control_input == nullptr) {
+      control_input = graph_->start();
+    }
+
+    RAWINT32_SR_TRACE(
+        "f64-mod-var-int32 node#%d control#%d(%s) left_ctrl_inputs=%d right_ctrl_inputs=%d",
+        node->id(), control_input != nullptr ? control_input->id() : -1,
+        control_input != nullptr ? IrOpcode::Mnemonic(control_input->opcode())
+                                 : "<null>",
+        left_unwrapped->op()->ControlInputCount(),
+        right_unwrapped->op()->ControlInputCount());
+
+    Node* lhs_i32 = graph_->NewNode(machine_->ChangeFloat64ToInt32(), left);
+    Node* rhs_i32 = graph_->NewNode(machine_->ChangeFloat64ToInt32(), right);
+    Node* result_i32 = BuildInt32VarModClosed(graph_, machine_, common_,
+                                              lhs_i32, rhs_i32, control_input);
+    Node* replacement =
+        graph_->NewNode(machine_->ChangeInt32ToFloat64(), result_i32);
+
+    ReplaceValueUsesAndKill(graph_, node, replacement);
+    RAWINT32_SR_TRACE("f64-mod-replace node#%d path=i32-var-closed", node->id());
+    return true;
+  }
+
+  if (!is_div && left_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      right_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      left_is_raw_u32 && right_is_raw_u32) {
+    Node* control_input = nullptr;
+    if (right_unwrapped->op()->ControlInputCount() > 0) {
+      control_input = NodeProperties::GetControlInput(right_unwrapped);
+    } else if (left_unwrapped->op()->ControlInputCount() > 0) {
+      control_input = NodeProperties::GetControlInput(left_unwrapped);
+    }
+    if (control_input == nullptr) {
+      control_input = graph_->start();
+    }
+
+    RAWINT32_SR_TRACE(
+        "f64-mod-var-uint32 node#%d control#%d(%s) left_ctrl_inputs=%d right_ctrl_inputs=%d",
+        node->id(), control_input != nullptr ? control_input->id() : -1,
+        control_input != nullptr ? IrOpcode::Mnemonic(control_input->opcode())
+                                 : "<null>",
+        left_unwrapped->op()->ControlInputCount(),
+        right_unwrapped->op()->ControlInputCount());
+
+    Node* lhs_u32 = graph_->NewNode(machine_->ChangeFloat64ToUint32(), left);
+    Node* rhs_u32 = graph_->NewNode(machine_->ChangeFloat64ToUint32(), right);
+    Node* result_u32 = BuildUint32VarModClosed(graph_, machine_, common_,
+                                               lhs_u32, rhs_u32, control_input);
+    Node* replacement =
+        graph_->NewNode(machine_->ChangeUint32ToFloat64(), result_u32);
+
+    ReplaceValueUsesAndKill(graph_, node, replacement);
+    RAWINT32_SR_TRACE("f64-mod-replace node#%d path=u32-var-closed", node->id());
+    return true;
+  }
+
+  if (!is_div && left_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      right_unwrapped->opcode() == IrOpcode::kCheckedTaggedToFloat64 &&
+      (!left_is_raw_i32 || !right_is_raw_i32) &&
+      (!left_is_raw_u32 || !right_is_raw_u32)) {
+    RAWINT32_SR_TRACE(
+        "f64-mod-skip node#%d reason=var-mod-not-raw left_i32=%d right_i32=%d left_u32=%d right_u32=%d",
+        node->id(), left_is_raw_i32 ? 1 : 0, right_is_raw_i32 ? 1 : 0,
+        left_is_raw_u32 ? 1 : 0, right_is_raw_u32 ? 1 : 0);
+  }
+
+  RAWINT32_SR_TRACE("f64-%s-no-match node#%d", is_div ? "div" : "mod", node->id());
   return false;
 }
 
@@ -946,6 +1191,9 @@ void RawInt32StrengthReduction::Run() {
 
     for (Node* node : all.reachable) {
       switch (node->opcode()) {
+        case IrOpcode::kCheckedTaggedSignedToInt32:
+          changed |= ReduceCheckedTaggedSignedToInt32(node);
+          break;
         case IrOpcode::kCheckedInt32Add:
           checked_i32_add_seen++;
           if (ReduceCheckedBinop(node, machine_->Int32Add(),
@@ -983,17 +1231,13 @@ void RawInt32StrengthReduction::Run() {
           changed |= ReduceCheckedUint32DivOrModClosed(node, false);
           break;
         case IrOpcode::kCheckedInt64Add:
-          if (IsMachineWord64Like(node->InputAt(0)) &&
-              IsMachineWord64Like(node->InputAt(1)) &&
-              IsTypeOrLiteralCompatible(node->InputAt(0),
+          if (IsTypeOrLiteralCompatible(node->InputAt(0),
                                         RawIntKind::kInt64) &&
               IsTypeOrLiteralCompatible(node->InputAt(1),
                                         RawIntKind::kInt64)) {
             changed |= ReduceCheckedBinop(node, machine_->Int64Add(),
                                           RawIntKind::kInt64);
-          } else if (IsMachineWord64Like(node->InputAt(0)) &&
-                     IsMachineWord64Like(node->InputAt(1)) &&
-                     IsTypeOrLiteralCompatible(node->InputAt(0),
+          } else if (IsTypeOrLiteralCompatible(node->InputAt(0),
                                                RawIntKind::kUint64) &&
                      IsTypeOrLiteralCompatible(node->InputAt(1),
                                                RawIntKind::kUint64)) {
@@ -1002,17 +1246,13 @@ void RawInt32StrengthReduction::Run() {
           }
           break;
         case IrOpcode::kCheckedInt64Sub:
-          if (IsMachineWord64Like(node->InputAt(0)) &&
-              IsMachineWord64Like(node->InputAt(1)) &&
-              IsTypeOrLiteralCompatible(node->InputAt(0),
+          if (IsTypeOrLiteralCompatible(node->InputAt(0),
                                         RawIntKind::kInt64) &&
               IsTypeOrLiteralCompatible(node->InputAt(1),
                                         RawIntKind::kInt64)) {
             changed |= ReduceCheckedBinop(node, machine_->Int64Sub(),
                                           RawIntKind::kInt64);
-          } else if (IsMachineWord64Like(node->InputAt(0)) &&
-                     IsMachineWord64Like(node->InputAt(1)) &&
-                     IsTypeOrLiteralCompatible(node->InputAt(0),
+          } else if (IsTypeOrLiteralCompatible(node->InputAt(0),
                                                RawIntKind::kUint64) &&
                      IsTypeOrLiteralCompatible(node->InputAt(1),
                                                RawIntKind::kUint64)) {
@@ -1021,17 +1261,13 @@ void RawInt32StrengthReduction::Run() {
           }
           break;
         case IrOpcode::kCheckedInt64Mul:
-          if (IsMachineWord64Like(node->InputAt(0)) &&
-              IsMachineWord64Like(node->InputAt(1)) &&
-              IsTypeOrLiteralCompatible(node->InputAt(0),
+          if (IsTypeOrLiteralCompatible(node->InputAt(0),
                                         RawIntKind::kInt64) &&
               IsTypeOrLiteralCompatible(node->InputAt(1),
                                         RawIntKind::kInt64)) {
             changed |= ReduceCheckedBinop(node, machine_->Int64Mul(),
                                           RawIntKind::kInt64);
-          } else if (IsMachineWord64Like(node->InputAt(0)) &&
-                     IsMachineWord64Like(node->InputAt(1)) &&
-                     IsTypeOrLiteralCompatible(node->InputAt(0),
+          } else if (IsTypeOrLiteralCompatible(node->InputAt(0),
                                                RawIntKind::kUint64) &&
                      IsTypeOrLiteralCompatible(node->InputAt(1),
                                                RawIntKind::kUint64)) {
@@ -1053,9 +1289,13 @@ void RawInt32StrengthReduction::Run() {
     for (Node* node : all.reachable) {
       switch (node->opcode()) {
         case IrOpcode::kFloat64Div:
+          RAWINT32_SR_TRACE("run round=%d visit Float64Div node#%d start_pos=%d",
+                            round, node->id(), context_.current_start_pos());
           changed |= ReduceRawFloat64DivOrMod(node, true);
           break;
         case IrOpcode::kFloat64Mod:
+          RAWINT32_SR_TRACE("run round=%d visit Float64Mod node#%d start_pos=%d",
+                            round, node->id(), context_.current_start_pos());
           changed |= ReduceRawFloat64DivOrMod(node, false);
           break;
         default:
