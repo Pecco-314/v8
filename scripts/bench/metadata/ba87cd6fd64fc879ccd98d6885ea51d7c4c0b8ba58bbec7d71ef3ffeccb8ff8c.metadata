@@ -5,7 +5,7 @@
 # Provenance-TS-Source: tmp/bench/preprocessed/image-convolution.locals.ts
 # Provenance-TS-SHA256: 108dd1f4f80061ab820e207f2cdc0890e9f0f18383f23c517320d3a462b7c762
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-04-02T01:55:44.795Z
+# Provenance-Generated-At: 2026-04-02T03:18:55.742Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0

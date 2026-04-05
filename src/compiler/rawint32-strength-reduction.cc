@@ -394,6 +394,9 @@ bool RawInt32StrengthReduction::IsRawTyped(Node* node, RawIntKind kind) {
       case IrOpcode::kChangeInt32ToFloat64:
       case IrOpcode::kChangeUint32ToFloat64:
       case IrOpcode::kChangeFloat64ToTagged:
+      case IrOpcode::kCheckBigInt:
+      case IrOpcode::kCheckedBigIntToBigInt64:
+      case IrOpcode::kTruncateBigIntToWord64:
       case IrOpcode::kCheckedUint32Bounds:
       case IrOpcode::kCheckedUint64Bounds:
       case IrOpcode::kCheckBounds:
@@ -685,29 +688,56 @@ bool RawInt32StrengthReduction::ReduceCheckedInt64DivOrMod(Node* node,
                                                             bool is_div) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
+  Node* control_input = NodeProperties::GetControlInput(node);
+
+  auto replace_checked_divmod = [&](const Operator* replacement_op,
+                                    RawIntKind kind) {
+    Node* effect_input = NodeProperties::GetEffectInput(node);
+    Node* replacement = graph_->NewNode(replacement_op, left, right, control_input);
+    AnnotateNode(replacement, MakeRawIntAst(kind));
+
+    ZoneVector<std::pair<Node*, int>> value_edges(graph_->zone());
+    ZoneVector<std::pair<Node*, int>> effect_edges(graph_->zone());
+    for (Edge edge : node->use_edges()) {
+      Node* use = edge.from();
+      int index = edge.index();
+      if (index < NodeProperties::FirstEffectIndex(use)) {
+        value_edges.push_back(std::make_pair(use, index));
+      } else if (NodeProperties::IsEffectEdge(edge)) {
+        effect_edges.push_back(std::make_pair(use, index));
+      }
+    }
+
+    for (auto& pair : value_edges) {
+      pair.first->ReplaceInput(pair.second, replacement);
+    }
+    for (auto& pair : effect_edges) {
+      pair.first->ReplaceInput(pair.second, effect_input);
+    }
+
+    RAWINT32_SR_DEBUG("replace %s#%d -> %s (kind=%s)",
+                      IrOpcode::Mnemonic(node->opcode()), node->id(),
+                      replacement_op->mnemonic(), RawIntKindName(kind));
+    RAWINT32_SR_TRACE("replace %s#%d -> %s (kind=%s)",
+                      IrOpcode::Mnemonic(node->opcode()), node->id(),
+                      replacement_op->mnemonic(), RawIntKindName(kind));
+
+    node->Kill();
+    return true;
+  };
 
   if (IsTypeOrLiteralCompatible(left, RawIntKind::kUint64) &&
       IsTypeOrLiteralCompatible(right, RawIntKind::kUint64)) {
-    NodeProperties::ChangeOp(node,
-                             is_div ? machine_->Uint64Div()
-                                    : machine_->Uint64Mod());
-    AnnotateNode(node, MakeRawIntAst(RawIntKind::kUint64));
-    RAWINT32_SR_DEBUG("replace %s#%d -> %s (kind=rawuint64)",
-                      IrOpcode::Mnemonic(node->opcode()), node->id(),
-                      is_div ? "Uint64Div" : "Uint64Mod");
-    return true;
+    return replace_checked_divmod(
+        is_div ? machine_->Uint64Div() : machine_->Uint64Mod(),
+        RawIntKind::kUint64);
   }
 
   if (IsTypeOrLiteralCompatible(left, RawIntKind::kInt64) &&
       IsTypeOrLiteralCompatible(right, RawIntKind::kInt64)) {
-    NodeProperties::ChangeOp(node,
-                             is_div ? machine_->Int64Div()
-                                    : machine_->Int64Mod());
-    AnnotateNode(node, MakeRawIntAst(RawIntKind::kInt64));
-    RAWINT32_SR_DEBUG("replace %s#%d -> %s (kind=rawint64)",
-                      IrOpcode::Mnemonic(node->opcode()), node->id(),
-                      is_div ? "Int64Div" : "Int64Mod");
-    return true;
+    return replace_checked_divmod(
+        is_div ? machine_->Int64Div() : machine_->Int64Mod(),
+        RawIntKind::kInt64);
   }
 
   auto left_type = GetNodeTypeAST(left);

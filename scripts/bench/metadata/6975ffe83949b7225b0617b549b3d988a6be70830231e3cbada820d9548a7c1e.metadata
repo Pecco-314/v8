@@ -5,7 +5,7 @@
 # Provenance-TS-Source: tmp/bench/preprocessed/n-body.locals.ts
 # Provenance-TS-SHA256: 2b8bda21cf05f3eb19794dc2da3786e1d15128823413eeb8bd9485303b3be1d9
 # Provenance-TSC-Version: Version 5.9.3
-# Provenance-Generated-At: 2026-04-01T22:33:35.798Z
+# Provenance-Generated-At: 2026-04-02T03:30:43.442Z
 # Unsafe-Policy: conservative-default
 # Unsafe-Detection: as-expression,ts-ignore
 # Unsafe-Detected-Count: 0

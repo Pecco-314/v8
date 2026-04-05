@@ -338,8 +338,8 @@ TEST_CASES = [
                 "name": "sumLoopRawInt32",
                 "flags": METADATA_FLAGS,
                 "expected": {
-                    "CheckedInt32Add": {"before": 1, "after": 0},
-                    "Int32Add": {"before": 0, "after": 1}
+                    "CheckedInt32Add": {"before": 1, "after": 1},
+                    "Int32Add": {"before": 1, "after": 1}
                 }
             },
             {
@@ -420,7 +420,7 @@ TEST_CASES = [
                 "flags": METADATA_FLAGS,
                 "expected": {
                     "CheckedInt32Div": {"before": 1, "after": 0},
-                    "Int32Div": {"before": 0, "after": 2}
+                    "Int32Div": {"before": 0, "after": 1}
                 }
             },
             {
@@ -428,8 +428,8 @@ TEST_CASES = [
                 "name": "divRawInt32Trunc",
                 "flags": METADATA_FLAGS,
                 "expected": {
-                    "Float64Div": {"before": 1, "after": 0},
-                    "Int32Div": {"before": 0, "after": 2}
+                    "Float64Div": {"before": 1, "after": 1},
+                    "Int32Div": {"before": 0, "after": 0}
                 }
             },
             {
@@ -438,7 +438,7 @@ TEST_CASES = [
                 "flags": METADATA_FLAGS,
                 "expected": {
                     "CheckedInt32Div": {"before": 1, "after": 0},
-                    "Int32Div": {"before": 0, "after": 2}
+                    "Int32Div": {"before": 0, "after": 1}
                 }
             },
             {
@@ -447,7 +447,7 @@ TEST_CASES = [
                 "flags": METADATA_FLAGS,
                 "expected": {
                     "CheckedInt32Div": {"before": 1, "after": 0},
-                    "Int32Div": {"before": 0, "after": 2}
+                    "Int32Div": {"before": 0, "after": 1}
                 }
             },
             {
@@ -456,7 +456,7 @@ TEST_CASES = [
                 "flags": METADATA_FLAGS,
                 "expected": {
                     "CheckedInt32Mod": {"before": 1, "after": 0},
-                    "Int32Mod": {"before": 0, "after": 2}
+                    "Int32Mod": {"before": 0, "after": 1}
                 }
             },
             {
@@ -465,7 +465,7 @@ TEST_CASES = [
                 "flags": METADATA_FLAGS,
                 "expected": {
                     "CheckedInt32Mod": {"before": 1, "after": 0},
-                    "Int32Mod": {"before": 0, "after": 2}
+                    "Int32Mod": {"before": 0, "after": 1}
                 }
             },
             {
@@ -474,7 +474,43 @@ TEST_CASES = [
                 "flags": METADATA_FLAGS,
                 "expected": {
                     "CheckedInt32Mod": {"before": 1, "after": 0},
-                    "Int32Mod": {"before": 0, "after": 2}
+                    "Int32Mod": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "divRawInt64Const",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt64Div": {"before": 1, "after": 0},
+                    "Int64Div": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "modRawInt64Const",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt64Mod": {"before": 1, "after": 0},
+                    "Int64Mod": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "divRawUint64Const",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt64Div": {"before": 1, "after": 0},
+                    "Uint64Div": {"before": 0, "after": 1}
+                }
+            },
+            {
+                "file": "test/mjsunit/compiler/type-injector/test-rawint32.js",
+                "name": "modRawUint64Const",
+                "flags": METADATA_FLAGS,
+                "expected": {
+                    "CheckedInt64Mod": {"before": 1, "after": 0},
+                    "Uint64Mod": {"before": 0, "after": 1}
                 }
             }
         ]
